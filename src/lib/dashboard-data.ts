@@ -132,12 +132,14 @@ export async function getDashboardData(
 
   const matchesTenant = (item: Record<string, unknown>): boolean => {
     if (targetOrgId) {
-      const org = item.organization_id || item.org_id || item.orgId || "org-ui-bem";
-      if (org !== targetOrgId) return false;
+      const org = item.organization_id || item.org_id || item.orgId || "org-undiksha-bem";
+      const isLegacyOrg = (!item.organization_id && !item.org_id && !item.orgId) && (targetOrgId === "org-undiksha-bem" || targetOrgId === "org-ui-bem");
+      if (org !== targetOrgId && !isLegacyOrg) return false;
     }
     if (targetCampusId) {
-      const campus = item.campus_id || item.campusId || item.univ_id || item.univId || "ui";
-      if (campus !== targetCampusId) return false;
+      const campus = item.campus_id || item.campusId || item.univ_id || item.univId || "univ-undiksha";
+      const isLegacyCampus = (!item.campus_id && !item.campusId && !item.univ_id && !item.univId) && (targetCampusId === "univ-undiksha" || targetCampusId === "univ-ui");
+      if (campus !== targetCampusId && !isLegacyCampus) return false;
     }
     return true;
   };

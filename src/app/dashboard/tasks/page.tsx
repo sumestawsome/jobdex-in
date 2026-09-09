@@ -179,6 +179,7 @@ export default function TasksPage() {
       const matchesWorkspace =
         !taskOrgId ||
         taskOrgId === activeWorkspace.org_id ||
+        activeWorkspace.org_id === "org-undiksha-bem" ||
         activeWorkspace.org_id === "org-ui-bem";
 
       return (

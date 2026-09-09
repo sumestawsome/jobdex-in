@@ -217,7 +217,9 @@ function MembersManagement() {
         <div className="rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total anggota</p>
           <p className="text-2xl font-bold text-slate-950 dark:text-slate-50">
-            {activeWorkspace.org_id === "org-ui-bem" ? filteredMembers.length : activeOrmawa.member_count}
+            {(activeWorkspace.org_id === "org-undiksha-bem" || activeWorkspace.org_id === "org-ui-bem")
+              ? filteredMembers.length
+              : activeOrmawa.member_count}
           </p>
         </div>
       </section>

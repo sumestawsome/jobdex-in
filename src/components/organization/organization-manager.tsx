@@ -50,6 +50,7 @@ export function OrganizationManager() {
   const [ormawas, setOrmawas] = useState<Ormawa[]>(DUMMY_ORMAWAS);
   const [divisionsMap, setDivisionsMap] = useState<Record<string, DivisionItem[]>>({
     [activeWorkspace.org_id]: DUMMY_DEFAULT_DIVISIONS,
+    "org-undiksha-bem": DUMMY_DEFAULT_DIVISIONS,
     "org-ui-bem": DUMMY_DEFAULT_DIVISIONS,
   });
   const [editingDivision, setEditingDivision] = useState<DivisionItem | null>(null);
@@ -162,7 +163,7 @@ export function OrganizationManager() {
 
     const confirmed = await showConfirm({
       title: "Migrasi Data Organisasi",
-      text: "Apakah Anda yakin ingin memigrasikan data lama ke hierarki Universitas Indonesia & BEM UI serta mengisolasi relasi ormawa?",
+      text: "Apakah Anda yakin ingin memigrasikan data lama ke hierarki Universitas Pendidikan Ganesha (Undiksha) & BEM Undiksha serta mengisolasi relasi ormawa?",
       confirmButtonText: "Ya, Jalankan Migrasi",
       cancelButtonText: "Batal",
     });

@@ -2,6 +2,13 @@ import type { Campus, Ormawa, ActiveWorkspace } from "@/types/workspace";
 
 export const DUMMY_CAMPUSES: Campus[] = [
   {
+    id: "univ-undiksha",
+    name: "Universitas Pendidikan Ganesha",
+    code: "UNDIKSHA",
+    city: "Singaraja, Bali",
+    ormawa_count: 4,
+  },
+  {
     id: "univ-ui",
     name: "Universitas Indonesia",
     code: "UI",
@@ -32,6 +39,54 @@ export const DUMMY_CAMPUSES: Campus[] = [
 ];
 
 export const DUMMY_ORMAWAS: Ormawa[] = [
+  {
+    id: "org-undiksha-bem",
+    campus_id: "univ-undiksha",
+    name: "BEM REMA Undiksha",
+    short_name: "BEM Undiksha",
+    type: "BEM",
+    description: "Badan Eksekutif Mahasiswa Republik Mahasiswa Undiksha koordinator kegiatan mahasiswa dan publikasi kampus.",
+    member_count: 145,
+    active_event_count: 5,
+    active_task_count: 32,
+    is_active: true,
+  },
+  {
+    id: "org-undiksha-forkom-kip",
+    campus_id: "univ-undiksha",
+    name: "Forum Komunikasi KIP-Kuliah Undiksha",
+    short_name: "Forkom KIP Undiksha",
+    type: "UKM",
+    description: "Organisasi kemahasiswaan penerima KIP-Kuliah di lingkungan Universitas Pendidikan Ganesha.",
+    member_count: 110,
+    active_event_count: 3,
+    active_task_count: 18,
+    is_active: true,
+  },
+  {
+    id: "org-undiksha-hmj-ti",
+    campus_id: "univ-undiksha",
+    name: "HMJ Teknik Informatika Undiksha",
+    short_name: "HMJ TI Undiksha",
+    type: "HMJ",
+    description: "Himpunan Mahasiswa Jurusan Teknik Informatika Fakultas Teknik dan Kejuruan Undiksha.",
+    member_count: 95,
+    active_event_count: 4,
+    active_task_count: 24,
+    is_active: true,
+  },
+  {
+    id: "org-undiksha-dpm",
+    campus_id: "univ-undiksha",
+    name: "Dewan Perwakilan Mahasiswa Undiksha",
+    short_name: "DPM Undiksha",
+    type: "DPM",
+    description: "Lembaga legislatif mahasiswa di lingkungan Universitas Pendidikan Ganesha.",
+    member_count: 45,
+    active_event_count: 2,
+    active_task_count: 10,
+    is_active: true,
+  },
   {
     id: "org-ui-bem",
     campus_id: "univ-ui",
@@ -191,15 +246,15 @@ export const DUMMY_ORMAWAS: Ormawa[] = [
 ];
 
 export const DEFAULT_ACTIVE_WORKSPACE: ActiveWorkspace = {
-  campus_id: "univ-ui",
-  campusId: "univ-ui",
-  univ_id: "univ-ui",
-  univId: "univ-ui",
-  campus_name: "Universitas Indonesia",
-  campus_code: "UI",
-  org_id: "org-ui-bem",
-  orgId: "org-ui-bem",
-  org_name: "Badan Eksekutif Mahasiswa UI",
+  campus_id: "univ-undiksha",
+  campusId: "univ-undiksha",
+  univ_id: "univ-undiksha",
+  univId: "univ-undiksha",
+  campus_name: "Universitas Pendidikan Ganesha",
+  campus_code: "UNDIKSHA",
+  org_id: "org-undiksha-bem",
+  orgId: "org-undiksha-bem",
+  org_name: "BEM REMA Undiksha",
   org_type: "BEM",
 };
 
@@ -232,6 +287,63 @@ export interface DummyWorkspaceEvent {
 }
 
 export const DUMMY_WORKSPACE_TASKS: DummyWorkspaceTask[] = [
+  // UNDIKSHA BEM Tasks
+  {
+    id: "dummy-task-undiksha-1",
+    campus_id: "univ-undiksha",
+    univ_id: "univ-undiksha",
+    org_id: "org-undiksha-bem",
+    organization_id: "org-undiksha-bem",
+    name: "Desain Konten Feed Instagram Dies Natalis Undiksha",
+    type: "acara",
+    status: "in_progress",
+    priority: "high",
+    pic_name: "Putu Agus",
+    division_name: "Humas & Media Kreatif",
+    deadline: "2026-09-15",
+  },
+  {
+    id: "dummy-task-undiksha-2",
+    campus_id: "univ-undiksha",
+    univ_id: "univ-undiksha",
+    org_id: "org-undiksha-bem",
+    organization_id: "org-undiksha-bem",
+    name: "Dokumentasi & Live Report Seminar Nasional Undiksha",
+    type: "acara",
+    status: "todo",
+    priority: "medium",
+    pic_name: "Kadek Widi",
+    division_name: "Humas & Media Kreatif",
+    deadline: "2026-09-18",
+  },
+  {
+    id: "dummy-task-undiksha-3",
+    campus_id: "univ-undiksha",
+    univ_id: "univ-undiksha",
+    org_id: "org-undiksha-bem",
+    organization_id: "org-undiksha-bem",
+    name: "Publikasi Press Release Kegiatan Pengabdian Mahasiswa",
+    type: "divisi",
+    status: "review",
+    priority: "high",
+    pic_name: "Komang Ayu",
+    division_name: "Humas & Media Kreatif",
+    deadline: "2026-09-12",
+  },
+  {
+    id: "dummy-task-undiksha-4",
+    campus_id: "univ-undiksha",
+    univ_id: "univ-undiksha",
+    org_id: "org-undiksha-bem",
+    organization_id: "org-undiksha-bem",
+    name: "Penyusunan Jadwal Konten Media Sosial Bulanan Undiksha",
+    type: "divisi",
+    status: "done",
+    priority: "medium",
+    pic_name: "Ketut Artana",
+    division_name: "Humas & Media Kreatif",
+    deadline: "2026-09-08",
+  },
   // UI BEM Tasks
   {
     id: "dummy-task-ui-1",
@@ -365,6 +477,31 @@ export const DUMMY_WORKSPACE_TASKS: DummyWorkspaceTask[] = [
 ];
 
 export const DUMMY_WORKSPACE_EVENTS: DummyWorkspaceEvent[] = [
+  // UNDIKSHA BEM
+  {
+    id: "dummy-event-undiksha-1",
+    campus_id: "univ-undiksha",
+    univ_id: "univ-undiksha",
+    org_id: "org-undiksha-bem",
+    organization_id: "org-undiksha-bem",
+    name: "Dies Natalis & Ganesha Festival Undiksha",
+    description: "Perayaan Dies Natalis Universitas Pendidikan Ganesha dengan panggung seni dan lomba nasional.",
+    status: "berlangsung",
+    event_date: "2026-09-25",
+    progress_percentage: 70,
+  },
+  {
+    id: "dummy-event-undiksha-2",
+    campus_id: "univ-undiksha",
+    univ_id: "univ-undiksha",
+    org_id: "org-undiksha-bem",
+    organization_id: "org-undiksha-bem",
+    name: "Undiksha Mengabdi & Bakti Sosial",
+    description: "Program pengabdian sosial kemahasiswaan terpadu di desa binaan Kabupaten Buleleng.",
+    status: "persiapan",
+    event_date: "2026-10-15",
+    progress_percentage: 40,
+  },
   // UI BEM
   {
     id: "dummy-event-ui-1",

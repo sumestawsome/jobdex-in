@@ -5,21 +5,21 @@ import { syncUserClaims } from "@/lib/server/auth";
 import { DEFAULT_CORE_DIVISIONS } from "@/lib/workspace-schema";
 
 export const TARGET_DEFAULT_CAMPUS = {
-  id: "univ-ui",
-  name: "Universitas Indonesia",
-  code: "UI",
-  city: "Depok, Jawa Barat",
+  id: "univ-undiksha",
+  name: "Universitas Pendidikan Ganesha",
+  code: "UNDIKSHA",
+  city: "Singaraja, Bali",
   ormawa_count: 4,
 };
 
 export const TARGET_DEFAULT_ORMAWA = {
-  id: "org-ui-bem",
-  campus_id: "univ-ui",
-  univ_id: "univ-ui",
-  name: "Badan Eksekutif Mahasiswa UI",
-  short_name: "BEM UI",
+  id: "org-undiksha-bem",
+  campus_id: "univ-undiksha",
+  univ_id: "univ-undiksha",
+  name: "BEM REMA Undiksha",
+  short_name: "BEM Undiksha",
   type: "BEM" as const,
-  description: "Lembaga eksekutif mahasiswa tingkat universitas penanggung jawab program kerja terpadu UI.",
+  description: "Lembaga eksekutif mahasiswa tingkat universitas penanggung jawab program kerja terpadu Undiksha.",
   is_active: true,
   member_count: 0,
   active_event_count: 0,
