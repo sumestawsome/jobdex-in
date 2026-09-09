@@ -8,6 +8,7 @@ import { getDateInputValue } from "@/lib/firebase/events";
 import { NeoDatePicker } from "@/components/ui/neo-date-picker";
 import { X, Save, ChevronDown, ChevronUp, Palette } from "lucide-react";
 import { parseLinksFromTextarea, formatLinksToTextarea } from "@/lib/link-utils";
+import { useWorkspace } from "@/hooks/use-workspace";
 import type { Event, EventInput, EventStatus, UserProfile, EventMember } from "@/types";
 
 type EventFormDialogProps = {
@@ -44,6 +45,7 @@ function EventForm({
   users,
   eventMembers,
 }: EventFormDialogProps) {
+  const { activeWorkspace } = useWorkspace();
   const [name, setName] = useState(event?.name ?? "");
   const [description, setDescription] = useState(event?.description ?? "");
   const [eventDate, setEventDate] = useState(
@@ -136,6 +138,13 @@ function EventForm({
 
       await onSave(
         {
+          organization_id: activeWorkspace.org_id,
+          org_id: activeWorkspace.org_id,
+          orgId: activeWorkspace.org_id,
+          campus_id: activeWorkspace.campus_id,
+          campusId: activeWorkspace.campus_id,
+          univ_id: activeWorkspace.campus_id,
+          univId: activeWorkspace.campus_id,
           name: name.trim(),
           description: description.trim(),
           event_date: eventDate,

@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { USER_ROLE_LABELS } from "@/lib/roles";
-import { Camera, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Camera, CheckCircle2, XCircle, Loader2, UploadCloud } from "lucide-react";
 
 const divisionLabels: Record<string, string> = {
   humas_media_kreatif: "Humas dan Media Kreatif",
@@ -182,21 +184,31 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div>
+            <div className="flex-1 min-w-0">
               <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">
                 Informasi Akun
               </CardTitle>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Verifikasi data divisi &amp; otorisasi peran
               </p>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="mt-1.5 text-xs font-medium text-sky-600 hover:text-sky-700 disabled:opacity-50 transition-colors"
-              >
-                {uploading ? "Mengupload..." : "Ganti foto profil"}
-              </button>
+              <div className="mt-2 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="text-xs font-medium text-sky-600 hover:text-sky-700 disabled:opacity-50 transition-colors"
+                >
+                  {uploading ? "Mengupload..." : "Ganti cepat"}
+                </button>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <Link
+                  href="/dashboard/profile/avatar"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                >
+                  <UploadCloud className="size-3.5" />
+                  <span>Halaman Unggah Avatar</span>
+                </Link>
+              </div>
             </div>
           </div>
         </CardHeader>

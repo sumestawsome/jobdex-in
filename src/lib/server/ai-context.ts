@@ -88,6 +88,24 @@ async function getEventsById(eventIds: string[]) {
   );
 }
 
+function matchesProfileTenant(
+  item: Record<string, unknown>,
+  profile: UserProfile
+): boolean {
+  const targetOrgId = profile.organization_id || profile.org_id;
+  const targetCampusId = profile.campus_id || profile.univ_id;
+
+  if (targetOrgId) {
+    const org = item.organization_id || item.org_id || item.orgId || "org-ui-bem";
+    if (org !== targetOrgId) return false;
+  }
+  if (targetCampusId) {
+    const campus = item.campus_id || item.campusId || item.univ_id || item.univId || "ui";
+    if (campus !== targetCampusId) return false;
+  }
+  return true;
+}
+
 async function getVisibleTasks(profile: UserProfile, eventId?: string) {
   const snapshot = await getAdminDb().collection("tasks").get();
   const tasks = snapshot.docs.map((item) => ({
@@ -97,6 +115,7 @@ async function getVisibleTasks(profile: UserProfile, eventId?: string) {
 
   return tasks
     .filter((task) => !task.is_archived)
+    .filter((task) => matchesProfileTenant(task as unknown as Record<string, unknown>, profile))
     .filter((task) => {
       if (eventId && task.event_id !== eventId) {
         return false;
@@ -122,19 +141,20 @@ async function getVisibleEvents(profile: UserProfile) {
     ...item.data(),
   })) as Event[];
 
-  // Return all non-archived events so AI can answer general event questions for any role
-  return events;
+  return events.filter((e) => matchesProfileTenant(e as unknown as Record<string, unknown>, profile));
 }
 
-async function getDesignReferencesSummary() {
+async function getDesignReferencesSummary(profile: UserProfile) {
   const snapshot = await getAdminDb()
     .collection("design_references")
     .where("is_archived", "==", false)
     .get();
-  const references = snapshot.docs.map((item) => ({
-    id: item.id,
-    ...item.data(),
-  })) as DesignReference[];
+  const references = snapshot.docs
+    .map((item) => ({
+      id: item.id,
+      ...item.data(),
+    }) as DesignReference)
+    .filter((ref) => matchesProfileTenant(ref as unknown as Record<string, unknown>, profile));
 
   return references.slice(0, 20).map((reference) =>
     [
@@ -154,7 +174,7 @@ export async function buildAIContext({ profile, eventId }: BuildAIContextInput) 
   const [tasks, events, referencesSummary] = await Promise.all([
     getVisibleTasks(profile, eventId),
     getVisibleEvents(profile),
-    getDesignReferencesSummary().catch(() => []),
+    getDesignReferencesSummary(profile).catch(() => []),
   ]);
   const usersById = await getUsersById([
     ...tasks.map((task) => task.pic_id),

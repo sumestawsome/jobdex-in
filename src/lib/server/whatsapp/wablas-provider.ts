@@ -7,13 +7,23 @@ function normalizeBaseUrl(value: string) {
   return value.replace(/\/$/, "");
 }
 
-export async function sendViaWablas(payload: WhatsAppSendPayload): Promise<WhatsAppSendResult> {
-  const apiUrl = process.env.WABLAS_API_URL;
-  const token = process.env.WABLAS_API_TOKEN;
-  const secret = process.env.WABLAS_SECRET_KEY;
-  const deviceId = process.env.WABLAS_DEVICE_ID;
+export type WablasCredentials = {
+  apiUrl?: string;
+  token: string;
+  secret?: string;
+  deviceId?: string;
+};
 
-  if (process.env.WABLAS_ENABLED === "false") {
+export async function sendViaWablas(
+  payload: WhatsAppSendPayload,
+  credentials?: WablasCredentials
+): Promise<WhatsAppSendResult> {
+  const apiUrl = credentials?.apiUrl ? normalizeBaseUrl(credentials.apiUrl) : process.env.WABLAS_API_URL;
+  const token = credentials?.token || process.env.WABLAS_API_TOKEN;
+  const secret = credentials?.secret || process.env.WABLAS_SECRET_KEY;
+  const deviceId = credentials?.deviceId || process.env.WABLAS_DEVICE_ID;
+
+  if (process.env.WABLAS_ENABLED === "false" && !credentials?.token) {
     throw new Error("Wablas is disabled by WABLAS_ENABLED=false");
   }
 
@@ -42,8 +52,8 @@ export async function sendViaWablas(payload: WhatsAppSendPayload): Promise<Whats
     recipient = normalizeWhatsAppGroupId(recipient, "wablas");
   }
 
-  if (!apiUrl || !token || !secret) {
-    throw new Error("Konfigurasi Wablas belum lengkap (API URL, token, atau secret key kosong).");
+  if (!apiUrl || !token) {
+    throw new Error("Konfigurasi Wablas belum lengkap (API URL atau token kosong).");
   }
 
   // --- Rate Limit Guard ---

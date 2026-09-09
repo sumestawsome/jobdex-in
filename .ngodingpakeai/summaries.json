@@ -1,0 +1,791 @@
+{
+  ".claude/skills/ngodingpakeai/SKILL.md": {
+    "summary": "Panduan integrasi skill CLI NgodingPakeAI untuk Claude Code dan Codex, mencakup alur autentikasi, indexing metadata, sinkronisasi ringkasan kode, dan komunikasi workspace."
+  },
+  ".codex/skills/ngodingpakeai/SKILL.md": {
+    "summary": "Panduan integrasi skill CLI NgodingPakeAI untuk Claude Code dan Codex, mencakup alur autentikasi, indexing metadata, sinkronisasi ringkasan kode, dan komunikasi workspace."
+  },
+  ".gitignore": {
+    "summary": "Konfigurasi gitignore untuk mengecualikan node_modules, build artifacts (.next), file environment (.env*), cache, dan berkas sementara dari version control."
+  },
+  ".ngodingpakeaiignore": {
+    "summary": "Konfigurasi ignore khusus untuk CLI NgodingPakeAI guna mengecualikan berkas biner, build output, direktori dependensi, dan data sensitif dari proses indexing."
+  },
+  "AGENTS.md": {
+    "summary": "Dokumentasi aturan instruksi AI agent untuk proyek JobDex.in, memuat konvensi arsitektur, panduan CLI NgodingPakeAI, integrasi Firebase, dan manajemen task."
+  },
+  "color-neobrutalism.txt": {
+    "summary": "Dokumentasi palet warna dan token desain bernuansa neobrutalisme yang digunakan pada styling tema UI JobDex.in."
+  },
+  "components.json": {
+    "summary": "Konfigurasi shadcn/ui untuk direktori komponen UI, alias path (@/components), konfigurasi Tailwind CSS, dan gaya komponen."
+  },
+  "docs/JOBDEX_JOBDESK_CATEGORIES.md": {
+    "summary": "Dokumentasi referensi taksonomi kategori jobdesk dan divisi kerja pada sistem JobDex.in."
+  },
+  "docs/WHATSAPP_COMMANDS.md": {
+    "summary": "Dokumentasi spesifikasi sintaks dan perintah bot WhatsApp untuk manajemen task, pembaruan status, dan query via pesan teks."
+  },
+  "docs/WHATSAPP_COMMAND_TEST_PLAN.md": {
+    "summary": "Rencana pengujian menyeluruh skenario eksekusi dan validasi perintah WhatsApp bot pada webhook Fonnte dan Wablas."
+  },
+  "docs/WHATSAPP_NATURAL_COMMANDS.md": {
+    "summary": "Dokumentasi pemrosesan bahasa alami (NLP) berbasis Gemini AI untuk menginterpretasikan perintah fleksibel pengguna via WhatsApp."
+  },
+  "eslint.config.mjs": {
+    "summary": "Konfigurasi linting ESLint menggunakan flat config untuk Next.js, React, dan TypeScript."
+  },
+  "firebase.json": {
+    "summary": "Konfigurasi deployment Firebase CLI mencakup aturan Firestore rules, Firestore indexes, dan hosting emulator."
+  },
+  "firestore.indexes.json": {
+    "summary": "Definisi composite index Cloud Firestore untuk optimasi query koleksi tasks, events, members, dan ai_logs."
+  },
+  "firestore.rules": {
+    "summary": "Aturan keamanan Cloud Firestore (security rules) yang memvalidasi otorisasi RBAC (super_admin, org_admin, event_admin, member) pada koleksi database."
+  },
+  "next-env.d.ts": {
+    "summary": "Deklarasi TypeScript lingkungan kompilasi Next.js untuk integrasi asset dan compiler types."
+  },
+  "next.config.ts": {
+    "summary": "Konfigurasi runtime Next.js mencakup domain gambar (Cloudinary, Google, Unsplash), optimasi bundle, dan opsi eksperimental."
+  },
+  "package-lock.json": {
+    "summary": "Manifest lockfile npm yang mengunci dependency tree dan versi pasti seluruh paket pustaka node_modules."
+  },
+  "package.json": {
+    "summary": "Manifest konfigurasi proyek JobDex.in memuat metadata aplikasi, script (dev, build, start, lint), serta dependencies utama Next.js, Firebase, Radix UI, dan Lucide Icons."
+  },
+  "postcss.config.mjs": {
+    "summary": "Konfigurasi PostCSS untuk mengaktifkan Tailwind CSS dan autoprefixer pada proses kompilasi styling."
+  },
+  "PRD_JobDex.in.md": {
+    "summary": "Dokumen Product Requirement Document (PRD) resmi JobDex.in: sistem manajemen jobdesk dan kepanitiaan event terintegrasi WhatsApp bot & AI."
+  },
+  "public/landing/.gitkeep": {
+    "summary": "Placeholder gitkeep untuk memastikan direktori aset gambar landing page terlacak dalam repository Git."
+  },
+  "README.md": {
+    "summary": "Dokumentasi pengenalan proyek JobDex.in, panduan instalasi lokal, prasyarat environment variables, dan ringkasan fitur sistem."
+  },
+  "src/app/api/ai/query/route.ts": {
+    "summary": "Route API POST /api/ai/query: menangani prompt pengguna ke model Gemini AI dengan konteks data event, task, dan anggota dari Firestore."
+  },
+  "src/app/api/ai/send-whatsapp/route.ts": {
+    "summary": "Route API POST /api/ai/send-whatsapp: memicu pengiriman notifikasi WhatsApp berbasis template atau AI ke nomor anggota terdaftar."
+  },
+  "src/app/api/cron/deadline-reminders/route.ts": {
+    "summary": "Route API GET /api/cron/deadline-reminders: dieksekusi secara periodik (cron) untuk memindai task mendekati batas waktu dan mengirim peringatan WhatsApp otomatis."
+  },
+  "src/app/api/debug/whatsapp/send-test/route.ts": {
+    "summary": "Route API debugging /api/debug/whatsapp/send-test: endpoint uji coba pengiriman pesan WhatsApp melalui gateway Fonnte atau Wablas."
+  },
+  "src/app/api/notifications/whatsapp/route.ts": {
+    "summary": "Route API POST /api/notifications/whatsapp: endpoint terpusat untuk mendistribusikan notifikasi WhatsApp ke anggota mengenai penugasan, revisi, atau status task."
+  },
+  "src/app/api/references/route.ts": {
+    "summary": "Route API /api/references (GET/POST): mengelola data referensi desain, mencakup pengambilan daftar referensi dan pembuatan referensi desain baru."
+  },
+  "src/app/api/references/search/route.ts": {
+    "summary": "Route API GET /api/references/search: endpoint pencarian referensi desain berdasarkan query kata kunci, tag, tipe desain, dan palet warna."
+  },
+  "src/app/api/tasks/detect-category/route.ts": {
+    "summary": "Route API POST /api/tasks/detect-category: mendeteksi kategori jobdesk dan divisi yang cocok untuk judul tugas menggunakan analisis Gemini AI."
+  },
+  "src/app/api/test/simulate-webhook/route.ts": {
+    "summary": "Route API testing /api/test/simulate-webhook: mensimulasikan payload webhook incoming WhatsApp (Fonnte/Wablas) untuk memvalidasi parser perintah bot."
+  },
+  "src/app/api/uploads/avatar/route.ts": {
+    "summary": "Route API POST /api/uploads/avatar: menangani upload file foto profil pengguna ke layanan cloud storage (Cloudinary) dengan validasi tipe dan ukuran berkas."
+  },
+  "src/app/api/uploads/task-result/route.ts": {
+    "summary": "Route API POST /api/uploads/task-result: menangani upload file bukti penyelesaian tugas (gambar/dokumen) ke cloud storage dan merekamnya di task_uploads."
+  },
+  "src/app/api/webhooks/fonnte/gemini/route.ts": {
+    "summary": "Route API POST /api/webhooks/fonnte/gemini: webhook penerima pesan masuk dari gateway Fonnte WhatsApp, memproses perintah via Gemini AI dan mengeksekusi aksi database."
+  },
+  "src/app/api/webhooks/wablas/gemini/route.ts": {
+    "summary": "Route API POST /api/webhooks/wablas/gemini: webhook penerima pesan masuk dari gateway Wablas WhatsApp, mem-parsing intent perintah dan memberikan respon otomatis."
+  },
+  "src/app/dashboard/ai/page.tsx": {
+    "summary": "Halaman interaktif AI Assistant JobDex.in untuk konsultasi tugas, query ringkasan progres kepanitiaan, dan bantuan pembuatan jobdesk via chat."
+  },
+  "src/app/dashboard/calendar/page.tsx": {
+    "summary": "Halaman kalender tugas menampilkan jadwal deadline pekerjaan dan linimasa event secara visual dengan filter status dan kategori."
+  },
+  "src/app/dashboard/complete-profile/page.tsx": {
+    "summary": "Halaman onboarding melengkapi profil anggota, mencakup input nomor WhatsApp, nama lengkap, divisi, dan instansi organisasi."
+  },
+  "src/app/dashboard/events/page.tsx": {
+    "summary": "Halaman manajemen daftar event kepanitiaan menampilkan tabel event, filter status, dan dialog pembuatan event baru."
+  },
+  "src/app/dashboard/events/[eventId]/page.tsx": {
+    "summary": "Halaman detail spesifik event [eventId] menampilkan ringkasan kepanitiaan, daftar tugas event, anggota panitia, dan kontrol administratif."
+  },
+  "src/app/dashboard/layout.tsx": {
+    "summary": "Layout utama dashboard memuat shell neobrutalisme, sidebar navigasi, topbar profil, proteksi rute otentikasi, dan bottom navigation untuk mobile."
+  },
+  "src/app/dashboard/members/page.tsx": {
+    "summary": "Halaman manajemen anggota organisasi dengan tabel filter role, nomor WhatsApp, status aktif, dan pengelolaan hak akses."
+  },
+  "src/app/dashboard/page.tsx": {
+    "summary": "Halaman dashboard utama menampilkan ringkasan metrik statistik tugas, progress event, grafik aktivitas, dan panel fokus prioritas kerja."
+  },
+  "src/app/dashboard/profile/page.tsx": {
+    "summary": "Halaman manajemen profil pengguna menampilkan informasi akun, nomor WhatsApp, preferensi notifikasi, dan form ubah password."
+  },
+  "src/app/dashboard/references/page.tsx": {
+    "summary": "Halaman katalog referensi desain dan inspirasi kerja kreatif dilengkapi filter kategori, palet warna, dan fitur pencarian visual."
+  },
+  "src/app/dashboard/settings/page.tsx": {
+    "summary": "Halaman konfigurasi sistem dan integrasi WhatsApp (Fonnte/Wablas API token), template notifikasi pesan, dan setting organisasi."
+  },
+  "src/app/dashboard/setup/page.tsx": {
+    "summary": "Halaman inisialisasi awal sistem (setup wizard) untuk seeding data awal organisasi, divisi, dan role super admin."
+  },
+  "src/app/dashboard/tasks/page.tsx": {
+    "summary": "Halaman daftar seluruh tugas kerja dengan fitur filter status, prioritas, penanggung jawab, serta toggle tampilan tabel dan kartu Kanban."
+  },
+  "src/app/dashboard/tasks/[taskId]/page.tsx": {
+    "summary": "Halaman detail tugas [taskId] memuat deskripsi jobdesk, linimasa riwayat status, checklist subtask, upload file bukti hasil, dan alur approval."
+  },
+  "src/app/dashboard/unauthorized/page.tsx": {
+    "summary": "Halaman pemberitahuan hak akses tidak mencukupi (403 Forbidden) ketika user mencoba mengakses modul di luar perannya."
+  },
+  "src/app/forgot-password/page.tsx": {
+    "summary": "Halaman reset kata sandi mengirimkan link pemulihan email akun pengguna via Firebase Authentication."
+  },
+  "src/app/globals.css": {
+    "summary": "File styling global CSS mendefinisikan variabel warna tema Tailwind, konfigurasi font, gaya scrollbar, dan estetika border neobrutalisme."
+  },
+  "src/app/layout.tsx": {
+    "summary": "Root Layout komponen aplikasi Next.js membungkus seluruh halaman dengan ThemeProvider, AuthProvider, dan komponen notifikasi global."
+  },
+  "src/app/login/page.tsx": {
+    "summary": "Halaman login otentikasi pengguna menggunakan email/password dengan form neobrutalisme dan validasi status kredensial."
+  },
+  "src/app/page.tsx": {
+    "summary": "Halaman utama / landing page publik JobDex.in yang menampilkan hero section, value proposition, fitur utama, dan tombol navigasi ke dashboard."
+  },
+  "src/app/register/page.tsx": {
+    "summary": "Halaman registrasi anggota baru untuk membuat akun pengguna di Firebase Auth dan inisialisasi profil Firestore."
+  },
+  "src/components/ai/ai-chat.tsx": {
+    "summary": "Komponen antarmuka chat utama AI Assistant menampilkan daftar pesan riwayat, auto-scroll, dan integrasi pengiriman query."
+  },
+  "src/components/ai/ai-history-date-separator.tsx": {
+    "summary": "Komponen pemisah visual penanggalan riwayat pesan percakapan chat AI berdasarkan tanggal percakapan."
+  },
+  "src/components/ai/ai-input.tsx": {
+    "summary": "Komponen textarea form input pesan chat AI dengan dukungan submit shortcut Enter dan auto-resize input."
+  },
+  "src/components/ai/ai-loading-message.tsx": {
+    "summary": "Komponen indikator animasi loading dan status pengetikan ketika model Gemini AI sedang memproses respons."
+  },
+  "src/components/ai/ai-message.tsx": {
+    "summary": "Komponen bubble chat pesan AI maupun user dengan formatting markdown, indikator peran, dan aksi salin respons."
+  },
+  "src/components/ai/ai-quick-prompts.tsx": {
+    "summary": "Komponen kartu shortcut pertanyaan cepat (quick prompts) untuk memudahkan pengguna berinteraksi dengan AI seputar tugas dan jadwal."
+  },
+  "src/components/auth/forgot-password-form.tsx": {
+    "summary": "Form interaktif pengajuan pemulihan kata sandi dengan validasi email dan handling feedback pesan sukses."
+  },
+  "src/components/auth/login-form.tsx": {
+    "summary": "Form autentikasi login pengguna dengan Firebase Auth, penanganan pesan error, dan pengalihan ke dashboard."
+  },
+  "src/components/auth/permission-guard.tsx": {
+    "summary": "Komponen wrapper otorisasi bersyarat yang merender children hanya jika peran pengguna memenuhi izin akses yang ditentukan."
+  },
+  "src/components/auth/protected-route.tsx": {
+    "summary": "Komponen pelindung rute sisi klien yang mengarahkan pengguna belum login ke /login sebelum konten dimuat."
+  },
+  "src/components/auth/register-form.tsx": {
+    "summary": "Form pendaftaran akun baru dengan validasi kata sandi, nama lengkap, dan penyimpanan data pengguna awal."
+  },
+  "src/components/calendar/task-calendar.tsx": {
+    "summary": "Komponen kalender interaktif neobrutalisme menampilkan agenda deadline tugas dan jadwal event dengan penanda visual warna kategori."
+  },
+  "src/components/dashboard/dashboard-activity-timeline.tsx": {
+    "summary": "Komponen linimasa aktivitas terbaru menampilkan riwayat aksi perubahan tugas, unggahan bukti, dan update event."
+  },
+  "src/components/dashboard/dashboard-bar-chart.tsx": {
+    "summary": "Komponen diagram batang visualisasi metrik penyelesaian tugas berdasarkan divisi dan rentang waktu."
+  },
+  "src/components/dashboard/dashboard-donut-chart.tsx": {
+    "summary": "Komponen grafik donat ringkasan rasio perbandingan distribusi status tugas (belum mulai, proses, selesai, revisi)."
+  },
+  "src/components/dashboard/dashboard-focus-panel.tsx": {
+    "summary": "Komponen panel kerja prioritas yang menyorot tugas-tugas mendesak yang membutuhkan tindakan langsung oleh pengguna."
+  },
+  "src/components/dashboard/dashboard-summary-cards.tsx": {
+    "summary": "Komponen kartu matriks metrik utama: total event aktif, tugas berjalan, tugas terlambat, dan rasio approval."
+  },
+  "src/components/dashboard/dashboard-summary.tsx": {
+    "summary": "Komponen kontainer ringkasan statistik komprehensif untuk halaman utama dashboard."
+  },
+  "src/components/dashboard/role-dashboard-content.tsx": {
+    "summary": "Komponen perender dashboard dinamis yang menyesuaikan konten visual sesuai peran pengguna (admin vs anggota)."
+  },
+  "src/components/dashboard/stat-card.tsx": {
+    "summary": "Komponen kartu stat neobrutalisme modular dengan ikon, judul nilai, badge perubahan tren, dan border kontras."
+  },
+  "src/components/dashboard/task-risk-card.tsx": {
+    "summary": "Komponen visual peringatan risiko tugas yang mendeteksi potensi keterlambatan berdasarkan deadline dan progres."
+  },
+  "src/components/dashboard/task-risk-section.tsx": {
+    "summary": "Komponen seksi ringkasan risiko tugas berstatus kritis untuk memudahkan pemantauan oleh ketua panitia."
+  },
+  "src/components/events/add-event-member-dialog.tsx": {
+    "summary": "Modal dialog untuk memilih dan menambahkan anggota tim ke dalam kepanitiaan event tertentu."
+  },
+  "src/components/events/event-detail.tsx": {
+    "summary": "Komponen tampilan detail informasi event memuat deskripsi kegiatan, waktu pelaksanaan, ketua pelaksana, dan status progres."
+  },
+  "src/components/events/event-filters.tsx": {
+    "summary": "Komponen filter dan bar pencarian event berdasarkan status (akan datang, berjalan, selesai) dan kata kunci."
+  },
+  "src/components/events/event-form-dialog.tsx": {
+    "summary": "Modal formulir pembuatan atau pengeditan data event kepanitiaan dengan validasi input tanggal dan deskripsi."
+  },
+  "src/components/events/event-members-manager.tsx": {
+    "summary": "Komponen manajemen daftar panitia event untuk mengatur peran divisi anggota dan menghapus partisipan."
+  },
+  "src/components/events/event-status-badge.tsx": {
+    "summary": "Badge label status visual event dengan warna tema neobrutalisme yang mewakili tahapan siklus event."
+  },
+  "src/components/events/events-table.tsx": {
+    "summary": "Tabel interaktif daftar event kepanitiaan dilengkapi paginasi, aksi navigasi detail, dan indikator status."
+  },
+  "src/components/landing/hero-typewriter-text.tsx": {
+    "summary": "Komponen animasi efek mesin ketik (typewriter) dinamis untuk teks heading penarik perhatian pada landing page."
+  },
+  "src/components/landing/landing-image-slot.tsx": {
+    "summary": "Komponen slot placeholder gambar ilustrasi landing page dengan dekorasi bingkai neobrutalisme."
+  },
+  "src/components/landing/scroll-reveal.tsx": {
+    "summary": "Komponen wrapper animasi transisi fade-in saat elemen masuk ke viewport ketika pengguna melakukan scrolling."
+  },
+  "src/components/layout/dashboard-bottom-nav.tsx": {
+    "summary": "Bilah navigasi bawah (bottom navigation bar) ramah perangkat mobile untuk akses cepat modul dashboard."
+  },
+  "src/components/layout/dashboard-sidebar.tsx": {
+    "summary": "Bilah navigasi samping (sidebar) dashboard berisi menu rute navigasi dan identitas aplikasi."
+  },
+  "src/components/layout/dashboard-topbar.tsx": {
+    "summary": "Bilah navigasi atas (topbar) dashboard menampilkan info pengguna aktif, toggle dark mode, dan tombol logout."
+  },
+  "src/components/layout/neo-dashboard-shell.tsx": {
+    "summary": "Komponen kerangka dasar pembungkus layout dashboard dengan styling neobrutalisme responsif."
+  },
+  "src/components/layout/neo-mobile-nav.tsx": {
+    "summary": "Komponen drawer menu navigasi mobile yang dapat dibuka tutup melalui hamburger button."
+  },
+  "src/components/layout/neo-sidebar.tsx": {
+    "summary": "Komponen sidebar bernuansa neobrutalisme dengan tautan menu navigasi utama dan status peran pengguna."
+  },
+  "src/components/layout/neo-topbar.tsx": {
+    "summary": "Komponen header atas neobrutalisme dengan breadcrumb navigasi dan menu aksi profil akun."
+  },
+  "src/components/members/member-detail-dialog.tsx": {
+    "summary": "Modal dialog menampilkan rincian kontak anggota, riwayat penugasan tugas, divisi, dan peran organisasi."
+  },
+  "src/components/members/member-edit-dialog.tsx": {
+    "summary": "Modal form untuk memperbarui data keanggotaan, perubahan divisi, dan penyesuaian hak akses role."
+  },
+  "src/components/members/member-filters.tsx": {
+    "summary": "Komponen filter pencarian anggota berdasarkan nama, nomor WhatsApp, divisi, dan status akun."
+  },
+  "src/components/members/member-status-badge.tsx": {
+    "summary": "Badge penanda status keaktifan akun anggota dengan styling warna neobrutalisme kontras."
+  },
+  "src/components/members/members-table.tsx": {
+    "summary": "Tabel manajemen seluruh anggota organisasi dengan aksi detail, edit profil, dan komunikasi cepat."
+  },
+  "src/components/references/color-palette-preview.tsx": {
+    "summary": "Komponen pratinjau swatch palet warna referensi desain dengan kode heksadesimal interaktif."
+  },
+  "src/components/references/design-type-badge.tsx": {
+    "summary": "Badge label visual untuk tipe referensi desain seperti feed media sosial, banner, poster, atau merchandise."
+  },
+  "src/components/references/reference-bulk-import-dialog.tsx": {
+    "summary": "Modal dialog import data massal referensi desain dari format spreadsheet Excel."
+  },
+  "src/components/references/reference-card.tsx": {
+    "summary": "Kartu pratinjau karya referensi desain menampilkan thumbnail visual, judul, tag, dan palet warna."
+  },
+  "src/components/references/reference-detail-dialog.tsx": {
+    "summary": "Modal tampilan mendalam aset referensi desain mencakup tautan sumber, resolusi, dan catatan style."
+  },
+  "src/components/references/reference-filters.tsx": {
+    "summary": "Komponen filter katalog referensi desain berdasarkan kategori desain, palet warna, dan kata kunci."
+  },
+  "src/components/references/reference-form-dialog.tsx": {
+    "summary": "Modal form untuk menambahkan atau menyunting item referensi desain baru ke Firestore."
+  },
+  "src/components/references/references-grid.tsx": {
+    "summary": "Komponen layout grid responsif untuk menampilkan daftar koleksi kartu referensi desain."
+  },
+  "src/components/references/suggested-references-dialog.tsx": {
+    "summary": "Modal rekomendasi referensi desain otomatis yang relevan dengan deskripsi penugasan tugas."
+  },
+  "src/components/setup/initial-data-setup.tsx": {
+    "summary": "Komponen form wizard untuk inisialisasi awal basis data organisasi, konfigurasi divisi dasar, dan penetapan admin sistem."
+  },
+  "src/components/tasks/event-tasks-section.tsx": {
+    "summary": "Seksi daftar tugas yang dikelompokkan khusus untuk halaman detail event tertentu."
+  },
+  "src/components/tasks/task-action-buttons.tsx": {
+    "summary": "Kumpulan tombol aksi cepat pada tugas seperti mulai kerjakan, ajukan review, atau tandai selesai."
+  },
+  "src/components/tasks/task-activity-log.tsx": {
+    "summary": "Linimasa catatan audit log riwayat perubahan status, komentar feedback, dan aksi persetujuan tugas."
+  },
+  "src/components/tasks/task-approval-badge.tsx": {
+    "summary": "Badge status persetujuan tugas (menunggu review, disetujui, revisi diminta) dengan indikator visual."
+  },
+  "src/components/tasks/task-approve-dialog.tsx": {
+    "summary": "Modal dialog konfirmasi persetujuan hasil pengerjaan tugas oleh koordinator divisi atau admin."
+  },
+  "src/components/tasks/task-card-grid.tsx": {
+    "summary": "Tata letak grid responsif kumpulan kartu tugas untuk tampilan visual fleksibel."
+  },
+  "src/components/tasks/task-card.tsx": {
+    "summary": "Komponen kartu tugas neobrutalisme menampilkan judul, assignee, deadline, label prioritas, dan status."
+  },
+  "src/components/tasks/task-checklist.tsx": {
+    "summary": "Komponen daftar periksa subtask dengan checkbox interaktif untuk memantau detail poin pekerjaan."
+  },
+  "src/components/tasks/task-detail.tsx": {
+    "summary": "Komponen tampilan lengkap rincian tugas mencakup deskripsi, divisi, lampiran, dan form aksi pengerjaan."
+  },
+  "src/components/tasks/task-filters.tsx": {
+    "summary": "Panel filter tugas berdasarkan divisi, prioritas, status approval, dan rentang tanggal deadline."
+  },
+  "src/components/tasks/task-form-dialog.tsx": {
+    "summary": "Modal formulir pembuatan atau pengeditan tugas baru dengan pemilihan assignee dan estimasi waktu."
+  },
+  "src/components/tasks/task-priority-badge.tsx": {
+    "summary": "Badge visual tingkat prioritas tugas (rendah, sedang, tinggi, mendesak) berpalet kontras."
+  },
+  "src/components/tasks/task-revision-dialog.tsx": {
+    "summary": "Modal dialog pengajuan catatan revisi dari admin/koordinator kepada anggota pelaksana tugas."
+  },
+  "src/components/tasks/task-status-badge.tsx": {
+    "summary": "Badge indikator tahapan pengerjaan tugas (todo, in_progress, review, completed)."
+  },
+  "src/components/tasks/task-update-status-dialog.tsx": {
+    "summary": "Modal dialog untuk memperbarui status pengerjaan tugas secara manual oleh anggota atau pengurus."
+  },
+  "src/components/tasks/task-upload-history.tsx": {
+    "summary": "Komponen riwayat berkas hasil kerja yang pernah diunggah pada tugas beserta catatan versinya."
+  },
+  "src/components/tasks/task-upload-section.tsx": {
+    "summary": "Area upload file bukti penyelesaian tugas dengan validasi tipe file dan integrasi storage."
+  },
+  "src/components/tasks/task-view-toggle.tsx": {
+    "summary": "Tombol saklar untuk beralih antara tampilan tabel data terstruktur dan tampilan kartu kartu (Kanban)."
+  },
+  "src/components/tasks/task-workflow-panel.tsx": {
+    "summary": "Panel ringkasan panduan alur kerja dan status tahapan verifikasi penugasan."
+  },
+  "src/components/tasks/tasks-table.tsx": {
+    "summary": "Tabel data tugas interaktif dengan sorting kolom, filtering, dan opsi aksi massal."
+  },
+  "src/components/theme/theme-provider.tsx": {
+    "summary": "Provider konteks tema (next-themes) untuk mengelola perpindahan mode gelap (dark mode) dan terang."
+  },
+  "src/components/theme/theme-toggle.tsx": {
+    "summary": "Tombol pengubah mode tampilan (dark/light mode toggle) dengan animasi ikon matahari dan bulan."
+  },
+  "src/components/ui/alert.tsx": {
+    "summary": "Komponen notifikasi alert neobrutalisme untuk menampilkan pesan informasi, peringatan, atau galat sistem."
+  },
+  "src/components/ui/badge.tsx": {
+    "summary": "Komponen badge label dengan varian gaya neobrutalisme dan palet warna kontras."
+  },
+  "src/components/ui/button.tsx": {
+    "summary": "Komponen tombol modular dengan varian tampilan neobrutalisme (primary, secondary, outline, destructive)."
+  },
+  "src/components/ui/card.tsx": {
+    "summary": "Komponen kartu neobrutalisme terstruktur dengan CardHeader, CardTitle, CardContent, dan CardFooter."
+  },
+  "src/components/ui/container.tsx": {
+    "summary": "Komponen pembungkus kontainer tata letak halaman untuk membatasi lebar maksimal dan padding responsif."
+  },
+  "src/components/ui/empty-state.tsx": {
+    "summary": "Komponen tampilan kondisi kosong (empty state) saat tidak ada data yang ditemukan dengan ajakan bertindak."
+  },
+  "src/components/ui/input.tsx": {
+    "summary": "Komponen input teks standar bertema neobrutalisme dengan border tebal dan efek bayangan tajam."
+  },
+  "src/components/ui/loading-state.tsx": {
+    "summary": "Komponen status memuat (spinner loading placeholder) saat data sedang diambil dari Firestore."
+  },
+  "src/components/ui/neo-date-picker.tsx": {
+    "summary": "Komponen pemilih tanggal (date picker) neobrutalisme interaktif untuk pemilihan deadline dan tanggal event."
+  },
+  "src/components/ui/role-badge.tsx": {
+    "summary": "Komponen badge identitas peran (super_admin, org_admin, event_admin, member) dengan warna pembeda."
+  },
+  "src/contexts/auth-context.tsx": {
+    "summary": "Konteks autentikasi React (AuthContext) yang menyediakan state pengguna aktif, status otentikasi Firebase, profil pengguna, dan metode sign out."
+  },
+  "src/hooks/use-auth.ts": {
+    "summary": "Kustom hook useAuth untuk mempermudah akses state otentikasi, informasi akun, dan hak akses pengguna dari AuthContext."
+  },
+  "src/lib/ai-prompts.ts": {
+    "summary": "Kumpulan template system prompts Gemini AI untuk interpretasi instruksi WhatsApp, klasifikasi jobdesk, dan konsolidasi progres event."
+  },
+  "src/lib/calendar-utils.ts": {
+    "summary": "Fungsi utilitas manipulasi penanggalan untuk tampilan kalender, agregasi tugas per hari, dan format waktu agenda."
+  },
+  "src/lib/color-utils.ts": {
+    "summary": "Fungsi utilitas konversi kode warna (HEX, RGB, HSL) dan ekstraksi palet warna untuk referensi desain."
+  },
+  "src/lib/constants.ts": {
+    "summary": "Konstanta aplikasi terpusat mencakup opsi kategori divisi, status tugas, kunci penyimpanan lokal, dan konfigurasi default."
+  },
+  "src/lib/dashboard-data.ts": {
+    "summary": "Helper pemroses dan kalkulator data analitik metrik dashboard dari kumpulan dokumen koleksi Firestore."
+  },
+  "src/lib/dashboard-summary.ts": {
+    "summary": "Utilitas kalkulasi ringkasan metrik dashboard, menghitung total tugas selesai, persentase keterlambatan, dan distribusi beban kerja."
+  },
+  "src/lib/date-utils.ts": {
+    "summary": "Utilitas pemformatan tanggal ramah pengguna Bahasa Indonesia, kalkulasi selisih hari batas waktu, dan timestamp Firestore."
+  },
+  "src/lib/design-types.ts": {
+    "summary": "Definisi konstanta jenis desain kreatif, kategori referensi, dan metadata spesifikasi berkas desain grafis."
+  },
+  "src/lib/event-status.ts": {
+    "summary": "Helper status siklus event kepanitiaan memetakan label, warna badge, dan validasi transisi status kegiatan."
+  },
+  "src/lib/firebase/ai-logs.ts": {
+    "summary": "Service Firestore pengelola pencatatan riwayat query AI dan interaksi prompt pada koleksi ai_logs."
+  },
+  "src/lib/firebase/auth.ts": {
+    "summary": "Service pembungkus Firebase Authentication untuk login, registrasi, logout, reset sandi, dan pemantauan sesi pengguna."
+  },
+  "src/lib/firebase/client.ts": {
+    "summary": "Inisialisasi Firebase Client App SDK menghubungkan aplikasi browser ke layanan Firestore dan Firebase Auth."
+  },
+  "src/lib/firebase/design-reference-bulk.ts": {
+    "summary": "Operasi penulisan massal (batch write) Firestore untuk menyimpan banyak entri referensi desain sekaligus."
+  },
+  "src/lib/firebase/design-references.ts": {
+    "summary": "CRUD service Firestore untuk mengelola koleksi dokumen referensi desain (design_references)."
+  },
+  "src/lib/firebase/divisions.ts": {
+    "summary": "Service data Firestore untuk membaca dan mengelola daftar divisi kepanitiaan dalam organisasi."
+  },
+  "src/lib/firebase/event-members.ts": {
+    "summary": "Service relasi kepanitiaan mengelola penugasan anggota ke event pada koleksi event_members."
+  },
+  "src/lib/firebase/events.ts": {
+    "summary": "CRUD service Firestore untuk pengelolaan entitas event pada koleksi events (buat, baca, ubah status, hapus)."
+  },
+  "src/lib/firebase/firestore.ts": {
+    "summary": "Utilitas umum Firestore untuk konversi Timestamp, serialisasi ID dokumen, dan pembentukan query."
+  },
+  "src/lib/firebase/members.ts": {
+    "summary": "Service Firestore untuk query profil anggota, filter status aktif, dan update penugasan divisi."
+  },
+  "src/lib/firebase/organizations.ts": {
+    "summary": "Service Firestore pengelola metadata instansi/organisasi pada koleksi organizations."
+  },
+  "src/lib/firebase/system-settings.ts": {
+    "summary": "Service Firestore pengelola konfigurasi global sistem dan kredensial API WhatsApp pada system_settings."
+  },
+  "src/lib/firebase/task-status-logs.ts": {
+    "summary": "Service pencatatan riwayat audit status tugas pada subkoleksi task_status_logs."
+  },
+  "src/lib/firebase/task-uploads.ts": {
+    "summary": "Service Firestore pengelola riwayat dokumen dan bukti hasil kerja tugas pada koleksi task_uploads."
+  },
+  "src/lib/firebase/tasks.ts": {
+    "summary": "CRUD service Firestore komprehensif untuk mengelola seluruh dokumen tugas pada koleksi tasks."
+  },
+  "src/lib/firebase/users.ts": {
+    "summary": "Service Firestore sinkronisasi profil pengguna pada koleksi users pasca otentikasi Firebase Auth."
+  },
+  "src/lib/jobdesk-categories.ts": {
+    "summary": "Daftar taksonomi baku kategori jobdesk kepanitiaan beserta pemetaan divisi dan keahlian yang bersesuaian."
+  },
+  "src/lib/jobdesk-category-detection.ts": {
+    "summary": "Logika pencocokan otomatis kategori tugas berdasarkan kata kunci judul pekerjaan dan integrasi heuristik deteksi cerdas."
+  },
+  "src/lib/link-utils.ts": {
+    "summary": "Fungsi utilitas pembersihan dan validasi URL eksternal, tautan drive berkas, dan tautan referensi desain."
+  },
+  "src/lib/navigation.ts": {
+    "summary": "Konfigurasi struktur menu navigasi dashboard, ikon menu, dan aturan pembatasan akses berdasarkan peran pengguna."
+  },
+  "src/lib/notification-templates.ts": {
+    "summary": "Kumpulan template format teks pesan notifikasi WhatsApp untuk pengingat deadline, penugasan baru, dan permintaan revisi."
+  },
+  "src/lib/permissions.ts": {
+    "summary": "Sistem logika pengecekan hak akses RBAC (Role-Based Access Control) untuk memverifikasi wewenang eksekusi aksi pengguna."
+  },
+  "src/lib/reference-excel-import.ts": {
+    "summary": "Utilitas parsing file spreadsheet Excel (XLSX) untuk proses impor massal katalog referensi desain ke Firestore."
+  },
+  "src/lib/reference-utils.ts": {
+    "summary": "Fungsi pembantu penyaringan, pengurutan, dan validasi data referensi desain grafis."
+  },
+  "src/lib/roles.ts": {
+    "summary": "Definisi konstanta hirarki peran pengguna sistem (Super Admin, Organization Admin, Event Admin, Member) dan label keterangannya."
+  },
+  "src/lib/seed-data.ts": {
+    "summary": "Kumpulan data benih awal (seed data) untuk inisialisasi dummy divisi, template tugas, dan kategori event pada mode setup."
+  },
+  "src/lib/server/ai-cache.ts": {
+    "summary": "Mekanisme caching sisi server untuk menyimpan respons query AI sementara guna menghemat pemakaian token API."
+  },
+  "src/lib/server/ai-context.ts": {
+    "summary": "Penyusun konteks cerdas dari database (event, tugas aktif, anggota) untuk diinjeksikan ke prompt Gemini AI."
+  },
+  "src/lib/server/ai-provider.ts": {
+    "summary": "Abstraksi antarmuka provider AI untuk memfasilitasi komunikasi ke model bahasa besar (LLM)."
+  },
+  "src/lib/server/auth.ts": {
+    "summary": "Utilitas verifikasi token Firebase Auth sisi server (verifyIdToken) untuk memvalidasi otorisasi permintaan API."
+  },
+  "src/lib/server/cloudinary.ts": {
+    "summary": "Integrasi SDK Cloudinary sisi server untuk mengunggah, memvalidasi, dan mengelola URL penyimpanan aset media."
+  },
+  "src/lib/server/deadline-reminders.ts": {
+    "summary": "Logika pemindai tugas berbatas waktu dekat dan pembangun payload peringatan notifikasi WhatsApp otomatis."
+  },
+  "src/lib/server/firebase-admin.ts": {
+    "summary": "Inisialisasi Firebase Admin SDK dengan kredensial service account untuk akses data istimewa di backend."
+  },
+  "src/lib/server/fonnte-webhook-parser.ts": {
+    "summary": "Parser pesan webhook masuk dari gateway WhatsApp Fonnte untuk mengekstrak pengirim, pesan, dan lampiran."
+  },
+  "src/lib/server/gemini.ts": {
+    "summary": "Client wrapper integrasi Google Gemini Generative AI SDK untuk pemrosesan teks dan pemahaman bahasa alami."
+  },
+  "src/lib/server/group-routing.ts": {
+    "summary": "Logika pengelompokan pesan masuk dan perutean aksi bot ke grup kepanitiaan atau percakapan pribadi."
+  },
+  "src/lib/server/notifications.ts": {
+    "summary": "Service sisi server untuk mendistribusikan notifikasi tugas melalui gateway WhatsApp yang aktif."
+  },
+  "src/lib/server/reference-search.ts": {
+    "summary": "Logika pencarian cerdas referensi desain menggunakan pencocokan kata kunci dan tag secara efisien di backend."
+  },
+  "src/lib/server/wablas-webhook-parser.ts": {
+    "summary": "Parser pesan webhook masuk dari gateway WhatsApp Wablas untuk mengekstrak detail pengirim dan perintah teks."
+  },
+  "src/lib/server/whatsapp/command-handler.ts": {
+    "summary": "Handler pusat perintah WhatsApp yang mengoordinasikan parsing instruksi, otorisasi nomor, dan pemicuan aksi."
+  },
+  "src/lib/server/whatsapp/fonnte-provider.ts": {
+    "summary": "Implementasi provider integrasi API Fonnte untuk pengiriman pesan teks WhatsApp via endpoint HTTP."
+  },
+  "src/lib/server/whatsapp/index.ts": {
+    "summary": "Titik ekspor modul WhatsApp server yang mengekspos provider gateway, handler perintah, dan tipe data."
+  },
+  "src/lib/server/whatsapp/provider.ts": {
+    "summary": "Definisi antarmuka (interface) kontrak WhatsAppProvider untuk standardisasi pengiriman pesan lintas gateway."
+  },
+  "src/lib/server/whatsapp/wablas-provider.ts": {
+    "summary": "Implementasi provider integrasi API Wablas untuk pengiriman pesan teks dan broadcast WhatsApp via HTTP API."
+  },
+  "src/lib/server/whatsapp-command-executor.ts": {
+    "summary": "Eksekutor bisnis yang menjalankan aksi sistem (buat task, ubah status) dari perintah WhatsApp yang telah divalidasi."
+  },
+  "src/lib/server/whatsapp-command-parser.ts": {
+    "summary": "Parser perintah teks WhatsApp terstruktur dengan dukungan regex dan pengenalan sintaks bot."
+  },
+  "src/lib/server/whatsapp-command-preview.ts": {
+    "summary": "Pembangun pesan pratinjau konfirmasi sebelum aksi perintah bot dieksekusi ke database."
+  },
+  "src/lib/server/whatsapp-labels.ts": {
+    "summary": "Daftar konstanta label dan format teks balasan ramah pengguna untuk respons WhatsApp bot."
+  },
+  "src/lib/server/whatsapp-settings.ts": {
+    "summary": "Pengambil dan penyimpan pengaturan gateway WhatsApp aktif (Fonnte vs Wablas) dari database Firestore."
+  },
+  "src/lib/server/whatsapp-task-command-executor.ts": {
+    "summary": "Eksekutor khusus aksi manipulasi data tugas (tambah tugas, update status, penugasan) via chat WhatsApp."
+  },
+  "src/lib/setup.ts": {
+    "summary": "Fungsi eksekutor instalasi awal sistem untuk mengonfigurasi koleksi Firestore primer saat pertama kali dijalankan."
+  },
+  "src/lib/swal.ts": {
+    "summary": "Utilitas wrapper dialog konfirmasi dan notifikasi SweetAlert2 dengan penyesuaian estetika neobrutalisme."
+  },
+  "src/lib/task-priority.ts": {
+    "summary": "Definisi tingkat prioritas tugas, konstanta bobot urgensi, dan pemetaan warna indikator visual."
+  },
+  "src/lib/task-risk.ts": {
+    "summary": "Logika kalkulasi skor risiko tugas berdasarkan perbandingan sisa waktu deadline dan status progres pengerjaan."
+  },
+  "src/lib/task-status.ts": {
+    "summary": "Definisi status alur kerja tugas (todo, in_progress, review, completed, revised) dan fungsi transisi status yang diizinkan."
+  },
+  "src/lib/task-utils.ts": {
+    "summary": "Kumpulan fungsi utilitas pembantu manipulasi objek tugas, pengelompokan task berdasarkan penanggung jawab, dan kalkulasi progres."
+  },
+  "src/lib/task-workflow.ts": {
+    "summary": "Aturan validasi alur kerja penyelesaian tugas, persetujuan review, dan pengembalian tugas dengan catatan revisi."
+  },
+  "src/lib/upload-validation.ts": {
+    "summary": "Utilitas validasi file unggahan: memeriksa batas ukuran file, tipe ekstensi MIME yang diizinkan, dan nama berkas."
+  },
+  "src/lib/utils.ts": {
+    "summary": "Fungsi utilitas umum aplikasi mencakup helper penggabung class Tailwind (cn / clsx / twMerge) dan formatting string."
+  },
+  "src/lib/whatsapp.ts": {
+    "summary": "Fungsi pembantu sanitasi nomor telepon WhatsApp ke format standar internasional (62xxx) dan pembuat tautan wa.me."
+  },
+  "src/types/index.ts": {
+    "summary": "Definisi tipe data TypeScript terpusat: antarmuka Task, Event, Member, UserProfile, Division, Reference, AIQuery, dan konstanta peran sistem."
+  },
+  "tes.html": {
+    "summary": "Berkas HTML uji coba lokal untuk memvalidasi rendering dan interaktivitas komponen sederhana."
+  },
+  "tsconfig.json": {
+    "summary": "Konfigurasi TypeScript compiler mencakup paths aliases (@/*), target ES, compiler options strict mode, dan integrasi Next.js plugins."
+  },
+  "tsconfig.tsbuildinfo": {
+    "summary": "Berkas cache inkremental build TypeScript compiler untuk mempercepat kompilasi tipe antar proses eksekusi."
+  },
+  "vercel.json": {
+    "summary": "Konfigurasi deployment Vercel mencakup cron job schedule untuk reminder deadline tugas harian (/api/cron/deadline-reminders)."
+  },
+  ".agents/skills/testsprite-onboard/SKILL.md": {
+    "summary": "Instruksi skill TestSprite Onboard untuk melakukan inisialisasi pengujian otomatis pertama kali pada repositori, mencakup konfigurasi target URL, autentikasi, serta pembentukan test suite awal."
+  },
+  ".agents/skills/testsprite-verify/SKILL.md": {
+    "summary": "Panduan eksekusi pengujian verifikasi kualitas menggunakan TestSprite CLI setelah perubahan kode selesai dilakukan, mencakup pelaporan dan pemeriksaan artefak error."
+  },
+  "docs/TESTSPRITE_JOBDEXIN_REPORT.md": {
+    "summary": "Dokumentasi laporan hasil audit pengujian otomatis TestSprite untuk sistem Jobdex-in, mencakup ringkasan eksekusi pengujian end-to-end, status lolos pengujian, dan rekomendasi perbaikan."
+  },
+  "src/app/api/admin/migrate-organization/route.ts": {
+    "summary": "Endpoint API admin untuk memicu migrasi data organisasi lama ke struktur multi-tenant berbasis kampus dan ormawa, memastikan konsistensi data entitas di Firestore."
+  },
+  "src/app/api/auth/rotate-role/route.ts": {
+    "summary": "Endpoint API untuk merotasi atau memperbarui role pengguna saat berpindah konteks ormawa, menyelaraskan Firebase Custom Claims dan hak akses aplikasi."
+  },
+  "src/app/api/auth/sync-claims/route.ts": {
+    "summary": "Route handler untuk menyinkronkan klaim autentikasi Firebase pengguna dengan data ormawa_id dan role aktif dari database Firestore."
+  },
+  "src/app/api/campuses/route.ts": {
+    "summary": "Route handler API untuk mengambil daftar kampus dan mendaftarkan entitas kampus baru ke dalam koleksi campuses di Firestore."
+  },
+  "src/app/api/campuses/[campusId]/ormawas/route.ts": {
+    "summary": "Route handler API untuk membaca dan mengelola daftar ormawa yang bernaung di bawah kampus tertentu berdasarkan campusId."
+  },
+  "src/app/api/divisions/route.ts": {
+    "summary": "Endpoint API untuk mengambil daftar divisi organisasi serta menambahkan data divisi baru ke dalam Firestore dengan filter ormawa aktif."
+  },
+  "src/app/api/divisions/[divisionId]/route.ts": {
+    "summary": "Endpoint API dinamis untuk memperbarui dan menghapus data divisi organisasi tertentu berdasarkan parameter divisionId."
+  },
+  "src/app/api/ormawas/route.ts": {
+    "summary": "Route handler untuk mengambil dan membuat data entitas ormawa baru di Firestore dengan validasi akses dan isolasi multi-tenant."
+  },
+  "src/app/api/ormawas/[ormawaId]/whatsapp-gateway/route.ts": {
+    "summary": "Endpoint API untuk membaca status konfigurasi gateway WhatsApp ormawa dengan token tersamar, serta menyimpan atau memperbarui token gateway khusus admin ormawa."
+  },
+  "src/app/api/ormawas/[ormawaId]/whatsapp-gateway/test/route.ts": {
+    "summary": "Endpoint API untuk menguji koneksi pengiriman pesan WhatsApp menggunakan token gateway khusus milik ormawa terkait ke nomor telepon tujuan."
+  },
+  "src/app/api/workspace/campuses/route.ts": {
+    "summary": "Route handler API untuk membaca dan memuat data kampus yang tersedia bagi pemilihan ruang kerja (workspace picker) di sisi frontend."
+  },
+  "src/app/api/workspace/ormawas/route.ts": {
+    "summary": "Route handler API untuk membaca daftar ormawa yang dapat dipilih oleh pengguna dalam konteks ruang kerja aktif."
+  },
+  "src/app/dashboard/organization/page.tsx": {
+    "summary": "Halaman dashboard manajemen organisasi untuk mengelola struktur kampus, ormawa, serta pembagian divisi kerja organisasi."
+  },
+  "src/app/dashboard/profile/avatar/page.tsx": {
+    "summary": "Halaman dashboard khusus untuk mengunggah dan mengubah avatar profil pengguna dengan integrasi Firebase Storage."
+  },
+  "src/app/dashboard/settings/whatsapp/page.tsx": {
+    "summary": "Halaman antarmuka pengaturan gateway WhatsApp per ormawa, menyediakan form konfigurasi token tersamar dan panel uji kirim pesan notifikasi."
+  },
+  "src/app/dashboard/workspace/page.tsx": {
+    "summary": "Halaman pemilihan dan pergantian ruang kerja (workspace) aktif bagi pengguna untuk beralih konteks kampus dan ormawa."
+  },
+  "src/components/ai/ai-quota-warning.tsx": {
+    "summary": "Komponen dialog peringatan kuota AI yang menampilkan pemberitahuan ketika batas penggunaan token Gemini AI pengguna telah tercapai."
+  },
+  "src/components/organization/add-campus-dialog.tsx": {
+    "summary": "Komponen modal dialog interaktif untuk formulir penambahan entitas kampus baru ke dalam sistem multi-tenant."
+  },
+  "src/components/organization/add-ormawa-dialog.tsx": {
+    "summary": "Komponen dialog modal untuk mendaftarkan ormawa baru di bawah kampus terpilih dengan input nama, kode, dan deskripsi."
+  },
+  "src/components/organization/division-dialog.tsx": {
+    "summary": "Komponen dialog modal formulir tambah dan edit divisi organisasi kerja untuk ormawa yang sedang dikelola."
+  },
+  "src/components/organization/organization-manager.tsx": {
+    "summary": "Komponen utama antarmuka manajemen organisasi yang menyajikan tab navigasi kampus, ormawa, dan divisi beserta aksi CRUD."
+  },
+  "src/components/settings/ormawa-whatsapp-gateway-settings.tsx": {
+    "summary": "Komponen form pengaturan gateway WhatsApp ormawa yang mengelola input token tersamar, pemilihan provider (Fonnte/Wablas), dan panel uji kirim interaktif."
+  },
+  "src/components/tasks/task-upload-form.tsx": {
+    "summary": "Komponen formulir unggah lampiran bukti pengerjaan tugas oleh anggota tim dengan validasi tipe file dan ukuran."
+  },
+  "src/components/workspace/workspace-badge.tsx": {
+    "summary": "Komponen badge visual penunjuk nama kampus dan ormawa yang sedang aktif pada bilah navigasi atau dashboard."
+  },
+  "src/components/workspace/workspace-nav-switcher.tsx": {
+    "summary": "Komponen dropdown pemilih ruang kerja pada navigasi atas untuk berpindah konteks ormawa secara instan."
+  },
+  "src/components/workspace/workspace-picker.tsx": {
+    "summary": "Komponen visual pemilih workspace berbasis kartu kampus dan ormawa dengan tombol pemilihan cepat bagi pengguna."
+  },
+  "src/contexts/workspace-context.tsx": {
+    "summary": "React Context penyedia state ruang kerja aktif, mengelola persistensi ormawa dan kampus terpilih di cookies/localStorage serta sinkronisasi klaim peran."
+  },
+  "src/hooks/use-workspace.ts": {
+    "summary": "Custom React hook untuk mempermudah akses ke WorkspaceContext dan data ruang kerja ormawa aktif di seluruh komponen aplikasi."
+  },
+  "src/lib/firebase/campuses.ts": {
+    "summary": "Modul utilitas klien Firestore untuk operasi CRUD data kampus, termasuk query daftar kampus dan pencarian berdasarkan ID."
+  },
+  "src/lib/firebase/ormawas.ts": {
+    "summary": "Modul klien Firebase untuk mengelola koleksi ormawa, relasi ke kampus, serta pembacaan konfigurasi ormawa."
+  },
+  "src/lib/server/migration.ts": {
+    "summary": "Modul server untuk utilitas migrasi data Firestore, memvalidasi dan memindahkan relasi organisasi lama ke struktur kampus dan ormawa multi-tenant."
+  },
+  "src/lib/server/ormawa-whatsapp-gateway.ts": {
+    "summary": "Modul server untuk konfigurasi gateway WhatsApp per ormawa, mencakup enkripsi/dekripsi token, penyimpanan di Firestore, lookup gateway berdasarkan ormawa atau token webhook, dan eksekusi pengiriman pesan terisolasi."
+  },
+  "src/lib/workspace-dummy-data.ts": {
+    "summary": "Kumpulan data tiruan awal kampus, ormawa, dan divisi untuk keperluan pengujian dan demonstrasi lingkungan ruang kerja lokal."
+  },
+  "src/lib/workspace-schema.ts": {
+    "summary": "Skema validasi Zod untuk struktur data kampus, ormawa, konfigurasi gateway WhatsApp, serta tipe-tipe ruang kerja aplikasi."
+  },
+  "src/types/workspace.ts": {
+    "summary": "Definisi antarmuka TypeScript untuk entitas ruang kerja, profil ormawa, hierarki kampus, status gateway WhatsApp, dan peran organisasi."
+  },
+  "stabilisasi-qa-multi-tenant-ormawa/features/01-pilih-ruang-kerja.md": {
+    "summary": "Dokumen spesifikasi fitur pemilihan ruang kerja (workspace selector) untuk mendukung multi-tenansi kampus dan ormawa pada Jobdex-in."
+  },
+  "stabilisasi-qa-multi-tenant-ormawa/features/02-perbaikan-audit.md": {
+    "summary": "Dokumen spesifikasi perbaikan celah dan temuan audit kode serta standardisasi penanganan error dan isolasi tenant."
+  },
+  "stabilisasi-qa-multi-tenant-ormawa/features/03-kunci-data.md": {
+    "summary": "Dokumen spesifikasi penguncian dan isolasi data per ormawa pada Firestore Security Rules dan middleware aplikasi."
+  },
+  "stabilisasi-qa-multi-tenant-ormawa/features/04-kelola-organisasi.md": {
+    "summary": "Dokumen spesifikasi fitur manajemen struktur organisasi, hierarki kampus, pendaftaran ormawa, dan divisi tim kerja."
+  },
+  "stabilisasi-qa-multi-tenant-ormawa/features/05-sambungkan-whatsapp.md": {
+    "summary": "Dokumen spesifikasi fitur integrasi WhatsApp gateway per ormawa (BYO gateway) untuk pengiriman notifikasi dan routing balasan bot terisolasi."
+  },
+  "stabilisasi-qa-multi-tenant-ormawa/PRD.md": {
+    "summary": "Product Requirement Document (PRD) komprehensif untuk proyek stabilisasi QA dan isolasi multi-tenant ormawa pada platform Jobdex-in."
+  }
+}

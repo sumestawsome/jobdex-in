@@ -12,9 +12,12 @@ import { Sun, Moon, LogOut, User, Home, ChevronDown, Menu, AlertTriangle } from 
 import { getDivisionById } from "@/lib/firebase/divisions";
 import { subscribeWhatsAppSystemSettings } from "@/lib/firebase/system-settings";
 import type { WhatsAppSystemSettings } from "@/types";
+import { WorkspaceNavSwitcher } from "@/components/workspace/workspace-nav-switcher";
+import { useWorkspace } from "@/hooks/use-workspace";
 
 function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard") return "Ringkasan";
+  if (pathname.startsWith("/dashboard/workspace")) return "Pilih Ruang Kerja";
   if (pathname.startsWith("/dashboard/tasks")) return "Job Desk";
   if (pathname.startsWith("/dashboard/events")) return "Acara";
   if (pathname.startsWith("/dashboard/members")) return "Anggota";
@@ -43,6 +46,7 @@ export function NeoTopbar(props: {
   const pathname = usePathname();
   const { user, userProfile } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { activeWorkspace, activeOrmawa } = useWorkspace();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -106,7 +110,20 @@ export function NeoTopbar(props: {
           <span className="jd-neo-badge bg-main text-main-foreground">
             {getPageTitle(pathname)}
           </span>
-          <p className="hidden md:block text-xs font-bold text-neutral-500 dark:text-neutral-400">
+
+          {/* Active Workspace Pill Indicator */}
+          <Link
+            href="/dashboard/workspace"
+            className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/50 transition-colors"
+            title={`Ruang Kerja Aktif: ${activeWorkspace.org_name} (${activeWorkspace.campus_name})`}
+          >
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-bold">{activeWorkspace.campus_code}</span>
+            <span className="text-slate-300 dark:text-slate-600">•</span>
+            <span className="truncate max-w-[130px] font-medium">{activeOrmawa.short_name || activeWorkspace.org_name}</span>
+          </Link>
+
+          <p className="hidden xl:block text-xs font-bold text-neutral-500 dark:text-neutral-400">
             {divisionName}
           </p>
 
@@ -128,7 +145,9 @@ export function NeoTopbar(props: {
         </div>
 
         {/* Action controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Multi-Tenant Workspace Cascading Switcher */}
+          <WorkspaceNavSwitcher />
           
           {/* Theme toggle */}
           {mounted && (

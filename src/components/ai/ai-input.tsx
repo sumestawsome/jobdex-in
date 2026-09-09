@@ -5,10 +5,15 @@ import { Send } from "lucide-react";
 
 type AIInputProps = {
   disabled?: boolean;
+  placeholder?: string;
   onSubmit: (question: string) => Promise<void>;
 };
 
-export function AIInput({ disabled = false, onSubmit }: AIInputProps) {
+export function AIInput({
+  disabled = false,
+  placeholder = "Tanyakan progress, deadline, atau referensi desain...",
+  onSubmit,
+}: AIInputProps) {
   const [question, setQuestion] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -40,7 +45,7 @@ export function AIInput({ disabled = false, onSubmit }: AIInputProps) {
           disabled={disabled}
           onChange={(event) => setQuestion(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Tanyakan progress, deadline, atau referensi desain..."
+          placeholder={placeholder}
           className="flex-1 max-h-32 min-h-[24px] resize-none bg-transparent py-1 text-sm text-[var(--foreground)] outline-none disabled:cursor-not-allowed placeholder:text-slate-400 dark:placeholder:text-slate-500 overflow-y-auto"
         />
         <button

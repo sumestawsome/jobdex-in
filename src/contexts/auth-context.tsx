@@ -31,9 +31,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfileLoading(true);
 
     try {
-      const profile = await getUserProfileByUid(auth.currentUser.uid);
-      setUserProfile(profile);
-      return profile;
+      const [profile, tokenResult] = await Promise.all([
+        getUserProfileByUid(auth.currentUser.uid),
+        auth.currentUser.getIdTokenResult(true),
+      ]);
+
+      let finalProfile = profile;
+      if (finalProfile && tokenResult?.claims?.role) {
+        finalProfile = {
+          ...finalProfile,
+          role: tokenResult.claims.role as UserProfile["role"],
+        };
+      }
+      setUserProfile(finalProfile);
+      return finalProfile;
     } catch {
       setUserProfile(null);
       return null;
@@ -56,8 +67,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfileLoading(true);
 
       try {
-        const profile = await getUserProfileByUid(currentUser.uid);
-        setUserProfile(profile);
+        const [profile, tokenResult] = await Promise.all([
+          getUserProfileByUid(currentUser.uid),
+          currentUser.getIdTokenResult(),
+        ]);
+
+        let finalProfile = profile;
+
+        if (profile && !tokenResult.claims.role) {
+          try {
+            const token = await currentUser.getIdToken();
+            await fetch("/api/auth/sync-claims", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const refreshedTokenResult = await currentUser.getIdTokenResult(true);
+            if (refreshedTokenResult?.claims?.role) {
+              finalProfile = {
+                ...profile,
+                role: refreshedTokenResult.claims.role as UserProfile["role"],
+              };
+            }
+          } catch (syncErr) {
+            console.warn("Gagal auto-sync custom claims:", syncErr);
+          }
+        } else if (finalProfile && tokenResult.claims.role) {
+          finalProfile = {
+            ...finalProfile,
+            role: tokenResult.claims.role as UserProfile["role"],
+          };
+        }
+
+        setUserProfile(finalProfile);
       } catch {
         setUserProfile(null);
       } finally {

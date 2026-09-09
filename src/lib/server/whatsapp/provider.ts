@@ -14,6 +14,8 @@ export type WhatsAppSendPayload = {
   type?: "phone" | "group";
   previewUrl?: boolean;
   mentions?: string[];
+  org_id?: string;
+  orgId?: string;
 };
 
 export type WhatsAppSendResult = {
@@ -23,4 +25,7 @@ export type WhatsAppSendResult = {
   responseText?: string;
   response?: unknown;
   error?: string;
+  skipped?: boolean;
+  notConfigured?: boolean;
 };
+

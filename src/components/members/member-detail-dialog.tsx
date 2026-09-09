@@ -9,6 +9,8 @@ import type { UserProfile } from "@/types";
 type MemberDetailDialogProps = {
   member: UserProfile | null;
   onClose: () => void;
+  onEdit?: (member: UserProfile) => void;
+  canEditRole?: boolean;
 };
 
 function formatDate(value: unknown) {
@@ -21,7 +23,12 @@ function formatDate(value: unknown) {
   }).format((value as { toDate: () => Date }).toDate());
 }
 
-export function MemberDetailDialog({ member, onClose }: MemberDetailDialogProps) {
+export function MemberDetailDialog({
+  member,
+  onClose,
+  onEdit,
+  canEditRole,
+}: MemberDetailDialogProps) {
   if (!member) {
     return null;
   }
@@ -53,9 +60,24 @@ export function MemberDetailDialog({ member, onClose }: MemberDetailDialogProps)
           </div>
         </div>
         <div className="p-5">
-          <div className="mb-5 flex flex-wrap gap-2">
-            <RoleBadge role={member.role} />
-            <MemberStatusBadge isActive={member.is_active} />
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-2">
+              <RoleBadge role={member.role} />
+              <MemberStatusBadge isActive={member.is_active} />
+            </div>
+            {onEdit && canEditRole && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onEdit(member);
+                }}
+                className="font-bold text-xs"
+              >
+                Rotasi Peran / Edit
+              </Button>
+            )}
           </div>
           <dl className="divide-y divide-slate-200 dark:divide-slate-800">
             {rows.map(([label, value]) => (

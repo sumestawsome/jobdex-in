@@ -66,11 +66,46 @@ export async function GET(request: NextRequest) {
       console.warn("[api/references] Failed to fetch divisions", divisionsRes.reason);
     }
 
+    const userOrgId = profile.organization_id || profile.org_id || ((profile as unknown as Record<string, unknown>).orgId as string) || "";
+    const userCampusId = profile.campus_id || profile.univ_id || ((profile as unknown as Record<string, unknown>).campusId as string) || "";
+    const requestedOrgId = request.nextUrl.searchParams.get("org_id");
+    const requestedCampusId = request.nextUrl.searchParams.get("campus_id");
+
+    let targetOrgId = userOrgId;
+    let targetCampusId = userCampusId;
+
+    if (profile.role === "super_admin") {
+      targetOrgId = requestedOrgId || userOrgId;
+      targetCampusId = requestedCampusId || userCampusId;
+    } else {
+      if (requestedOrgId && userOrgId && requestedOrgId !== userOrgId) {
+        return NextResponse.json(
+          { error: "Akses ditolak: Anda tidak memiliki izin mengakses data organisasi lain." },
+          { status: 403 }
+        );
+      }
+      if (requestedCampusId && userCampusId && requestedCampusId !== userCampusId) {
+        return NextResponse.json(
+          { error: "Akses ditolak: Anda tidak memiliki izin mengakses data kampus lain." },
+          { status: 403 }
+        );
+      }
+    }
+
     // Populate events map
     const eventsMap = new Map<string, string>();
     if (eventsSnap) {
       eventsSnap.forEach((doc) => {
-        eventsMap.set(doc.id, safeString(doc.data()?.name || ""));
+        const data = doc.data() as Record<string, unknown>;
+        if (targetOrgId) {
+          const org = data.organization_id || data.org_id || data.orgId || "main_org";
+          if (org !== targetOrgId) return;
+        }
+        if (targetCampusId) {
+          const campus = data.campus_id || data.campusId || data.univ_id || data.univId || "ui";
+          if (campus !== targetCampusId) return;
+        }
+        eventsMap.set(doc.id, safeString(data?.name || ""));
       });
     }
 
@@ -79,7 +114,16 @@ export async function GET(request: NextRequest) {
     divisionsMap.set("humas_media_kreatif", "Humas & Media Kreatif");
     if (divisionsSnap) {
       divisionsSnap.forEach((doc) => {
-        divisionsMap.set(doc.id, safeString(doc.data()?.name || ""));
+        const data = doc.data() as Record<string, unknown>;
+        if (targetOrgId) {
+          const org = data.organization_id || data.org_id || data.orgId || "main_org";
+          if (org !== targetOrgId) return;
+        }
+        if (targetCampusId) {
+          const campus = data.campus_id || data.campusId || data.univ_id || data.univId || "ui";
+          if (campus !== targetCampusId) return;
+        }
+        divisionsMap.set(doc.id, safeString(data?.name || ""));
       });
     }
 
@@ -87,7 +131,16 @@ export async function GET(request: NextRequest) {
     const manualReferences: DesignReference[] = [];
     if (referencesSnap) {
       referencesSnap.forEach((doc) => {
-        manualReferences.push({ id: doc.id, ...doc.data() } as DesignReference);
+        const data = doc.data() as Record<string, unknown>;
+        if (targetOrgId) {
+          const org = data.organization_id || data.org_id || data.orgId || "main_org";
+          if (org !== targetOrgId) return;
+        }
+        if (targetCampusId) {
+          const campus = data.campus_id || data.campusId || data.univ_id || data.univId || "ui";
+          if (campus !== targetCampusId) return;
+        }
+        manualReferences.push({ id: doc.id, ...data } as DesignReference);
       });
     }
 
@@ -159,7 +212,16 @@ export async function GET(request: NextRequest) {
     const approvedTasks: Task[] = [];
     if (tasksSnap) {
       tasksSnap.forEach((doc) => {
-        approvedTasks.push({ id: doc.id, ...doc.data() } as Task);
+        const data = doc.data() as Record<string, unknown>;
+        if (targetOrgId) {
+          const org = data.organization_id || data.org_id || data.orgId || "main_org";
+          if (org !== targetOrgId) return;
+        }
+        if (targetCampusId) {
+          const campus = data.campus_id || data.campusId || data.univ_id || data.univId || "ui";
+          if (campus !== targetCampusId) return;
+        }
+        approvedTasks.push({ id: doc.id, ...data } as Task);
       });
     }
 

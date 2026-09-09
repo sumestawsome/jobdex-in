@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -29,7 +30,10 @@ function sortReferences(references: DesignReference[]) {
   });
 }
 
-export async function getDesignReferencesForProfile(profile: UserProfile) {
+export async function getDesignReferencesForProfile(
+  profile: UserProfile,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
   const referencesRef = collection(db, "design_references");
   const referencesQuery = isKoordinator(profile)
     ? query(referencesRef)
@@ -44,11 +48,37 @@ export async function getDesignReferencesForProfile(profile: UserProfile) {
     ...item.data(),
   })) as DesignReference[];
 
-  return sortReferences(
-    isKoordinator(profile)
-      ? references
-      : references.filter((reference) => !reference.is_archived),
-  );
+  const targetOrgId = workspaceFilter?.org_id || profile.organization_id || profile.org_id;
+  const targetCampusId = workspaceFilter?.campus_id || profile.campus_id || profile.univ_id;
+
+  let filtered = isKoordinator(profile)
+    ? references
+    : references.filter((reference) => !reference.is_archived);
+
+  if (targetOrgId) {
+    filtered = filtered.filter((r) => {
+      const rOrg =
+        r.organization_id ||
+        r.org_id ||
+        (r as unknown as Record<string, unknown>).orgId ||
+        "main_org";
+      return rOrg === targetOrgId;
+    });
+  }
+
+  if (targetCampusId) {
+    filtered = filtered.filter((r) => {
+      const rCampus =
+        r.campus_id ||
+        (r as unknown as Record<string, unknown>).campusId ||
+        r.univ_id ||
+        (r as unknown as Record<string, unknown>).univId ||
+        "ui";
+      return rCampus === targetCampusId;
+    });
+  }
+
+  return sortReferences(filtered);
 }
 
 export async function createDesignReference(
@@ -56,10 +86,36 @@ export async function createDesignReference(
   createdBy: string,
 ) {
   const referenceRef = doc(collection(db, "design_references"));
+  let orgId = input.organization_id || input.org_id || input.orgId;
+  let campusId = input.campus_id || input.campusId || input.univ_id || input.univId || "";
+
+  // Otomatis isi univId dan orgId dari profil pembuat jika belum terisi
+  if ((!orgId || !campusId) && createdBy) {
+    try {
+      const userSnap = await getDoc(doc(db, "users", createdBy));
+      if (userSnap.exists()) {
+        const uData = userSnap.data() as Record<string, unknown>;
+        orgId = orgId || (uData.orgId as string) || (uData.org_id as string) || (uData.organization_id as string);
+        campusId = campusId || (uData.univId as string) || (uData.univ_id as string) || (uData.campusId as string) || (uData.campus_id as string) || "";
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!orgId) {
+    throw new Error("Ruang kerja aktif (organisasi / ormawa) wajib dipilih sebelum menambahkan referensi desain.");
+  }
 
   await setDoc(referenceRef, {
     id: referenceRef.id,
-    organization_id: DEFAULT_ORGANIZATION_ID,
+    organization_id: orgId,
+    org_id: orgId,
+    orgId: orgId,
+    campus_id: campusId,
+    campusId: campusId,
+    univ_id: campusId,
+    univId: campusId,
     title: input.title,
     event_name: input.event_name,
     design_type: input.design_type,
@@ -93,7 +149,32 @@ export async function createDesignReference(
 export async function updateDesignReference(
   referenceId: string,
   input: DesignReferenceInput,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
 ) {
+  const refDoc = await getDoc(doc(db, "design_references", referenceId));
+  if (refDoc.exists()) {
+    const existing = refDoc.data() as Record<string, unknown>;
+    const existingOrg = existing.organization_id || existing.org_id || existing.orgId;
+    const existingCampus = existing.campus_id || existing.univ_id || existing.univId || existing.campusId;
+
+    if (workspaceFilter?.org_id && existingOrg && workspaceFilter.org_id !== existingOrg) {
+      throw new Error("Akses ditolak: Tidak dapat memodifikasi referensi desain milik organisasi/ormawa lain.");
+    }
+    if (workspaceFilter?.campus_id && existingCampus && workspaceFilter.campus_id !== existingCampus) {
+      throw new Error("Akses ditolak: Tidak dapat memodifikasi referensi desain milik kampus lain.");
+    }
+
+    const inputOrg = input.organization_id || input.org_id || input.orgId;
+    if (inputOrg && existingOrg && inputOrg !== existingOrg) {
+      throw new Error("Dilarang mengubah penanda kepemilikan ormawa/organisasi pada pembaruan referensi desain.");
+    }
+
+    const inputCampus = input.campus_id || input.univ_id || input.univId || input.campusId;
+    if (inputCampus && existingCampus && inputCampus !== existingCampus) {
+      throw new Error("Dilarang mengubah penanda kepemilikan kampus pada pembaruan referensi desain.");
+    }
+  }
+
   await updateDoc(doc(db, "design_references", referenceId), {
     title: input.title,
     event_name: input.event_name,
@@ -120,7 +201,24 @@ export async function updateDesignReference(
   });
 }
 
-export async function archiveDesignReference(referenceId: string) {
+export async function archiveDesignReference(
+  referenceId: string,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
+  const refDoc = await getDoc(doc(db, "design_references", referenceId));
+  if (refDoc.exists()) {
+    const existing = refDoc.data() as Record<string, unknown>;
+    const existingOrg = existing.organization_id || existing.org_id || existing.orgId;
+    const existingCampus = existing.campus_id || existing.univ_id || existing.univId || existing.campusId;
+
+    if (workspaceFilter?.org_id && existingOrg && workspaceFilter.org_id !== existingOrg) {
+      throw new Error("Akses ditolak: Tidak dapat mengarsipkan referensi desain milik organisasi/ormawa lain.");
+    }
+    if (workspaceFilter?.campus_id && existingCampus && workspaceFilter.campus_id !== existingCampus) {
+      throw new Error("Akses ditolak: Tidak dapat mengarsipkan referensi desain milik kampus lain.");
+    }
+  }
+
   await updateDoc(doc(db, "design_references", referenceId), {
     is_archived: true,
     updated_at: serverTimestamp(),
@@ -162,7 +260,10 @@ export function mapTaskSubcategoryToDesignType(subcategoryKey?: string): DesignT
   return "lainnya";
 }
 
-export async function getCombinedReferencesForDashboard(profile: UserProfile): Promise<ReferenceListItem[]> {
+export async function getCombinedReferencesForDashboard(
+  profile: UserProfile,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+): Promise<ReferenceListItem[]> {
   if (!profile) return [];
   const currentUser = auth.currentUser;
   const token = currentUser ? await currentUser.getIdToken() : "";
@@ -172,7 +273,14 @@ export async function getCombinedReferencesForDashboard(profile: UserProfile): P
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch("/api/references", { headers });
+  const queryParams = new URLSearchParams();
+  const orgId = workspaceFilter?.org_id || profile.organization_id || profile.org_id;
+  const campusId = workspaceFilter?.campus_id || profile.campus_id || profile.univ_id;
+  if (orgId) queryParams.set("org_id", orgId);
+  if (campusId) queryParams.set("campus_id", campusId);
+
+  const url = queryParams.toString() ? `/api/references?${queryParams.toString()}` : "/api/references";
+  const res = await fetch(url, { headers });
   if (!res.ok) {
     const err = new Error(`Gagal mengambil referensi. (Status ${res.status})`) as Error & { status?: number };
     err.status = res.status;

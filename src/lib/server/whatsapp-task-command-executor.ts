@@ -456,10 +456,19 @@ export async function handleApproveTaskCommand(
     });
 
     // Create status log
+    const taskOrgId = (task as any).orgId || (task as any).org_id || task.organization_id || "";
+    const taskCampusId = (task as any).univId || (task as any).campus_id || (task as any).univ_id || (task as any).campusId || "";
     const logRef = db.collection("tasks").doc(task.id).collection("status_logs").doc();
     await logRef.set({
       id: logRef.id,
       task_id: task.id,
+      organization_id: taskOrgId,
+      org_id: taskOrgId,
+      orgId: taskOrgId,
+      campus_id: taskCampusId,
+      campusId: taskCampusId,
+      univ_id: taskCampusId,
+      univId: taskCampusId,
       from_status: task.status,
       to_status: "approved",
       changed_by: user.id,
@@ -592,11 +601,20 @@ export async function handleUpdateTaskStatusCommand(
     await db.collection("tasks").doc(task.id).update(updateParams);
 
     // Create status log
+    const taskOrgId = (task as any).orgId || (task as any).org_id || task.organization_id || "";
+    const taskCampusId = (task as any).univId || (task as any).campus_id || (task as any).univ_id || (task as any).campusId || "";
     const logNote = notes ? `Update status via WhatsApp: ${notes}` : "Update status via WhatsApp command";
     const logRef = db.collection("tasks").doc(task.id).collection("status_logs").doc();
     await logRef.set({
       id: logRef.id,
       task_id: task.id,
+      organization_id: taskOrgId,
+      org_id: taskOrgId,
+      orgId: taskOrgId,
+      campus_id: taskCampusId,
+      campusId: taskCampusId,
+      univ_id: taskCampusId,
+      univId: taskCampusId,
       from_status: task.status,
       to_status: statusEnum,
       changed_by: user.id,
@@ -1263,10 +1281,19 @@ export async function handleChecklistCommand(
     });
 
     // Create status log
+    const taskOrgId = (task as any).orgId || (task as any).org_id || task.organization_id || "";
+    const taskCampusId = (task as any).univId || (task as any).campus_id || (task as any).univ_id || (task as any).campusId || "";
     const logRef = db.collection("tasks").doc(task.id).collection("status_logs").doc();
     await logRef.set({
       id: logRef.id,
       task_id: task.id,
+      organization_id: taskOrgId,
+      org_id: taskOrgId,
+      orgId: taskOrgId,
+      campus_id: taskCampusId,
+      campusId: taskCampusId,
+      univ_id: taskCampusId,
+      univId: taskCampusId,
       from_status: task.status,
       to_status: task.status,
       changed_by: user.id,

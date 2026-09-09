@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EventStatusBadge } from "@/components/events/event-status-badge";
+import { WorkspaceBadge } from "@/components/workspace/workspace-badge";
 import { Eye, Pencil } from "lucide-react";
 import type { Event, UserProfile } from "@/types";
 import { formatEventDate } from "@/lib/firebase/events";
@@ -34,6 +35,7 @@ export function EventsTable({
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Nama Acara</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Ruang Kerja</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Tanggal</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Koordinator</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
@@ -50,6 +52,12 @@ export function EventsTable({
                     <p className="mt-1 line-clamp-2 max-w-xs text-xs text-slate-500 dark:text-slate-400">
                       {event.description || "-"}
                     </p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <WorkspaceBadge
+                      campusId={event.campus_id || event.univ_id}
+                      orgId={event.org_id || event.organization_id}
+                    />
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {formatEventDate(event.event_date)}
@@ -101,9 +109,15 @@ export function EventsTable({
           <div key={event.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm space-y-3 m-1">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-bold text-base text-slate-900 dark:text-white">
-                  {event.name}
-                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="font-bold text-base text-slate-900 dark:text-white">
+                    {event.name}
+                  </p>
+                  <WorkspaceBadge
+                    campusId={event.campus_id || event.univ_id}
+                    orgId={event.org_id || event.organization_id}
+                  />
+                </div>
                 <p className="text-xs opacity-75 mt-0.5 font-semibold">{formatEventDate(event.event_date)}</p>
               </div>
               <EventStatusBadge status={event.status} />

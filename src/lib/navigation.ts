@@ -19,6 +19,11 @@ export const dashboardNavigation: DashboardNavConfig[] = [
     visible: allUsers,
   },
   {
+    label: "Ruang Kerja",
+    href: "/dashboard/workspace",
+    visible: allUsers,
+  },
+  {
     label: "Job Desk",
     href: "/dashboard/tasks",
     visible: allUsers,

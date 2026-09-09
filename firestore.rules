@@ -7,10 +7,16 @@ service cloud.firestore {
     }
 
     function currentUserRole() {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_active == true
-          ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-          : null;
+      return isSignedIn()
+        ? (
+            "role" in request.auth.token && request.auth.token.role != null
+              ? request.auth.token.role
+              : (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                 get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_active == true
+                   ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+                   : null)
+          )
+        : null;
     }
 
     function isSuperAdmin() {
@@ -33,6 +39,67 @@ service cloud.firestore {
       return role == "super_admin" ||
         role == "koordinator_divisi" ||
         role == "koordinator_acara";
+    }
+
+    function currentUserOrgId() {
+      return request.auth.token != null && "org_id" in request.auth.token
+        ? request.auth.token.org_id
+        : (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          ? (
+              "org_id" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+                ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.org_id
+                : ("orgId" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+                  ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId
+                  : ("organization_id" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+                    ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organization_id
+                    : "main_org"))
+            )
+          : "main_org");
+    }
+
+    function currentUserCampusId() {
+      return request.auth.token != null && "univ_id" in request.auth.token
+        ? request.auth.token.univ_id
+        : (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          ? (
+              "campus_id" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+                ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.campus_id
+                : ("campusId" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+                  ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.campusId
+                  : ("univ_id" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+                    ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.univ_id
+                    : ("univId" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+                      ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.univId
+                      : "ui")))
+            )
+          : "ui");
+    }
+
+    function isSameOrg(docOrg, userOrg) {
+      return docOrg == userOrg ||
+        ((docOrg == "main_org" || docOrg == "org-ui-bem") && (userOrg == "main_org" || userOrg == "org-ui-bem"));
+    }
+
+    function isSameCampus(docCampus, userCampus) {
+      return docCampus == userCampus ||
+        ((docCampus == "" || docCampus == "ui") && (userCampus == "" || userCampus == "ui"));
+    }
+
+    function matchesTenant(data) {
+      let userOrg = currentUserOrgId();
+      let userCampus = currentUserCampusId();
+      let docOrg = "organization_id" in data
+        ? data.organization_id
+        : ("org_id" in data
+          ? data.org_id
+          : ("orgId" in data ? data.orgId : "main_org"));
+      let docCampus = "campus_id" in data
+        ? data.campus_id
+        : ("campusId" in data
+          ? data.campusId
+          : ("univ_id" in data ? data.univ_id : ("univId" in data ? data.univId : "ui")));
+
+      return isSameOrg(docOrg, userOrg) && isSameCampus(docCampus, userCampus);
     }
 
     function canManageEvent(eventId) {
@@ -146,6 +213,7 @@ service cloud.firestore {
         request.resource.data.type == resource.data.type &&
         request.resource.data.event_id == resource.data.event_id &&
         request.resource.data.division_id == resource.data.division_id &&
+        request.resource.data.status != "approved" &&
         (
           changedOnly(["status", "stuck_notes", "updated_at"]) ||
           changedOnly(["checklist_items", "updated_at"])
@@ -169,7 +237,7 @@ service cloud.firestore {
             task.event_id != "" &&
             isEventSecretary(task.event_id)
           ) ||
-          task.pic_id == request.auth.uid
+          (task.pic_id == request.auth.uid && request.resource.data.to_status != "approved")
         ) &&
         request.resource.data.task_id == taskId &&
         request.resource.data.changed_by == request.auth.uid;
@@ -182,7 +250,7 @@ service cloud.firestore {
         role == "koordinator_divisi" ||
         role == "koordinator_acara"
       ) &&
-        data.organization_id == "main_org" &&
+        matchesTenant(data) &&
         data.created_by == request.auth.uid &&
         data.is_archived == false;
     }
@@ -211,7 +279,25 @@ service cloud.firestore {
       return request.resource.data.id == resource.data.id &&
         request.resource.data.email == resource.data.email &&
         request.resource.data.organization_id == resource.data.organization_id &&
+        (!("org_id" in resource.data) || !("org_id" in request.resource.data) || request.resource.data.org_id == resource.data.org_id) &&
+        (!("orgId" in resource.data) || !("orgId" in request.resource.data) || request.resource.data.orgId == resource.data.orgId) &&
+        (!("campus_id" in resource.data) || !("campus_id" in request.resource.data) || request.resource.data.campus_id == resource.data.campus_id) &&
+        (!("campusId" in resource.data) || !("campusId" in request.resource.data) || request.resource.data.campusId == resource.data.campusId) &&
+        (!("univ_id" in resource.data) || !("univ_id" in request.resource.data) || request.resource.data.univ_id == resource.data.univ_id) &&
+        (!("univId" in resource.data) || !("univId" in request.resource.data) || request.resource.data.univId == resource.data.univId) &&
         request.resource.data.created_at == resource.data.created_at;
+    }
+
+    function immutableOwnership() {
+      return (
+        (!("organization_id" in resource.data) || !("organization_id" in request.resource.data) || request.resource.data.organization_id == resource.data.organization_id) &&
+        (!("org_id" in resource.data) || !("org_id" in request.resource.data) || request.resource.data.org_id == resource.data.org_id) &&
+        (!("orgId" in resource.data) || !("orgId" in request.resource.data) || request.resource.data.orgId == resource.data.orgId) &&
+        (!("campus_id" in resource.data) || !("campus_id" in request.resource.data) || request.resource.data.campus_id == resource.data.campus_id) &&
+        (!("campusId" in resource.data) || !("campusId" in request.resource.data) || request.resource.data.campusId == resource.data.campusId) &&
+        (!("univ_id" in resource.data) || !("univ_id" in request.resource.data) || request.resource.data.univ_id == resource.data.univ_id) &&
+        (!("univId" in resource.data) || !("univId" in request.resource.data) || request.resource.data.univId == resource.data.univId)
+      );
     }
 
     function selfProfileUpdateIsSafe() {
@@ -266,11 +352,16 @@ service cloud.firestore {
         request.resource.data.role == "anggota" &&
         request.resource.data.id == request.auth.uid;
 
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        isSelf(userId) ||
+        isSuperAdmin() ||
+        matchesTenant(resource.data)
+      );
 
       allow update: if isSelf(userId) && selfProfileUpdateIsSafe();
 
       allow update: if isKoordinatorDivisi() &&
+        matchesTenant(resource.data) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.division_id == resource.data.division_id &&
         coordinatorMemberUpdateIsSafe();
 
@@ -278,26 +369,55 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /campuses/{campusId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSuperAdmin();
+      allow delete: if false;
+    }
+
+    match /ormawas/{ormawaId} {
+      allow read: if isSignedIn();
+      allow create: if isSuperAdmin() || (isSignedIn() && request.resource.data.campus_id != "");
+      allow update: if isSuperAdmin() || (isKoordinator() && ormawaId == currentUserOrgId());
+      allow delete: if false;
+    }
+
+    match /ormawa_members/{memberId} {
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        resource.data.user_id == request.auth.uid ||
+        resource.data.ormawa_id == currentUserOrgId()
+      );
+      allow create, update: if isSignedIn() && (
+        isSuperAdmin() ||
+        isKoordinator() ||
+        request.resource.data.user_id == request.auth.uid
+      );
+      allow delete: if isSuperAdmin() || (isKoordinator() && resource.data.ormawa_id == currentUserOrgId());
+    }
+
     match /organizations/{organizationId} {
       allow read: if isSignedIn();
 
-      allow create, update: if isSuperAdmin() &&
-        organizationId == "main_org";
+      allow create, update: if isSuperAdmin() || (isKoordinator() && organizationId == currentUserOrgId());
 
       allow delete: if false;
     }
 
     match /divisions/{divisionId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && matchesTenant(resource.data);
 
-      allow create: if isSuperAdmin() &&
-        request.resource.data.organization_id == "main_org";
+      allow create: if isSignedIn() &&
+        (isSuperAdmin() || isKoordinatorDivisi()) &&
+        matchesTenant(request.resource.data);
 
       // super_admin bisa update semua divisi
       // koordinator_divisi hanya bisa update design_kit fields divisinya sendiri
       allow update: if isSuperAdmin() ||
         (
           isKoordinatorDivisi() &&
+          matchesTenant(resource.data) &&
+          immutableOwnership() &&
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.division_id == divisionId &&
           changedOnly([
             "design_kit_color_palette",
@@ -315,42 +435,55 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
-      allow get: if isSuperAdmin() ||
+      allow get: if isSignedIn() && matchesTenant(resource.data) && (
+        isSuperAdmin() ||
         isKoordinatorDivisi() ||
         isEventMember(eventId) ||
-        resource.data.coordinator_id == request.auth.uid;
+        resource.data.coordinator_id == request.auth.uid
+      );
 
-      allow list: if isSuperAdmin() || isKoordinatorDivisi();
-      allow list: if resource.data.coordinator_id == request.auth.uid;
-      allow list: if isEventMember(eventId);
-
-      allow create: if isSuperAdmin() ||
+      allow list: if isSignedIn() && matchesTenant(resource.data) && (
+        isSuperAdmin() ||
         isKoordinatorDivisi() ||
+        resource.data.coordinator_id == request.auth.uid ||
+        isEventMember(eventId)
+      );
+
+      allow create: if isSignedIn() &&
+        matchesTenant(request.resource.data) &&
         (
-          isKoordinatorAcara() &&
-          request.resource.data.created_by == request.auth.uid &&
-          request.resource.data.coordinator_id == request.auth.uid
+          isSuperAdmin() ||
+          isKoordinatorDivisi() ||
+          (
+            isKoordinatorAcara() &&
+            request.resource.data.created_by == request.auth.uid &&
+            request.resource.data.coordinator_id == request.auth.uid
+          )
         );
 
-      allow update: if canManageEvent(eventId);
+      allow update: if canManageEvent(eventId) && matchesTenant(resource.data) && immutableOwnership();
 
       allow delete: if false; // TODO: evaluasi delete acara setelah workflow task tersedia.
 
       match /event_members/{memberId} {
-        allow read: if isSuperAdmin() ||
-          isKoordinatorDivisi() ||
-          isEventMember(eventId);
+        allow read: if isSignedIn() &&
+          matchesTenant(get(/databases/$(database)/documents/events/$(eventId)).data) &&
+          (isSuperAdmin() || isKoordinatorDivisi() || isEventMember(eventId));
 
-        allow create, update: if canManageEvent(eventId) &&
+        allow create, update: if isSignedIn() &&
+          canManageEvent(eventId) &&
+          matchesTenant(get(/databases/$(database)/documents/events/$(eventId)).data) &&
           request.resource.data.event_id == eventId &&
           request.resource.data.user_id == memberId;
 
-        allow delete: if canManageEvent(eventId);
+        allow delete: if isSignedIn() &&
+          canManageEvent(eventId) &&
+          matchesTenant(get(/databases/$(database)/documents/events/$(eventId)).data);
       }
     }
 
     match /tasks/{taskId} {
-      allow get: if isSignedIn() && (
+      allow get: if isSignedIn() && matchesTenant(resource.data) && (
         canReadTaskData(resource.data) ||
         (
           isReferenceEligible(resource.data) &&
@@ -361,7 +494,7 @@ service cloud.firestore {
         )
       );
 
-      allow list: if isSignedIn() && (
+      allow list: if isSignedIn() && matchesTenant(resource.data) && (
         resource.data.pic_id == request.auth.uid ||
         isSuperAdmin() ||
         (
@@ -388,23 +521,29 @@ service cloud.firestore {
 
       allow create: if isSignedIn() &&
         canCreateTaskData(request.resource.data) &&
-        request.resource.data.organization_id == "main_org" &&
+        matchesTenant(request.resource.data) &&
         request.resource.data.is_archived == false;
 
       allow update: if isSignedIn() &&
+        matchesTenant(resource.data) &&
+        immutableOwnership() &&
         (canUpdateTaskData() || canPicUpdateTaskWorkflow());
 
       allow delete: if false;
 
       match /status_logs/{logId} {
         allow read: if isSignedIn() &&
+          matchesTenant(get(/databases/$(database)/documents/tasks/$(taskId)).data) &&
           canReadTaskData(get(/databases/$(database)/documents/tasks/$(taskId)).data);
-        allow create: if isSignedIn() && canCreateStatusLog(taskId);
+        allow create: if isSignedIn() &&
+          matchesTenant(get(/databases/$(database)/documents/tasks/$(taskId)).data) &&
+          canCreateStatusLog(taskId);
         allow update, delete: if false;
       }
 
       match /uploads/{uploadId} {
-        allow read: if isSignedIn() && (
+        allow read: if isSignedIn() &&
+          matchesTenant(get(/databases/$(database)/documents/tasks/$(taskId)).data) && (
           canReadTaskData(get(/databases/$(database)/documents/tasks/$(taskId)).data) ||
           (
             isReferenceEligible(get(/databases/$(database)/documents/tasks/$(taskId)).data) &&
@@ -420,13 +559,17 @@ service cloud.firestore {
 
     match /design_references/{referenceId} {
       allow read: if isSignedIn() &&
+        matchesTenant(resource.data) &&
         (resource.data.is_archived == false || isKoordinator());
 
       allow create: if isSignedIn() &&
+        matchesTenant(request.resource.data) &&
         canCreateDesignReferenceData(request.resource.data) &&
         request.resource.data.id == referenceId;
 
       allow update: if isSignedIn() &&
+        matchesTenant(resource.data) &&
+        immutableOwnership() &&
         canUpdateDesignReference() &&
         request.resource.data.id == resource.data.id &&
         request.resource.data.organization_id == resource.data.organization_id &&
@@ -437,12 +580,12 @@ service cloud.firestore {
     }
 
     match /whatsapp_logs/{logId} {
-      allow read: if isKoordinator();
+      allow read: if isKoordinator() && matchesTenant(resource.data);
       allow write: if false; // Log WhatsApp ditulis server API via Admin SDK.
     }
 
     match /ai_logs/{logId} {
-      allow read: if isKoordinator();
+      allow read: if isKoordinator() && matchesTenant(resource.data);
       allow write: if false; // Log AI ditulis server API via Admin SDK.
     }
 

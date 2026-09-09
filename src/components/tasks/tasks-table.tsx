@@ -9,6 +9,7 @@ import { formatTaskDate } from "@/lib/firebase/tasks";
 import { getRiskLevelFromTask, getRiskLabel } from "@/lib/task-risk";
 import { SuggestedReferencesDialog } from "@/components/references/suggested-references-dialog";
 import { Badge } from "@/components/ui/badge";
+import { WorkspaceBadge } from "@/components/workspace/workspace-badge";
 import type { Event, Task, UserProfile } from "@/types";
 
 import { Eye, Pencil, Archive, Sparkles } from "lucide-react";
@@ -40,6 +41,7 @@ export function TasksTable({
           <thead>
             <tr className="border-b border-border bg-muted/50">
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Nama Tugas</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Ruang Kerja</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">PIC</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Acara / Divisi</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Deadline</th>
@@ -71,6 +73,12 @@ export function TasksTable({
               return (
                 <tr key={task.id} className="align-middle hover:bg-neutral-105/50 dark:hover:bg-neutral-800/40">
                   <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">{task.name}</td>
+                  <td className="px-4 py-3">
+                    <WorkspaceBadge
+                      campusId={task.campus_id || task.univ_id}
+                      orgId={task.org_id || task.organization_id}
+                    />
+                  </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
                   </td>

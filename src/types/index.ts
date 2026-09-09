@@ -1,3 +1,5 @@
+export * from "./workspace";
+
 export type DashboardNavItem = {
   label: string;
   href: string;
@@ -34,6 +36,12 @@ export type UserRole =
 export type UserProfile = {
   id: string;
   organization_id: string;
+  org_id?: string;
+  orgId?: string;
+  univ_id?: string;
+  univId?: string;
+  campus_id?: string;
+  campusId?: string;
   name: string;
   email: string;
   whatsapp_number: string;
@@ -57,6 +65,12 @@ export type EventStatus =
 export type Event = {
   id: string;
   organization_id: string;
+  org_id?: string;
+  orgId?: string;
+  univ_id?: string;
+  univId?: string;
+  campus_id?: string;
+  campusId?: string;
   name: string;
   description: string;
   event_date: unknown;
@@ -92,12 +106,26 @@ export type EventMember = {
   id: string;
   event_id: string;
   user_id: string;
+  organization_id?: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
   role_in_event: string;
   added_by: string;
   added_at?: unknown;
 };
 
 export type EventInput = {
+  organization_id?: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
   name: string;
   description: string;
   event_date: string;
@@ -143,6 +171,12 @@ export type ApprovalStatus = "pending" | "approved" | "need_revision";
 export type Task = {
   id: string;
   organization_id: string;
+  org_id?: string;
+  orgId?: string;
+  univ_id?: string;
+  univId?: string;
+  campus_id?: string;
+  campusId?: string;
   type: TaskType;
   division_id?: string;
   event_id?: string;
@@ -202,6 +236,13 @@ export type Task = {
 export type TaskStatusLog = {
   id: string;
   task_id: string;
+  organization_id?: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
   from_status: TaskStatus;
   to_status: TaskStatus;
   changed_by: string;
@@ -215,6 +256,13 @@ export type TaskStatusLog = {
 export type TaskUpload = {
   id: string;
   task_id: string;
+  organization_id?: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
   upload_url: string;
   thumbnail_url: string;
   public_id: string;
@@ -247,6 +295,12 @@ export type DesignType =
 export type DesignReference = {
   id: string;
   organization_id: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
   title: string;
   event_name: string;
   design_type: DesignType;
@@ -285,6 +339,13 @@ export type DesignReference = {
 export type ReferenceListItem = {
   id: string;
   source_type: "manual_reference" | "approved_task";
+  organization_id?: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
   title: string;
   event_name?: string;
   year?: string | number;
@@ -315,6 +376,13 @@ export type ReferenceListItem = {
 };
 
 export type DesignReferenceInput = {
+  organization_id?: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
   title: string;
   event_name: string;
   design_type: DesignType;
@@ -346,11 +414,17 @@ export type DesignReferenceInput = {
   }>;
 };
 
-export type WhatsAppLogStatus = "sent" | "failed" | "pending";
+export type WhatsAppLogStatus = "sent" | "failed" | "pending" | "skipped";
 
 export type WhatsAppLog = {
   id: string;
   organization_id: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
   task_id?: string;
   event_type: string;
   message_content: string;
@@ -369,6 +443,12 @@ export type WhatsAppLog = {
 export type AILog = {
   id: string;
   organization_id: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
   asked_by: string;
   question: string;
   context_summary: string;
@@ -381,6 +461,13 @@ export type AILog = {
 };
 
 export type TaskInput = {
+  organization_id?: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
   type: TaskType;
   event_id: string;
   division_id?: string;
@@ -421,6 +508,14 @@ export type Organization = {
   id: string;
   name: string;
   slug: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
+  org_id?: string;
+  orgId?: string;
+  short_name?: string;
+  type?: string;
   whatsapp_group_id: string;
   logo_url: string;
   created_at?: unknown;
@@ -430,10 +525,17 @@ export type Organization = {
 export type Division = {
   id: string;
   organization_id: string;
+  org_id?: string;
+  orgId?: string;
+  univ_id?: string;
+  univId?: string;
+  campus_id?: string;
+  campusId?: string;
   name: string;
   description: string;
   slug: string; // Fase 26B
   is_active: boolean; // Fase 26B
+  is_core?: boolean; // Menandai divisi pokok standar ormawa
   coordinator_id: string;
   created_at?: unknown;
   updated_at?: unknown;
@@ -450,7 +552,17 @@ export type Division = {
 export type NewUserProfileInput = Pick<
   UserProfile,
   "id" | "name" | "email" | "whatsapp_number"
->;
+> & {
+  organization_id?: string;
+  org_id?: string;
+  orgId?: string;
+  campus_id?: string;
+  campusId?: string;
+  univ_id?: string;
+  univId?: string;
+  division_id?: string;
+};
+
 
 export type RegisterInput = {
   name: string;

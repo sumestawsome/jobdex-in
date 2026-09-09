@@ -86,8 +86,41 @@ function eventDateToTimestamp(value: string) {
   return Timestamp.fromDate(new Date(`${value}T00:00:00`));
 }
 
-export async function getEventsForProfile(profile: UserProfile) {
+export async function getEventsForProfile(
+  profile: UserProfile,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
   const eventsRef = collection(db, "events");
+  const targetOrgId = workspaceFilter?.org_id || profile.organization_id || profile.org_id;
+  const targetCampusId = workspaceFilter?.campus_id || profile.campus_id || profile.univ_id;
+
+  const filterByWorkspace = (list: Event[]): Event[] => {
+    if (!targetOrgId && !targetCampusId) return list;
+    return list.filter((event) => {
+      // Filter organisasi / ormawa
+      if (targetOrgId) {
+        const eventOrg =
+          event.organization_id ||
+          event.org_id ||
+          (event as unknown as Record<string, unknown>).orgId ||
+          DEFAULT_ORGANIZATION_ID;
+        if (eventOrg !== targetOrgId) return false;
+      }
+
+      // Filter kampus
+      if (targetCampusId) {
+        const eventCampus =
+          event.campus_id ||
+          (event as unknown as Record<string, unknown>).campusId ||
+          event.univ_id ||
+          (event as unknown as Record<string, unknown>).univId ||
+          "ui";
+        if (eventCampus !== targetCampusId) return false;
+      }
+
+      return true;
+    });
+  };
 
   // For admins and division coordinators, query all events
   if (isSuperAdmin(profile) || isKoordinatorDivisi(profile)) {
@@ -97,7 +130,9 @@ export async function getEventsForProfile(profile: UserProfile) {
       ...item.data(),
     })) as Event[];
 
-    return events.sort((a, b) => {
+    const filtered = filterByWorkspace(events);
+
+    return filtered.sort((a, b) => {
       const aDate = a.event_date ? getDateMillis(a.event_date) : (a.created_at ? getDateMillis(a.created_at) : (a.updated_at ? getDateMillis(a.updated_at) : 0));
       const bDate = b.event_date ? getDateMillis(b.event_date) : (b.created_at ? getDateMillis(b.created_at) : (b.updated_at ? getDateMillis(b.updated_at) : 0));
       return bDate - aDate;
@@ -137,7 +172,9 @@ export async function getEventsForProfile(profile: UserProfile) {
         ...snap.data(),
       })) as Event[];
 
-    return events.sort((a, b) => {
+    const filtered = filterByWorkspace(events);
+
+    return filtered.sort((a, b) => {
       const aDate = a.event_date ? getDateMillis(a.event_date) : (a.created_at ? getDateMillis(a.created_at) : (a.updated_at ? getDateMillis(a.updated_at) : 0));
       const bDate = b.event_date ? getDateMillis(b.event_date) : (b.created_at ? getDateMillis(b.created_at) : (b.updated_at ? getDateMillis(b.updated_at) : 0));
       return bDate - aDate;
@@ -148,22 +185,76 @@ export async function getEventsForProfile(profile: UserProfile) {
   }
 }
 
-export async function getEventById(eventId: string) {
+export async function getEventById(
+  eventId: string,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
   const snapshot = await getDoc(doc(db, "events", eventId));
 
   if (!snapshot.exists()) {
     return null;
   }
 
-  return {
+  const event = {
     id: snapshot.id,
     ...snapshot.data(),
   } as Event;
+
+  if (workspaceFilter?.org_id) {
+    const eventOrg =
+      event.organization_id ||
+      event.org_id ||
+      (event as unknown as Record<string, unknown>).orgId ||
+      DEFAULT_ORGANIZATION_ID;
+    if (eventOrg !== workspaceFilter.org_id) {
+      return null;
+    }
+  }
+
+  if (workspaceFilter?.campus_id) {
+    const eventCampus =
+      event.campus_id ||
+      (event as unknown as Record<string, unknown>).campusId ||
+      event.univ_id ||
+      (event as unknown as Record<string, unknown>).univId ||
+      "ui";
+    if (eventCampus !== workspaceFilter.campus_id) {
+      return null;
+    }
+  }
+
+  return event;
 }
 
 export async function createEvent(input: EventInput, createdBy: string) {
+  let orgId = input.organization_id || input.org_id || input.orgId;
+  let campusId = input.campus_id || input.univ_id || input.univId || input.campusId || "";
+
+  // Otomatis isi univId dan orgId dari profil pembuat jika belum terisi
+  if ((!orgId || !campusId) && createdBy) {
+    try {
+      const userSnap = await getDoc(doc(db, "users", createdBy));
+      if (userSnap.exists()) {
+        const uData = userSnap.data() as Record<string, unknown>;
+        orgId = orgId || (uData.orgId as string) || (uData.org_id as string) || (uData.organization_id as string);
+        campusId = campusId || (uData.univId as string) || (uData.univ_id as string) || (uData.campusId as string) || (uData.campus_id as string) || "";
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!orgId) {
+    throw new Error("Ruang kerja aktif (organisasi / ormawa) wajib dipilih sebelum membuat acara.");
+  }
+
   const rawPayload = {
-    organization_id: DEFAULT_ORGANIZATION_ID,
+    organization_id: orgId,
+    org_id: orgId,
+    orgId: orgId,
+    campus_id: campusId,
+    univ_id: campusId,
+    univId: campusId,
     division_id: input.division_id || DEFAULT_DIVISION_ID,
     name: input.name,
     description: input.description,
@@ -195,10 +286,44 @@ export async function createEvent(input: EventInput, createdBy: string) {
   return eventRef.id;
 }
 
-export async function updateEvent(eventId: string, input: EventInput, updatedBy?: string) {
+export async function updateEvent(
+  eventId: string,
+  input: EventInput,
+  updatedBy?: string,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
   const eventRef = doc(db, "events", eventId);
   const eventSnap = await getDoc(eventRef);
-  const existingData = eventSnap.exists() ? eventSnap.data() as Event : null;
+  const existingData = eventSnap.exists() ? (eventSnap.data() as Event) : null;
+
+  if (existingData) {
+    const existingOrg =
+      existingData.organization_id ||
+      existingData.org_id ||
+      (existingData as unknown as Record<string, unknown>).orgId;
+    const existingCampus =
+      existingData.campus_id ||
+      existingData.univ_id ||
+      (existingData as unknown as Record<string, unknown>).univId ||
+      (existingData as unknown as Record<string, unknown>).campusId;
+
+    if (workspaceFilter?.org_id && existingOrg && workspaceFilter.org_id !== existingOrg) {
+      throw new Error("Akses ditolak: Tidak dapat memodifikasi acara milik organisasi/ormawa lain.");
+    }
+    if (workspaceFilter?.campus_id && existingCampus && workspaceFilter.campus_id !== existingCampus) {
+      throw new Error("Akses ditolak: Tidak dapat memodifikasi acara milik kampus lain.");
+    }
+
+    const inputOrg = input.organization_id || input.org_id || input.orgId;
+    if (inputOrg && existingOrg && inputOrg !== existingOrg) {
+      throw new Error("Dilarang mengubah penanda kepemilikan ormawa/organisasi pada pembaruan acara.");
+    }
+
+    const inputCampus = input.campus_id || input.univ_id || input.univId || input.campusId;
+    if (inputCampus && existingCampus && inputCampus !== existingCampus) {
+      throw new Error("Dilarang mengubah penanda kepemilikan kampus pada pembaruan acara.");
+    }
+  }
 
   const updateData: Record<string, unknown> = {
     name: input.name,
@@ -207,6 +332,14 @@ export async function updateEvent(eventId: string, input: EventInput, updatedBy?
     coordinator_id: input.coordinator_id,
     status: input.status,
     division_id: input.division_id ?? existingData?.division_id ?? DEFAULT_DIVISION_ID,
+    // Pertahankan penanda kepemilikan awal yang tidak boleh diubah
+    ...(existingData?.organization_id ? { organization_id: existingData.organization_id } : {}),
+    ...(existingData?.org_id ? { org_id: existingData.org_id } : {}),
+    ...(existingData?.orgId ? { orgId: existingData.orgId } : {}),
+    ...(existingData?.campus_id ? { campus_id: existingData.campus_id } : {}),
+    ...(existingData?.campusId ? { campusId: existingData.campusId } : {}),
+    ...(existingData?.univ_id ? { univ_id: existingData.univ_id } : {}),
+    ...(existingData?.univId ? { univId: existingData.univId } : {}),
     updated_at: serverTimestamp(),
     // Fase 26A: Event Design Kit
     design_kit_color_palette: input.design_kit_color_palette ?? [],

@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getAdminDb } from "@/lib/server/firebase-admin";
+import { getServerAuthContext, AuthRoleError } from "@/lib/server/auth";
 import type { DesignReference } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -112,15 +113,42 @@ function calculateScore(ref: DesignReference, cleanQuestion: string, keywords: s
   return score;
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const queryText = searchParams.get("q") || "";
-
-  if (!queryText.trim()) {
-    return NextResponse.json({ results: [] });
-  }
-
+export async function GET(request: NextRequest) {
   try {
+    const { profile } = await getServerAuthContext(request);
+    const { searchParams } = new URL(request.url);
+    const queryText = searchParams.get("q") || "";
+
+    if (!queryText.trim()) {
+      return NextResponse.json({ results: [] });
+    }
+
+    const userOrgId = profile.organization_id || profile.org_id || ((profile as unknown as Record<string, unknown>).orgId as string) || "";
+    const userCampusId = profile.campus_id || profile.univ_id || ((profile as unknown as Record<string, unknown>).campusId as string) || "";
+    const requestedOrgId = searchParams.get("org_id");
+    const requestedCampusId = searchParams.get("campus_id");
+
+    let orgId = userOrgId;
+    let campusId = userCampusId;
+
+    if (profile.role === "super_admin") {
+      orgId = requestedOrgId || userOrgId;
+      campusId = requestedCampusId || userCampusId;
+    } else {
+      if (requestedOrgId && userOrgId && requestedOrgId !== userOrgId) {
+        return NextResponse.json(
+          { error: "Akses ditolak: Anda tidak memiliki izin mengakses data organisasi lain." },
+          { status: 403 }
+        );
+      }
+      if (requestedCampusId && userCampusId && requestedCampusId !== userCampusId) {
+        return NextResponse.json(
+          { error: "Akses ditolak: Anda tidak memiliki izin mengakses data kampus lain." },
+          { status: 403 }
+        );
+      }
+    }
+
     const cleanQuestion = queryText.toLowerCase().trim();
     const keywords = expandKeywords(cleanQuestion);
 
@@ -132,7 +160,16 @@ export async function GET(request: Request) {
 
     const allReferences: DesignReference[] = [];
     snapshot.forEach((doc) => {
-      allReferences.push({ id: doc.id, ...doc.data() } as DesignReference);
+      const data = doc.data() as Record<string, unknown>;
+      if (orgId) {
+        const docOrg = data.organization_id || data.org_id || data.orgId || "main_org";
+        if (docOrg !== orgId) return;
+      }
+      if (campusId) {
+        const docCampus = data.campus_id || data.campusId || data.univ_id || data.univId || "ui";
+        if (docCampus !== campusId) return;
+      }
+      allReferences.push({ id: doc.id, ...data } as DesignReference);
     });
 
     const scored = allReferences
@@ -147,7 +184,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ results: scored });
   } catch (error: unknown) {
+    if (error instanceof AuthRoleError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+    }
+    const message = error instanceof Error ? error.message : "Internal Server Error";
+    const status = message.includes("Token") || message.includes("auth") ? 401 : 500;
     console.error("[Search References API] Failed:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: message }, { status });
   }
 }

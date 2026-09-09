@@ -33,6 +33,7 @@ import {
   cancelPreviewCommand,
   sanitizePinFromMessage,
 } from "@/lib/server/whatsapp-command-executor";
+import { findOrmawaGatewayByToken } from "@/lib/server/ormawa-whatsapp-gateway";
 import {
   handleDeadlineQuery,
   handleApproveTaskCommand,
@@ -206,6 +207,78 @@ function normalizePhone(value: string): string {
     .replace(/\D/g, "")
     .replace(/^0/, "62")
     .replace(/^8/, "628");
+}
+
+async function resolveWebhookOrmawaId(
+  incoming: NormalizedIncomingWhatsAppMessage,
+  payload: unknown
+): Promise<string | null> {
+  const db = getAdminDb();
+
+  // 1. Cek payload webhook jika membawa token gateway (Fonnte / Wablas)
+  if (payload && typeof payload === "object") {
+    const pObj = payload as Record<string, unknown>;
+    const token =
+      typeof pObj.token === "string"
+        ? pObj.token.trim()
+        : typeof pObj.secret === "string"
+        ? pObj.secret.trim()
+        : "";
+    if (token) {
+      const gw = await findOrmawaGatewayByToken(token);
+      if (gw?.org_id) return gw.org_id;
+    }
+
+    if (typeof pObj.org_id === "string" && pObj.org_id) {
+      return pObj.org_id;
+    }
+    if (typeof pObj.orgId === "string" && pObj.orgId) {
+      return pObj.orgId;
+    }
+  }
+
+  // 2. Cek berdasarkan nomor WhatsApp pengirim
+  if (incoming.sender) {
+    const cleanSender = normalizePhone(incoming.sender);
+    const usersSnap = await db.collection("users").get();
+    for (const doc of usersSnap.docs) {
+      const u = doc.data() as Record<string, unknown>;
+      const phones = [u.whatsapp, u.whatsapp_number, u.phone, u.phone_number];
+      for (const p of phones) {
+        if (p && normalizePhone(String(p)) === cleanSender) {
+          const userOrgId = (u.org_id || u.orgId || u.organization_id) as string | undefined;
+          if (userOrgId && userOrgId !== "main_org") {
+            return userOrgId;
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // 3. Cek berdasarkan grup ID (apakah grup terhubung ke event/divisi/ormawa tertentu)
+  if (incoming.groupId) {
+    const groupVariants = getGroupIdVariants(incoming.groupId);
+    // Cek events
+    const eventsSnap = await db.collection("events").get();
+    for (const doc of eventsSnap.docs) {
+      const ev = doc.data() as Record<string, unknown>;
+      if (ev.whatsapp_group_id && groupVariants.includes(String(ev.whatsapp_group_id))) {
+        const evOrgId = (ev.org_id || ev.orgId || ev.organization_id) as string | undefined;
+        if (evOrgId && evOrgId !== "main_org") return evOrgId;
+      }
+    }
+    // Cek ormawas
+    const ormawasSnap = await db.collection("ormawas").get();
+    for (const doc of ormawasSnap.docs) {
+      const o = doc.data() as Record<string, unknown>;
+      if (o.whatsapp_group_id && groupVariants.includes(String(o.whatsapp_group_id))) {
+        return doc.id;
+      }
+    }
+  }
+
+  return null;
 }
 
 function getNestedProperty(obj: unknown, path: string): unknown {
@@ -515,6 +588,7 @@ export async function executeWhatsAppWebhook(
 
   const question = extractJobDexQuestion(incoming.message);
   const db = getAdminDb();
+  const detectedOrgId = await resolveWebhookOrmawaId(incoming, payload);
 
   const sendWhatsAppMessage = async (message: string, customPhone?: string) => {
     const target = customPhone || incoming.groupId || getDefaultGroupId();
@@ -536,7 +610,28 @@ export async function executeWhatsAppWebhook(
     });
 
     try {
-      const result = await baseSendWhatsAppMessage({ target, message, type });
+      const result = await baseSendWhatsAppMessage({
+        target,
+        message,
+        type,
+        org_id: detectedOrgId || undefined,
+      });
+
+      if (result.skipped) {
+        console.warn(
+          `[whatsapp command] Balasan bot dilewati: gateway ormawa (${detectedOrgId}) belum diatur.`
+        );
+        await createWhatsAppLog({
+          message,
+          status: "skipped" as any,
+          errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+          recipient: target,
+          isGroup,
+          provider: result.provider,
+        });
+        return result;
+      }
+
       console.log("[whatsapp command] reply send result", {
         ok: result.ok,
         provider: result.provider,
@@ -621,12 +716,37 @@ export async function executeWhatsAppWebhook(
       provider: process.env.WHATSAPP_PROVIDER,
     });
 
+    let taskOrgId: string | undefined = undefined;
+    if (result.taskId) {
+      const tSnap = await getAdminDb().collection("tasks").doc(result.taskId).get();
+      if (tSnap.exists) {
+        const tData = tSnap.data() as Record<string, unknown>;
+        taskOrgId = (tData.org_id || tData.orgId || tData.organization_id) as string | undefined;
+      }
+    }
+
     try {
       const sendResult = await baseSendWhatsAppMessage({
         target: recipient,
         message: replyMessage,
         type,
+        org_id: taskOrgId || detectedOrgId || undefined,
       });
+
+      if (sendResult.skipped) {
+        console.warn(
+          `[whatsapp command] Balasan tugas dilewati: gateway ormawa belum diatur.`
+        );
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "skipped" as any,
+          errorMessage: sendResult.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+          recipient,
+          isGroup,
+          provider: sendResult.provider,
+        });
+        return;
+      }
 
       console.log("[whatsapp command] reply send result", {
         ok: sendResult.ok,

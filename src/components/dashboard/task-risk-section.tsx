@@ -8,12 +8,15 @@ import { getRiskLevelFromTask } from "@/lib/task-risk";
 import { TaskRiskCard } from "@/components/dashboard/task-risk-card";
 import { AlertTriangle } from "lucide-react";
 
+import { useWorkspace } from "@/hooks/use-workspace";
+
 type TaskRiskSectionProps = {
   profile: UserProfile;
 };
 
 
 export function TaskRiskSection({ profile }: TaskRiskSectionProps) {
+  const { activeWorkspace } = useWorkspace();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [usersMap, setUsersMap] = useState<Map<string, UserProfile>>(new Map());
   const [eventsMap, setEventsMap] = useState<Map<string, { name?: string }>>(new Map());
@@ -31,6 +34,21 @@ export function TaskRiskSection({ profile }: TaskRiskSectionProps) {
     async function loadData() {
       setLoading(true);
       try {
+        const targetOrgId = activeWorkspace.org_id || profile.organization_id || profile.org_id;
+        const targetCampusId = activeWorkspace.campus_id || profile.campus_id || profile.univ_id;
+
+        const matchesTenant = (item: Record<string, unknown>): boolean => {
+          if (targetOrgId) {
+            const org = item.organization_id || item.org_id || item.orgId || "org-ui-bem";
+            if (org !== targetOrgId) return false;
+          }
+          if (targetCampusId) {
+            const campus = item.campus_id || item.campusId || item.univ_id || item.univId || "ui";
+            if (campus !== targetCampusId) return false;
+          }
+          return true;
+        };
+
         // Fetch all active tasks
         const tasksQuery = query(collection(db, "tasks"), where("is_archived", "==", false));
         const [tasksSnap, usersSnap, eventsSnap, divisionsSnap] = await Promise.all([
@@ -52,22 +70,30 @@ export function TaskRiskSection({ profile }: TaskRiskSectionProps) {
         // Process events
         const eMap = new Map<string, { name?: string }>();
         eventsSnap.forEach((doc) => {
-          eMap.set(doc.id, doc.data() as { name?: string });
+          const data = doc.data() as Record<string, unknown>;
+          if (matchesTenant(data)) {
+            eMap.set(doc.id, data as { name?: string });
+          }
         });
         setEventsMap(eMap);
 
         // Process divisions
         const dMap = new Map<string, { name?: string }>();
         divisionsSnap.forEach((doc) => {
-          dMap.set(doc.id, doc.data() as { name?: string });
+          const data = doc.data() as Record<string, unknown>;
+          if (matchesTenant(data)) {
+            dMap.set(doc.id, data as { name?: string });
+          }
         });
         setDivisionsMap(dMap);
 
         // Process and filter tasks
         const allTasks: Task[] = [];
         tasksSnap.forEach((doc) => {
-          const data = doc.data() as Task;
-          allTasks.push({ ...data, id: doc.id });
+          const data = doc.data() as Record<string, unknown>;
+          if (matchesTenant(data)) {
+            allTasks.push({ ...data, id: doc.id } as Task);
+          }
         });
 
         // Filter based on role
@@ -110,7 +136,7 @@ export function TaskRiskSection({ profile }: TaskRiskSectionProps) {
     return () => {
       mounted = false;
     };
-  }, [profile]);
+  }, [profile, activeWorkspace.org_id, activeWorkspace.campus_id]);
 
   // Members/Anggota do not see this global section
   if (profile.role === "anggota") {

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, type FormEvent, type ReactNode } from "react";
+import { useState, useEffect, useMemo, type FormEvent, type ReactNode } from "react";
+import { useWorkspace } from "@/hooks/use-workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, FolderOpen, Save, Info } from "lucide-react";
@@ -98,12 +99,27 @@ function TaskForm({
   onSave,
 }: TaskFormDialogProps) {
   const { user, userProfile } = useAuth();
+  const { activeWorkspace } = useWorkspace();
+
+  const activeOrmawaDivisions = useMemo(() => {
+    if (!divisions) return [];
+    if (!activeWorkspace.org_id) return divisions;
+    return divisions.filter((d) => {
+      const divOrg = d.organization_id || d.org_id || (d as unknown as Record<string, unknown>).orgId;
+      return !divOrg || divOrg === activeWorkspace.org_id;
+    });
+  }, [divisions, activeWorkspace.org_id]);
+
   const [divisionId, setDivisionId] = useState(() => {
     if (task?.division_id) return task.division_id;
     if (userProfile?.role === "koordinator_divisi" || userProfile?.role === "anggota") {
       return userProfile.division_id || "";
     }
-    const activeDivs = divisions?.filter((d) => d.is_active !== false) || [];
+    const activeDivs = (divisions || []).filter((d) => {
+      if (d.is_active === false) return false;
+      const divOrg = d.organization_id || d.org_id || (d as unknown as Record<string, unknown>).orgId;
+      return !divOrg || !activeWorkspace.org_id || divOrg === activeWorkspace.org_id;
+    });
     return activeDivs[0]?.id || "";
   });
   const [isDetecting, setIsDetecting] = useState(false);
@@ -488,6 +504,20 @@ function TaskForm({
       return;
     }
 
+    if (type === "divisi") {
+      if (!divisionId || !divisionId.trim()) {
+        setError("Divisi pokok wajib dipilih untuk jobdesk tipe divisi.");
+        return;
+      }
+      if (activeOrmawaDivisions.length > 0) {
+        const isValidInActiveOrmawa = activeOrmawaDivisions.some((d) => d.id === divisionId);
+        if (!isValidInActiveOrmawa) {
+          setError("Divisi yang dipilih tidak valid untuk ormawa aktif.");
+          return;
+        }
+      }
+    }
+
     if (!picId || !coordinatorId || !deadline) {
       setError("PIC, koordinator, dan deadline wajib diisi.");
       return;
@@ -524,6 +554,13 @@ function TaskForm({
     try {
       await onSave(
         {
+          organization_id: task?.organization_id || activeWorkspace.org_id || "default_org",
+          org_id: task?.org_id || activeWorkspace.org_id || "default_org",
+          orgId: task?.orgId || activeWorkspace.org_id || "default_org",
+          campus_id: task?.campus_id || activeWorkspace.campus_id || "default_campus",
+          campusId: task?.campusId || activeWorkspace.campus_id || "default_campus",
+          univ_id: task?.univ_id || activeWorkspace.campus_id || "default_campus",
+          univId: task?.univId || activeWorkspace.campus_id || "default_campus",
           type,
           event_id: type === "acara" ? eventId : "",
           division_id: type === "divisi" ? divisionId : "",
@@ -568,8 +605,12 @@ function TaskForm({
         task?.id,
       );
       onClose();
-    } catch {
-      setError("Gagal menyimpan task. Periksa izin akses dan Firestore Rules.");
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Gagal menyimpan task. Periksa izin akses dan Firestore Rules.";
+      setError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -652,8 +693,8 @@ function TaskForm({
                 onChange={(event) => setDivisionId(event.target.value)}
               >
                 <option value="">Pilih divisi</option>
-                {divisions && divisions.length > 0 ? (
-                  divisions.map((div) => (
+                {activeOrmawaDivisions.length > 0 ? (
+                  activeOrmawaDivisions.map((div) => (
                     <option key={div.id} value={div.id}>
                       {div.name}
                     </option>

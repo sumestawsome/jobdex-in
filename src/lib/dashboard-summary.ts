@@ -93,15 +93,38 @@ async function safeSetupReady() {
   }
 }
 
-export async function getDashboardSummary(profile: UserProfile) {
+export async function getDashboardSummary(
+  profile: UserProfile,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
+  const targetOrgId = workspaceFilter?.org_id || profile.organization_id || profile.org_id;
+  const targetCampusId = workspaceFilter?.campus_id || profile.campus_id || profile.univ_id;
+
+  const matchesTenant = (item: Record<string, unknown>): boolean => {
+    if (targetOrgId) {
+      const org = item.organization_id || item.org_id || item.orgId || "org-ui-bem";
+      if (org !== targetOrgId) return false;
+    }
+    if (targetCampusId) {
+      const campus = item.campus_id || item.campusId || item.univ_id || item.univId || "ui";
+      if (campus !== targetCampusId) return false;
+    }
+    return true;
+  };
+
   if (profile.role === "super_admin") {
-    const [users, events, taskDocs, references, setupReady] = await Promise.all([
-      safeCount("users"),
-      safeCount("events"),
+    const [rawUsers, rawEvents, rawTasks, rawReferences, setupReady] = await Promise.all([
+      safeDocs("users"),
+      safeDocs("events"),
       safeDocs("tasks"),
-      safeCount("design_references"),
+      safeDocs("design_references"),
       safeSetupReady(),
     ]);
+
+    const users = rawUsers.filter(matchesTenant).length;
+    const events = rawEvents.filter(matchesTenant).length;
+    const taskDocs = rawTasks.filter(matchesTenant);
+    const references = rawReferences.filter(matchesTenant).length;
 
     return {
       title: "Ringkasan seluruh organisasi",
@@ -165,10 +188,12 @@ export async function getDashboardSummary(profile: UserProfile) {
 
   if (profile.role === "koordinator_divisi") {
     const divisionId = profile.division_id || DEFAULT_DIVISION_ID;
-    const [members, divisionTaskDocs] = await Promise.all([
-      safeQueryCount("users", "division_id", divisionId),
+    const [rawMembers, rawTasks] = await Promise.all([
+      safeDocsByField("users", "division_id", divisionId),
       safeDocsByField("tasks", "division_id", divisionId),
     ]);
+    const members = rawMembers.filter(matchesTenant).length;
+    const divisionTaskDocs = rawTasks.filter(matchesTenant);
 
     return {
       title: "Ringkasan koordinator divisi",
@@ -210,10 +235,12 @@ export async function getDashboardSummary(profile: UserProfile) {
   }
 
   if (profile.role === "koordinator_acara") {
-    const [events, eventTaskDocs] = await Promise.all([
-      safeQueryCount("events", "coordinator_id", profile.id),
+    const [rawEvents, rawTasks] = await Promise.all([
+      safeDocsByField("events", "coordinator_id", profile.id),
       safeDocsByField("tasks", "coordinator_id", profile.id),
     ]);
+    const events = rawEvents.filter(matchesTenant).length;
+    const eventTaskDocs = rawTasks.filter(matchesTenant);
 
     return {
       title: "Ringkasan koordinator acara",
@@ -253,7 +280,8 @@ export async function getDashboardSummary(profile: UserProfile) {
     } satisfies DashboardSummary;
   }
 
-  const myTaskDocs = await safeDocsByField("tasks", "pic_id", profile.id);
+  const rawTasks = await safeDocsByField("tasks", "pic_id", profile.id);
+  const myTaskDocs = rawTasks.filter(matchesTenant);
 
   return {
     title: "Ringkasan tugas saya",

@@ -53,10 +53,20 @@ export async function updateTaskStatusWithLog({
     updatePayload.stuck_notes = stuckNotes ?? note;
   }
 
+  const orgId = task.orgId || task.org_id || task.organization_id || "";
+  const campusId = task.univId || task.univ_id || task.campus_id || task.campusId || "";
+
   batch.update(taskRef, updatePayload);
   batch.set(logRef, {
     id: logRef.id,
     task_id: task.id,
+    organization_id: orgId,
+    org_id: orgId,
+    orgId: orgId,
+    campus_id: campusId,
+    campusId: campusId,
+    univ_id: campusId,
+    univId: campusId,
     from_status: task.status,
     to_status: toStatus,
     changed_by: changedBy,
@@ -83,6 +93,8 @@ export async function requestTaskRevision({
   const taskRef = doc(db, "tasks", task.id);
   const logRef = doc(collection(db, "tasks", task.id, "status_logs"));
   const batch = writeBatch(db);
+  const orgId = task.orgId || task.org_id || task.organization_id || "";
+  const campusId = task.univId || task.univ_id || task.campus_id || task.campusId || "";
 
   batch.update(taskRef, {
     status: "perlu_revisi",
@@ -93,6 +105,13 @@ export async function requestTaskRevision({
   batch.set(logRef, {
     id: logRef.id,
     task_id: task.id,
+    organization_id: orgId,
+    org_id: orgId,
+    orgId: orgId,
+    campus_id: campusId,
+    campusId: campusId,
+    univ_id: campusId,
+    univId: campusId,
     from_status: task.status,
     to_status: "perlu_revisi",
     changed_by: changedBy,
@@ -117,6 +136,8 @@ export async function approveTask({
   const taskRef = doc(db, "tasks", task.id);
   const logRef = doc(collection(db, "tasks", task.id, "status_logs"));
   const batch = writeBatch(db);
+  const orgId = task.orgId || task.org_id || task.organization_id || "";
+  const campusId = task.univId || task.univ_id || task.campus_id || task.campusId || "";
 
   batch.update(taskRef, {
     status: "approved",
@@ -128,6 +149,13 @@ export async function approveTask({
   batch.set(logRef, {
     id: logRef.id,
     task_id: task.id,
+    organization_id: orgId,
+    org_id: orgId,
+    orgId: orgId,
+    campus_id: campusId,
+    campusId: campusId,
+    univ_id: campusId,
+    univId: campusId,
     from_status: task.status,
     to_status: "approved",
     changed_by: changedBy,
@@ -153,8 +181,18 @@ export async function appendTaskStatusLog({
   changedBy: string;
   note: string;
 }) {
+  const orgId = task.orgId || task.org_id || task.organization_id || "";
+  const campusId = task.univId || task.univ_id || task.campus_id || task.campusId || "";
+
   await addDoc(collection(db, "tasks", task.id, "status_logs"), {
     task_id: task.id,
+    organization_id: orgId,
+    org_id: orgId,
+    orgId: orgId,
+    campus_id: campusId,
+    campusId: campusId,
+    univ_id: campusId,
+    univId: campusId,
     from_status: task.status,
     to_status: toStatus,
     changed_by: changedBy,

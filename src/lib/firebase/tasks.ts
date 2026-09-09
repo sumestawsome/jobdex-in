@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { DEFAULT_DIVISION_ID, DEFAULT_ORGANIZATION_ID } from "@/lib/seed-data";
+import { DEFAULT_CORE_DIVISIONS } from "@/lib/workspace-schema";
 import {
   isKoordinatorAcara,
   isKoordinatorDivisi,
@@ -34,7 +35,10 @@ function sortTasks(tasks: Task[]) {
   return tasks.sort((a, b) => getTaskTimestampMillis(b) - getTaskTimestampMillis(a));
 }
 
-export async function getTasksForProfile(profile: UserProfile) {
+export async function getTasksForProfile(
+  profile: UserProfile,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
   const tasksRef = collection(db, "tasks");
   const tasksQuery =
     isSuperAdmin(profile) || isKoordinatorDivisi(profile)
@@ -44,15 +48,46 @@ export async function getTasksForProfile(profile: UserProfile) {
         : query(tasksRef, where("pic_id", "==", profile.id));
 
   const snapshot = await getDocs(tasksQuery);
-  const tasks = snapshot.docs.map((item) => ({
+  const rawTasks = snapshot.docs.map((item) => ({
     id: item.id,
     ...item.data(),
   })) as Task[];
 
-  return sortTasks(tasks.filter((task) => !task.is_archived));
+  const targetOrgId = workspaceFilter?.org_id || profile.organization_id || profile.org_id;
+  const targetCampusId = workspaceFilter?.campus_id || profile.campus_id || profile.univ_id;
+
+  const filteredTasks = rawTasks.filter((task) => {
+    if (task.is_archived) return false;
+
+    if (targetOrgId) {
+      const taskOrg =
+        task.organization_id ||
+        task.org_id ||
+        (task as unknown as Record<string, unknown>).orgId ||
+        DEFAULT_ORGANIZATION_ID;
+      if (taskOrg !== targetOrgId) return false;
+    }
+
+    if (targetCampusId) {
+      const taskCampus =
+        task.campus_id ||
+        (task as unknown as Record<string, unknown>).campusId ||
+        task.univ_id ||
+        (task as unknown as Record<string, unknown>).univId ||
+        "ui";
+      if (taskCampus !== targetCampusId) return false;
+    }
+
+    return true;
+  });
+
+  return sortTasks(filteredTasks);
 }
 
-export async function getTasksByEvent(eventId: string) {
+export async function getTasksByEvent(
+  eventId: string,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
   const snapshot = await getDocs(
     query(
       collection(db, "tasks"),
@@ -61,25 +96,76 @@ export async function getTasksByEvent(eventId: string) {
     ),
   );
 
-  return sortTasks(
-    snapshot.docs.map((item) => ({
-      id: item.id,
-      ...item.data(),
-    })) as Task[],
-  );
+  let tasks = snapshot.docs.map((item) => ({
+    id: item.id,
+    ...item.data(),
+  })) as Task[];
+
+  if (workspaceFilter?.org_id) {
+    tasks = tasks.filter((t) => {
+      const tOrg =
+        t.organization_id ||
+        t.org_id ||
+        (t as unknown as Record<string, unknown>).orgId ||
+        DEFAULT_ORGANIZATION_ID;
+      return tOrg === workspaceFilter.org_id;
+    });
+  }
+
+  if (workspaceFilter?.campus_id) {
+    tasks = tasks.filter((t) => {
+      const tCampus =
+        t.campus_id ||
+        (t as unknown as Record<string, unknown>).campusId ||
+        t.univ_id ||
+        (t as unknown as Record<string, unknown>).univId ||
+        "ui";
+      return tCampus === workspaceFilter.campus_id;
+    });
+  }
+
+  return sortTasks(tasks);
 }
 
-export async function getTaskById(taskId: string) {
+export async function getTaskById(
+  taskId: string,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
   const snapshot = await getDoc(doc(db, "tasks", taskId));
 
   if (!snapshot.exists()) {
     return null;
   }
 
-  return {
+  const task = {
     id: snapshot.id,
     ...snapshot.data(),
   } as Task;
+
+  if (workspaceFilter?.org_id) {
+    const taskOrg =
+      task.organization_id ||
+      task.org_id ||
+      (task as unknown as Record<string, unknown>).orgId ||
+      DEFAULT_ORGANIZATION_ID;
+    if (taskOrg !== workspaceFilter.org_id) {
+      return null;
+    }
+  }
+
+  if (workspaceFilter?.campus_id) {
+    const taskCampus =
+      task.campus_id ||
+      (task as unknown as Record<string, unknown>).campusId ||
+      task.univ_id ||
+      (task as unknown as Record<string, unknown>).univId ||
+      "ui";
+    if (taskCampus !== workspaceFilter.campus_id) {
+      return null;
+    }
+  }
+
+  return task;
 }
 
 export function getTaskProgressWeight(status: string): number {
@@ -162,13 +248,86 @@ export async function createTask(input: TaskInput, createdBy: string) {
     { id: "checklist_6", label: "Upload hasil ke JobDex.in / Drive", is_done: false },
   ];
 
+  let orgId = input.organization_id || input.org_id || input.orgId;
+  let campusId = input.campus_id || input.univ_id || input.univId || input.campusId || "";
+
+  // Otomatis isi univId dan orgId dari event induk atau pembuat jika belum terisi
+  if ((!orgId || !campusId) && input.event_id) {
+    try {
+      const eventSnap = await getDoc(doc(db, "events", input.event_id));
+      if (eventSnap.exists()) {
+        const eData = eventSnap.data() as Record<string, unknown>;
+        orgId = orgId || (eData.orgId as string) || (eData.org_id as string) || (eData.organization_id as string);
+        campusId = campusId || (eData.univId as string) || (eData.univ_id as string) || (eData.campusId as string) || (eData.campus_id as string) || "";
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if ((!orgId || !campusId) && createdBy) {
+    try {
+      const userSnap = await getDoc(doc(db, "users", createdBy));
+      if (userSnap.exists()) {
+        const uData = userSnap.data() as Record<string, unknown>;
+        orgId = orgId || (uData.orgId as string) || (uData.org_id as string) || (uData.organization_id as string);
+        campusId = campusId || (uData.univId as string) || (uData.univ_id as string) || (uData.campusId as string) || (uData.campus_id as string) || "";
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!orgId) {
+    throw new Error("Ruang kerja aktif (organisasi / ormawa) wajib dipilih sebelum membuat tugas.");
+  }
+
+  // Validasi divisi pokok saat jobdesk dibuat
+  if (input.type === "divisi") {
+    if (!input.division_id || !input.division_id.trim()) {
+      throw new Error("Divisi pokok wajib dipilih untuk jobdesk bertipe divisi.");
+    }
+
+    const targetDivisionId: string = input.division_id;
+
+    try {
+      const divSnap = await getDoc(doc(db, "divisions", targetDivisionId));
+      if (divSnap.exists()) {
+        const divData = divSnap.data() as Record<string, unknown>;
+        const divOrg = divData.organization_id || divData.org_id || divData.orgId;
+        if (divOrg && orgId && divOrg !== orgId) {
+          throw new Error("Divisi yang dipilih tidak terdaftar di ormawa / ruang kerja aktif.");
+        }
+        if (divData.is_active === false) {
+          throw new Error("Divisi yang dipilih sedang tidak aktif.");
+        }
+      } else {
+        const isCore = DEFAULT_CORE_DIVISIONS.some(
+          (d) => d.slug === targetDivisionId || d.slug === targetDivisionId.replace(/_/g, "-") || targetDivisionId.includes(d.slug)
+        );
+        if (!isCore && targetDivisionId !== DEFAULT_DIVISION_ID) {
+          throw new Error("Divisi pokok yang dipilih tidak valid atau belum terdaftar.");
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && (err.message.includes("Divisi") || err.message.includes("divisi"))) {
+        throw err;
+      }
+    }
+  }
+
   // Backward compat: simpan field lama dari multi-link jika ada
   const firstRedaction = (input.redaction_links as ReferenceLink[] | undefined)?.[0]?.url || "";
   const firstDesignRef = (input.design_ref_links as ReferenceLink[] | undefined)?.[0]?.url || "";
   const firstDriveRef = (input.drive_ref_links as ReferenceLink[] | undefined)?.[0]?.url || "";
 
   const taskRef = await addDoc(collection(db, "tasks"), {
-    organization_id: DEFAULT_ORGANIZATION_ID,
+    organization_id: orgId,
+    org_id: orgId,
+    orgId: orgId,
+    campus_id: campusId,
+    univ_id: campusId,
+    univId: campusId,
     type: input.type,
     division_id: input.type === "divisi" ? (input.division_id || DEFAULT_DIVISION_ID) : "",
     event_id: input.type === "acara" ? input.event_id : "",
@@ -221,9 +380,68 @@ export async function createTask(input: TaskInput, createdBy: string) {
   return taskRef.id;
 }
 
-export async function updateTask(taskId: string, input: TaskInput) {
+export async function updateTask(
+  taskId: string,
+  input: TaskInput,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
   const oldDoc = await getDoc(doc(db, "tasks", taskId));
-  const oldData = oldDoc.exists() ? oldDoc.data() : null;
+  const oldData = oldDoc.exists() ? (oldDoc.data() as Task) : null;
+
+  if (oldData) {
+    const existingOrg =
+      oldData.organization_id ||
+      oldData.org_id ||
+      (oldData as unknown as Record<string, unknown>).orgId;
+    const existingCampus =
+      oldData.campus_id ||
+      oldData.univ_id ||
+      (oldData as unknown as Record<string, unknown>).univId ||
+      (oldData as unknown as Record<string, unknown>).campusId;
+
+    if (workspaceFilter?.org_id && existingOrg && workspaceFilter.org_id !== existingOrg) {
+      throw new Error("Akses ditolak: Tidak dapat memodifikasi tugas milik organisasi/ormawa lain.");
+    }
+    if (workspaceFilter?.campus_id && existingCampus && workspaceFilter.campus_id !== existingCampus) {
+      throw new Error("Akses ditolak: Tidak dapat memodifikasi tugas milik kampus lain.");
+    }
+
+    const inputOrg = input.organization_id || input.org_id || input.orgId;
+    if (inputOrg && existingOrg && inputOrg !== existingOrg) {
+      throw new Error("Dilarang mengubah penanda kepemilikan ormawa/organisasi pada pembaruan tugas.");
+    }
+
+    const inputCampus = input.campus_id || input.univ_id || input.univId || input.campusId;
+    if (inputCampus && existingCampus && inputCampus !== existingCampus) {
+      throw new Error("Dilarang mengubah penanda kepemilikan kampus pada pembaruan tugas.");
+    }
+  }
+
+  // Validasi divisi pokok saat update
+  if (input.type === "divisi") {
+    if (!input.division_id || !input.division_id.trim()) {
+      throw new Error("Divisi pokok wajib dipilih untuk jobdesk bertipe divisi.");
+    }
+    const targetDivisionId: string = input.division_id;
+    const taskOrg = (oldData && (oldData.organization_id || oldData.org_id || (oldData as unknown as Record<string, unknown>).orgId)) || workspaceFilter?.org_id;
+    try {
+      const divSnap = await getDoc(doc(db, "divisions", targetDivisionId));
+      if (divSnap.exists()) {
+        const divData = divSnap.data() as Record<string, unknown>;
+        const divOrg = divData.organization_id || divData.org_id || divData.orgId;
+        if (divOrg && taskOrg && divOrg !== taskOrg) {
+          throw new Error("Divisi yang dipilih bukan milik ormawa aktif.");
+        }
+        if (divData.is_active === false) {
+          throw new Error("Divisi yang dipilih sedang tidak aktif.");
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && (err.message.includes("Divisi") || err.message.includes("divisi"))) {
+        throw err;
+      }
+    }
+  }
 
   // Backward compat: simpan field lama dari multi-link jika ada
   const firstRedaction = (input.redaction_links as ReferenceLink[] | undefined)?.[0]?.url || "";
@@ -276,9 +494,31 @@ export async function updateTask(taskId: string, input: TaskInput) {
   }
 }
 
-export async function archiveTask(taskId: string) {
+export async function archiveTask(
+  taskId: string,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
   const oldDoc = await getDoc(doc(db, "tasks", taskId));
-  const oldData = oldDoc.exists() ? oldDoc.data() : null;
+  const oldData = oldDoc.exists() ? (oldDoc.data() as Task) : null;
+
+  if (oldData) {
+    const existingOrg =
+      oldData.organization_id ||
+      oldData.org_id ||
+      (oldData as unknown as Record<string, unknown>).orgId;
+    const existingCampus =
+      oldData.campus_id ||
+      oldData.univ_id ||
+      (oldData as unknown as Record<string, unknown>).univId ||
+      (oldData as unknown as Record<string, unknown>).campusId;
+
+    if (workspaceFilter?.org_id && existingOrg && workspaceFilter.org_id !== existingOrg) {
+      throw new Error("Akses ditolak: Tidak dapat mengarsipkan tugas milik organisasi/ormawa lain.");
+    }
+    if (workspaceFilter?.campus_id && existingCampus && workspaceFilter.campus_id !== existingCampus) {
+      throw new Error("Akses ditolak: Tidak dapat mengarsipkan tugas milik kampus lain.");
+    }
+  }
 
   await updateDoc(doc(db, "tasks", taskId), {
     is_archived: true,

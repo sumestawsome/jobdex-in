@@ -9,9 +9,11 @@ import { TasksTable } from "@/components/tasks/tasks-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { Plus, Building2, ArrowRight } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
+import { useWorkspace } from "@/hooks/use-workspace";
 import { getEventsForProfile } from "@/lib/firebase/events";
 import { getMembers } from "@/lib/firebase/members";
 import { getDivisions } from "@/lib/firebase/divisions";
@@ -30,6 +32,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 export default function TasksPage() {
   const { user, userProfile } = useAuth();
+  const { activeWorkspace, activeCampus, activeOrmawa } = useWorkspace();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -69,7 +72,7 @@ export default function TasksPage() {
       // 1. Fetch main tasks
       let taskData: Task[] = [];
       try {
-        taskData = await getTasksForProfile(userProfile);
+        taskData = await getTasksForProfile(userProfile, activeWorkspace);
       } catch (err) {
         console.error("Failed to fetch main tasks:", err);
         const detailedError = "Gagal memuat job desk karena permission Firestore. Cek rules untuk tasks/events/event_members.";
@@ -80,9 +83,9 @@ export default function TasksPage() {
 
       // 2. Fetch events and members as optional
       const [eventsResult, usersResult, divisionsResult] = await Promise.allSettled([
-        getEventsForProfile(userProfile),
-        getMembers(),
-        getDivisions(),
+        getEventsForProfile(userProfile, activeWorkspace),
+        getMembers(activeWorkspace.org_id, activeWorkspace.campus_id),
+        getDivisions(activeWorkspace.org_id, activeWorkspace.campus_id),
       ]);
 
       const eventData = eventsResult.status === "fulfilled" ? eventsResult.value : [];
@@ -142,7 +145,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [userProfile]);
+  }, [userProfile, activeWorkspace.org_id, activeWorkspace.campus_id]);
 
   useEffect(() => {
     void Promise.resolve().then(loadData);
@@ -172,7 +175,14 @@ export default function TasksPage() {
         (deadlineFilter === "overdue" && deadline < today) ||
         (deadlineFilter === "week" && deadline >= today && deadline <= weekAhead);
 
+      const taskOrgId = (task as unknown as { org_id?: string }).org_id;
+      const matchesWorkspace =
+        !taskOrgId ||
+        taskOrgId === activeWorkspace.org_id ||
+        activeWorkspace.org_id === "org-ui-bem";
+
       return (
+        matchesWorkspace &&
         matchesSearch &&
         matchesType &&
         matchesStatus &&
@@ -183,6 +193,7 @@ export default function TasksPage() {
       );
     });
   }, [
+    activeWorkspace.org_id,
     deadlineFilter,
     eventFilter,
     picFilter,
@@ -198,12 +209,27 @@ export default function TasksPage() {
       return;
     }
 
+    if (!taskId && !activeWorkspace.org_id) {
+      void showError("Pilih ruang kerja (ormawa) terlebih dahulu sebelum membuat job desk.");
+      return;
+    }
+
     try {
       if (taskId) {
         await updateTask(taskId, input);
         void showSuccess("Job desk berhasil diperbarui!");
       } else {
-        const newTaskId = await createTask(input, userProfile.id);
+        const inputWithTenant = {
+          ...input,
+          organization_id: activeWorkspace.org_id,
+          org_id: activeWorkspace.org_id,
+          orgId: activeWorkspace.org_id,
+          campus_id: activeWorkspace.campus_id,
+          campusId: activeWorkspace.campus_id,
+          univ_id: activeWorkspace.campus_id,
+          univId: activeWorkspace.campus_id,
+        };
+        const newTaskId = await createTask(inputWithTenant as TaskInput, userProfile.id);
         void showSuccess("Job desk baru berhasil ditambahkan!");
 
         // Non-blocking asynchronous WhatsApp broadcast
@@ -264,6 +290,35 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
+      {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 px-4 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/70 dark:bg-sky-950/30">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="flex size-7 items-center justify-center rounded-lg bg-sky-600 text-white font-black text-xs shrink-0">
+            {activeWorkspace.campus_code}
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                {activeOrmawa.name}
+              </span>
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                Terisolasi
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              {activeCampus.name} • Menampilkan job desk terfilter untuk ruang kerja ini
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/dashboard/workspace"
+          className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline inline-flex items-center gap-1 shrink-0"
+        >
+          <span>Ganti Ruang Kerja</span>
+          <ArrowRight className="size-3" />
+        </Link>
+      </div>
+
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <Badge variant="info">Job Desk</Badge>
@@ -327,21 +382,43 @@ export default function TasksPage() {
         <LoadingState title="Memuat daftar job desk..." />
       ) : tasks.length === 0 && !error ? (
         <EmptyState
-          title={userProfile.role === "anggota" && events.length === 0 ? "Belum ada job desk yang terhubung dengan akun ini" : "Belum ada job desk"}
-          description={userProfile.role === "anggota" && events.length === 0 ? "Anda belum ditugaskan pada job desk atau acara apapun." : "Buat job desk pertama untuk mulai mengelola tugas divisi atau acara."}
+          title={userProfile.role === "anggota" && events.length === 0 ? "Belum ada job desk yang terhubung dengan akun ini" : `Belum ada job desk di ${activeOrmawa.short_name}`}
+          description={userProfile.role === "anggota" && events.length === 0 ? "Anda belum ditugaskan pada job desk atau acara apapun." : `Ruang kerja ${activeOrmawa.name} (${activeCampus.code}) belum memiliki job desk terdaftar.`}
           action={
-            canCreate ? (
-              <Button type="button" size="sm" onClick={() => setFormOpen(true)}>
-                <Plus className="h-4 w-4" />
-                Tambah Job Desk
-              </Button>
-            ) : undefined
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {canCreate ? (
+                <Button type="button" size="sm" onClick={() => setFormOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  Tambah Job Desk di {activeOrmawa.short_name}
+                </Button>
+              ) : null}
+              <Link href="/dashboard/workspace">
+                <Button variant="outline" size="sm">
+                  Ganti Ruang Kerja
+                </Button>
+              </Link>
+            </div>
           }
         />
       ) : filteredTasks.length === 0 && !error ? (
         <EmptyState
-          title="Tidak ada job desk yang cocok"
-          description="Coba ubah search atau filter yang digunakan."
+          title={`Tidak ada job desk yang cocok di ${activeOrmawa.short_name}`}
+          description={`Tidak ada job desk pada filter aktif di ruang kerja ${activeOrmawa.name}. Coba ubah pencarian atau buat job desk baru.`}
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {canCreate ? (
+                <Button type="button" size="sm" onClick={() => setFormOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  Tambah Job Desk
+                </Button>
+              ) : null}
+              <Link href="/dashboard/workspace">
+                <Button variant="outline" size="sm">
+                  Pilih Ruang Kerja Lain
+                </Button>
+              </Link>
+            </div>
+          }
         />
       ) : viewMode === "table" ? (
         <TasksTable

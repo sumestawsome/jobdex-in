@@ -21,9 +21,41 @@ function getSourceLinkType(url?: string): "canva" | "figma" | "google_docs" | "g
 }
 
 export async function POST(request: NextRequest) {
+  // 1. Validasi Content-Type multipart
+  const contentType = request.headers.get("content-type") || "";
+  if (!contentType.toLowerCase().includes("multipart/form-data")) {
+    return NextResponse.json(
+      { error: "Content-Type harus multipart/form-data." },
+      { status: 400 }
+    );
+  }
+
+  // 2. Validasi Autentikasi
+  let profile;
   try {
-    const { profile } = await getServerAuthContext(request);
-    const formData = await request.formData();
+    const authContext = await getServerAuthContext(request);
+    profile = authContext.profile;
+  } catch (authError) {
+    const msg = authError instanceof Error ? authError.message : "Autentikasi diperlukan.";
+    return NextResponse.json(
+      { error: msg },
+      { status: 401 }
+    );
+  }
+
+  // 3. Parsing Multipart Form-Data
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch (formError) {
+    console.warn("[api/uploads/task-result] Gagal parse form-data:", formError);
+    return NextResponse.json(
+      { error: "Gagal memproses multipart form-data. Pastikan payload terkirim sebagai format form-data yang valid." },
+      { status: 400 }
+    );
+  }
+
+  try {
     const taskId = formData.get("taskId");
     const file = formData.get("file");
 
@@ -63,13 +95,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 4. Validasi Bukti Pengerjaan (File atau Source Link)
     const hasFile = file instanceof File && file.name && file.size > 0;
     
-    if (hasFile && file instanceof File) {
+    if (file && typeof file !== "string") {
+      if (file.size === 0) {
+        return NextResponse.json(
+          { error: "File yang diunggah tidak boleh kosong (0 bytes)." },
+          { status: 400 }
+        );
+      }
       const validation = validateFileUpload(file);
       if (!validation.valid) {
         return NextResponse.json({ error: validation.error }, { status: 400 });
       }
+    }
+
+    if (!hasFile && (!sourceLink || !sourceLink.trim())) {
+      return NextResponse.json(
+        { error: "Bukti pengerjaan harus menyertakan file atau tautan dokumen (sourceLink)." },
+        { status: 400 }
+      );
     }
 
     const uploadCount = await taskRef.collection("uploads").count().get();
@@ -108,9 +154,19 @@ export async function POST(request: NextRequest) {
       : null;
     const batch = db.batch();
 
+    const orgId = task.orgId || task.organization_id || profile.orgId || profile.organization_id || "main_org";
+    const campusId = task.univId || task.campus_id || profile.univId || profile.campus_id || profile.univ_id || "";
+
     batch.set(uploadRef, {
       id: uploadRef.id,
       task_id: taskId,
+      organization_id: orgId,
+      org_id: orgId,
+      orgId: orgId,
+      campus_id: campusId,
+      campusId: campusId,
+      univ_id: campusId,
+      univId: campusId,
       upload_url: uploadUrl,
       thumbnail_url: thumbnailUrl,
       public_id: publicId,
@@ -146,6 +202,13 @@ export async function POST(request: NextRequest) {
       batch.set(logRef, {
         id: logRef.id,
         task_id: taskId,
+        organization_id: orgId,
+        org_id: orgId,
+        orgId: orgId,
+        campus_id: campusId,
+        campusId: campusId,
+        univ_id: campusId,
+        univId: campusId,
         from_status: task.status,
         to_status: "menunggu_approval",
         changed_by: profile.id,

@@ -7,9 +7,11 @@ import { EventsTable } from "@/components/events/events-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { Plus, Building2, ArrowRight } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
+import { useWorkspace } from "@/hooks/use-workspace";
 import {
   getEventMembers,
   addEventMember,
@@ -33,6 +35,7 @@ export default function EventsPage() {
 
 function EventsManagement() {
   const { userProfile } = useAuth();
+  const { activeWorkspace, activeCampus, activeOrmawa } = useWorkspace();
   const [events, setEvents] = useState<Event[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
@@ -56,8 +59,8 @@ function EventsManagement() {
 
     try {
       const [eventsData, usersData] = await Promise.all([
-        getEventsForProfile(userProfile),
-        getMembers(),
+        getEventsForProfile(userProfile, activeWorkspace),
+        getMembers(activeWorkspace.org_id, activeWorkspace.campus_id),
       ]);
       const counts = await getMemberCounts(eventsData);
 
@@ -88,7 +91,7 @@ function EventsManagement() {
     } finally {
       setLoading(false);
     }
-  }, [userProfile]);
+  }, [userProfile, activeWorkspace.org_id, activeWorkspace.campus_id]);
 
   useEffect(() => {
     void Promise.resolve().then(loadEvents);
@@ -130,12 +133,23 @@ function EventsManagement() {
         (dateFilter === "upcoming" && eventDate >= today) ||
         (dateFilter === "past" && eventDate < today);
 
-      return matchesSearch && matchesStatus && matchesDate;
+      const eventOrgId = event.org_id || event.organization_id;
+      const eventCampusId = event.campus_id || event.univ_id;
+      const matchesOrg = !eventOrgId || eventOrgId === activeWorkspace.org_id;
+      const matchesCampus = !eventCampusId || eventCampusId === activeWorkspace.campus_id;
+      const matchesWorkspace = matchesOrg && matchesCampus;
+
+      return matchesWorkspace && matchesSearch && matchesStatus && matchesDate;
     });
-  }, [dateFilter, events, search, statusFilter]);
+  }, [activeWorkspace.org_id, activeWorkspace.campus_id, dateFilter, events, search, statusFilter]);
 
   async function handleSaveEvent(input: EventInput, eventId?: string) {
     if (!userProfile) {
+      return;
+    }
+
+    if (!eventId && !activeWorkspace.org_id) {
+      void showError("Pilih ruang kerja (ormawa) terlebih dahulu sebelum membuat acara.");
       return;
     }
 
@@ -145,7 +159,17 @@ function EventsManagement() {
         await updateEvent(eventId, input, userProfile.id);
         void showSuccess("Acara berhasil diperbarui!");
       } else {
-        activeId = await createEvent(input, userProfile.id);
+        const inputWithTenant = {
+          ...input,
+          organization_id: activeWorkspace.org_id,
+          org_id: activeWorkspace.org_id,
+          orgId: activeWorkspace.org_id,
+          campus_id: activeWorkspace.campus_id,
+          campusId: activeWorkspace.campus_id,
+          univ_id: activeWorkspace.campus_id,
+          univId: activeWorkspace.campus_id,
+        };
+        activeId = await createEvent(inputWithTenant as EventInput, userProfile.id);
         void showSuccess("Acara baru berhasil ditambahkan!");
       }
 
@@ -160,6 +184,13 @@ function EventsManagement() {
           userId: input.coordinator_id,
           roleInEvent: "koordinator_acara",
           addedBy: userProfile.id,
+          organization_id: activeWorkspace.org_id,
+          org_id: activeWorkspace.org_id,
+          orgId: activeWorkspace.org_id,
+          campus_id: activeWorkspace.campus_id,
+          campusId: activeWorkspace.campus_id,
+          univ_id: activeWorkspace.campus_id,
+          univId: activeWorkspace.campus_id,
         });
 
         // 2. Process Secretary (sekretaris_acara)
@@ -241,6 +272,35 @@ function EventsManagement() {
 
   return (
     <div className="space-y-6">
+      {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 px-4 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/70 dark:bg-sky-950/30">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="flex size-7 items-center justify-center rounded-lg bg-sky-600 text-white font-black text-xs shrink-0">
+            {activeWorkspace.campus_code}
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                {activeOrmawa.name}
+              </span>
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                Terisolasi
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              {activeCampus.name} • Menampilkan acara terfilter untuk ruang kerja ini
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/dashboard/workspace"
+          className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline inline-flex items-center gap-1 shrink-0"
+        >
+          <span>Ganti Ruang Kerja</span>
+          <ArrowRight className="size-3" />
+        </Link>
+      </div>
+
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <Badge variant="info">Manajemen Acara</Badge>
@@ -287,29 +347,59 @@ function EventsManagement() {
         <LoadingState title="Memuat daftar acara..." />
       ) : events.length === 0 ? (
         <EmptyState
-          title="Belum ada acara"
-          description="Buat acara pertama untuk mulai mengelola koordinasi publikasi, dokumentasi, dan media kreatif."
+          title={`Belum ada acara di ${activeOrmawa.short_name}`}
+          description={`Ruang kerja ${activeOrmawa.name} (${activeCampus.code}) belum memiliki acara terdaftar. Buat acara pertama untuk mulai mengelola kepanitiaan.`}
           action={
-            showCreateBtn ? (
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  setSelectedEvent(null);
-                  setSelectedEventMembers([]);
-                  setFormOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4" />
-                Tambah Acara
-              </Button>
-            ) : undefined
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {showCreateBtn ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedEvent(null);
+                    setSelectedEventMembers([]);
+                    setFormOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Tambah Acara di {activeOrmawa.short_name}
+                </Button>
+              ) : null}
+              <Link href="/dashboard/workspace">
+                <Button variant="outline" size="sm">
+                  Ganti Ruang Kerja
+                </Button>
+              </Link>
+            </div>
           }
         />
       ) : filteredEvents.length === 0 ? (
         <EmptyState
-          title="Tidak ada acara yang cocok"
-          description="Coba ubah kata kunci pencarian, status, atau filter tanggal."
+          title={`Tidak ada acara yang cocok di ${activeOrmawa.short_name}`}
+          description={`Tidak ada acara pada filter aktif di ruang kerja ${activeOrmawa.name}. Coba ubah pencarian atau tambahkan acara baru.`}
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {showCreateBtn ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedEvent(null);
+                    setSelectedEventMembers([]);
+                    setFormOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Tambah Acara
+                </Button>
+              ) : null}
+              <Link href="/dashboard/workspace">
+                <Button variant="outline" size="sm">
+                  Pilih Ruang Kerja Lain
+                </Button>
+              </Link>
+            </div>
+          }
         />
       ) : (
         <EventsTable

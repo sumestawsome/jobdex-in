@@ -4,6 +4,7 @@ import { Eye, Pencil, UserCheck, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { MemberStatusBadge } from "@/components/members/member-status-badge";
+import { WorkspaceBadge } from "@/components/workspace/workspace-badge";
 import type { UserProfile } from "@/types";
 
 type MembersTableProps = {
@@ -38,6 +39,7 @@ export function MembersTable({
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Nama</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Ruang Kerja</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Email</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">WhatsApp</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Role</th>
@@ -60,6 +62,12 @@ export function MembersTable({
                       />
                       <span>{member.name || "-"}</span>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <WorkspaceBadge
+                      campusId={member.campus_id || member.univ_id}
+                      orgId={member.org_id || member.organization_id}
+                    />
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{member.email || "-"}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
@@ -148,6 +156,10 @@ export function MembersTable({
             
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2 border-t border-dashed border-neutral-300 dark:border-neutral-700 text-xs">
               <RoleBadge role={member.role} />
+              <WorkspaceBadge
+                campusId={member.campus_id || member.univ_id}
+                orgId={member.org_id || member.organization_id}
+              />
               <span className="mx-0.5 opacity-30">|</span>
               <span className="opacity-60">Divisi:</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100 capitalize">

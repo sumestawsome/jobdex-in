@@ -27,6 +27,7 @@ import {
   Radio,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useWorkspace } from "@/hooks/use-workspace";
 import { getMembers } from "@/lib/firebase/members";
 import {
   getDivisions,
@@ -45,6 +46,7 @@ import {
   formatLinksToTextarea,
 } from "@/lib/link-utils";
 import { showSuccess, showError } from "@/lib/swal";
+import { OrmawaWhatsAppGatewaySettings } from "@/components/settings/ormawa-whatsapp-gateway-settings";
 import type { Division, UserProfile } from "@/types";
 
 const selectClassName =
@@ -56,6 +58,7 @@ const textareaClassName =
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { user, userProfile } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -160,8 +163,8 @@ export default function SettingsPage() {
     setDkLoading(true);
     try {
       const [divs, allMembers] = await Promise.all([
-        getDivisions(),
-        getMembers().catch(() => []),
+        getDivisions(activeWorkspace.org_id, activeWorkspace.campus_id),
+        getMembers(activeWorkspace.org_id, activeWorkspace.campus_id).catch(() => []),
         loadWhatsAppSettings(),
       ]);
       setDivisions(divs);
@@ -179,7 +182,7 @@ export default function SettingsPage() {
     } finally {
       setDkLoading(false);
     }
-  }, [userProfile, loadWhatsAppSettings]);
+  }, [userProfile, activeWorkspace, loadWhatsAppSettings]);
 
   async function handleSaveWhatsAppSettings() {
     if (!userProfile) return;
@@ -452,15 +455,12 @@ export default function SettingsPage() {
             onClick={() => setActiveTab("whatsapp")}
             className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === "whatsapp"
-                ? "border-amber-600 text-amber-700 dark:border-amber-400 dark:text-amber-400"
+                ? "border-sky-600 text-sky-700 dark:border-sky-400 dark:text-sky-400"
                 : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-350"
             }`}
           >
-            <ShieldAlert className="size-4" />
-            <span>WhatsApp Sandbox</span>
-            {waIsTestMode && (
-              <span className="size-2 rounded-full bg-amber-500 animate-pulse inline-block" />
-            )}
+            <MessageSquare className="size-4" />
+            <span>WhatsApp & Gateway</span>
           </button>
         )}
       </div>
@@ -819,12 +819,15 @@ export default function SettingsPage() {
 
       {/* Tab 4: WhatsApp Sandbox & Test Mode */}
       {activeTab === "whatsapp" && (
-        <div className="space-y-6">
-          {/* Status Banner */}
+        <div className="space-y-8">
+          {/* Ormawa BYO WhatsApp Gateway Configuration */}
+          <OrmawaWhatsAppGatewaySettings />
+
+          {/* WhatsApp Sandbox Settings (Developer / Testing) */}
           <div
-            className={`p-4 sm:p-5 rounded-xl border-2 transition-all ${
+            className={`rounded-2xl border-2 p-5 sm:p-6 transition-all ${
               waIsTestMode
-                ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-950 dark:text-amber-200"
+                ? "bg-amber-50 dark:bg-amber-950/30 border-amber-500 text-amber-950 dark:text-amber-200"
                 : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 text-emerald-950 dark:text-emerald-200"
             }`}
           >

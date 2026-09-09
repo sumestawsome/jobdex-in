@@ -1,0 +1,169 @@
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  type ReactNode,
+} from "react";
+import type { Campus, Ormawa, ActiveWorkspace } from "@/types/workspace";
+import {
+  DUMMY_CAMPUSES,
+  DUMMY_ORMAWAS,
+  DEFAULT_ACTIVE_WORKSPACE,
+  getDummyTasksForWorkspace,
+  getDummyEventsForWorkspace,
+  type DummyWorkspaceTask,
+  type DummyWorkspaceEvent,
+} from "@/lib/workspace-dummy-data";
+
+const STORAGE_KEY = "jobdex_active_workspace";
+
+export interface WorkspaceContextType {
+  activeWorkspace: ActiveWorkspace;
+  activeCampus: Campus;
+  activeOrmawa: Ormawa;
+  campuses: Campus[];
+  ormawas: Ormawa[];
+  dummyTasks: DummyWorkspaceTask[];
+  dummyEvents: DummyWorkspaceEvent[];
+  setActiveWorkspace: (workspace: ActiveWorkspace) => void;
+  selectWorkspace: (campusId: string, orgId: string) => boolean;
+  getOrmawasByCampus: (campusId: string) => Ormawa[];
+  resetWorkspace: () => void;
+}
+
+const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
+
+export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const [activeWorkspace, setActiveWorkspaceState] = useState<ActiveWorkspace>(DEFAULT_ACTIVE_WORKSPACE);
+
+  // Sync from localStorage on client mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as ActiveWorkspace;
+        // Verify that the stored campus & ormawa still exist in dummy data
+        const campusExists = DUMMY_CAMPUSES.some((c) => c.id === parsed.campus_id);
+        const ormawaExists = DUMMY_ORMAWAS.some((o) => o.id === parsed.org_id);
+        if (campusExists && ormawaExists) {
+          setActiveWorkspaceState(parsed);
+        }
+      }
+    } catch {
+      // LocalStorage access failure or parse error fallback
+    }
+  }, []);
+
+  const setActiveWorkspace = useCallback((workspace: ActiveWorkspace) => {
+    setActiveWorkspaceState(workspace);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  const selectWorkspace = useCallback((campusId: string, orgId: string): boolean => {
+    const campus = DUMMY_CAMPUSES.find((c) => c.id === campusId);
+    const ormawa = DUMMY_ORMAWAS.find((o) => o.id === orgId && o.campus_id === campusId);
+
+    if (!campus || !ormawa) return false;
+
+    const newWorkspace: ActiveWorkspace = {
+      campus_id: campus.id,
+      campusId: campus.id,
+      univ_id: campus.id,
+      univId: campus.id,
+      campus_name: campus.name,
+      campus_code: campus.code,
+      org_id: ormawa.id,
+      orgId: ormawa.id,
+      org_name: ormawa.name,
+      org_type: ormawa.type,
+    };
+
+    setActiveWorkspace(newWorkspace);
+    return true;
+  }, [setActiveWorkspace]);
+
+  const resetWorkspace = useCallback(() => {
+    setActiveWorkspace(DEFAULT_ACTIVE_WORKSPACE);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Ignore
+    }
+  }, [setActiveWorkspace]);
+
+  const getOrmawasByCampus = useCallback((campusId: string): Ormawa[] => {
+    return DUMMY_ORMAWAS.filter((o) => o.campus_id === campusId);
+  }, []);
+
+  const activeCampus = useMemo(() => {
+    return (
+      DUMMY_CAMPUSES.find((c) => c.id === activeWorkspace.campus_id) ||
+      DUMMY_CAMPUSES[0]
+    );
+  }, [activeWorkspace.campus_id]);
+
+  const activeOrmawa = useMemo(() => {
+    return (
+      DUMMY_ORMAWAS.find((o) => o.id === activeWorkspace.org_id) ||
+      DUMMY_ORMAWAS[0]
+    );
+  }, [activeWorkspace.org_id]);
+
+  const dummyTasks = useMemo(() => {
+    return getDummyTasksForWorkspace(activeWorkspace);
+  }, [activeWorkspace]);
+
+  const dummyEvents = useMemo(() => {
+    return getDummyEventsForWorkspace(activeWorkspace);
+  }, [activeWorkspace]);
+
+  const value = useMemo<WorkspaceContextType>(
+    () => ({
+      activeWorkspace,
+      activeCampus,
+      activeOrmawa,
+      campuses: DUMMY_CAMPUSES,
+      ormawas: DUMMY_ORMAWAS,
+      dummyTasks,
+      dummyEvents,
+      setActiveWorkspace,
+      selectWorkspace,
+      getOrmawasByCampus,
+      resetWorkspace,
+    }),
+    [
+      activeWorkspace,
+      activeCampus,
+      activeOrmawa,
+      dummyTasks,
+      dummyEvents,
+      setActiveWorkspace,
+      selectWorkspace,
+      getOrmawasByCampus,
+      resetWorkspace,
+    ]
+  );
+
+  return (
+    <WorkspaceContext.Provider value={value}>
+      {children}
+    </WorkspaceContext.Provider>
+  );
+}
+
+export function useWorkspace(): WorkspaceContextType {
+  const context = useContext(WorkspaceContext);
+  if (!context) {
+    throw new Error("useWorkspace must be used within a WorkspaceProvider");
+  }
+  return context;
+}

@@ -8,6 +8,7 @@ import {
   getDashboardSummary,
   type DashboardSummary as DashboardSummaryData,
 } from "@/lib/dashboard-summary";
+import { useWorkspace } from "@/hooks/use-workspace";
 import type { UserProfile } from "@/types";
 
 type DashboardSummaryProps = {
@@ -15,6 +16,7 @@ type DashboardSummaryProps = {
 };
 
 export function DashboardSummary({ profile }: DashboardSummaryProps) {
+  const { activeWorkspace } = useWorkspace();
   const [summary, setSummary] = useState<DashboardSummaryData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +27,10 @@ export function DashboardSummary({ profile }: DashboardSummaryProps) {
       setLoading(true);
 
       try {
-        const data = await getDashboardSummary(profile);
+        const data = await getDashboardSummary(profile, {
+          org_id: activeWorkspace.org_id,
+          campus_id: activeWorkspace.campus_id,
+        });
 
         if (mounted) {
           setSummary(data);
@@ -42,7 +47,7 @@ export function DashboardSummary({ profile }: DashboardSummaryProps) {
     return () => {
       mounted = false;
     };
-  }, [profile]);
+  }, [profile, activeWorkspace.org_id, activeWorkspace.campus_id]);
 
   if (loading) {
     return <LoadingState title="Memuat ringkasan dashboard..." />;

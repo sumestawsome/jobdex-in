@@ -22,10 +22,13 @@ import type { Event, EventMember, Task, TaskInput, UserProfile } from "@/types";
 
 import { showConfirm, showSuccess, showError } from "@/lib/swal";
 
+import { useWorkspace } from "@/hooks/use-workspace";
+
 export default function EventDetailPage() {
   const params = useParams<{ eventId: string }>();
   const router = useRouter();
   const { user, userProfile } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const [event, setEvent] = useState<Event | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [eventMembers, setEventMembers] = useState<EventMember[]>([]);
@@ -43,10 +46,32 @@ export default function EventDetailPage() {
     setError("");
 
     try {
-      const eventData = await getEventById(eventId);
+      const eventData = await getEventById(eventId, {
+        org_id: activeWorkspace.org_id,
+        campus_id: activeWorkspace.campus_id,
+      });
 
       if (!eventData) {
         setEvent(null);
+        return;
+      }
+
+      const existingOrg =
+        eventData.organization_id ||
+        eventData.org_id ||
+        (eventData as unknown as Record<string, unknown>).orgId;
+      const existingCampus =
+        eventData.campus_id ||
+        eventData.univ_id ||
+        (eventData as unknown as Record<string, unknown>).univId ||
+        (eventData as unknown as Record<string, unknown>).campusId;
+
+      if (activeWorkspace.org_id && existingOrg && activeWorkspace.org_id !== existingOrg) {
+        router.replace("/dashboard/unauthorized");
+        return;
+      }
+      if (activeWorkspace.campus_id && existingCampus && activeWorkspace.campus_id !== existingCampus) {
+        router.replace("/dashboard/unauthorized");
         return;
       }
 
@@ -64,8 +89,11 @@ export default function EventDetailPage() {
       }
 
       const [usersData, taskData] = await Promise.all([
-        getMembers(),
-        getTasksByEvent(eventId),
+        getMembers(activeWorkspace.org_id, activeWorkspace.campus_id),
+        getTasksByEvent(eventId, {
+          org_id: activeWorkspace.org_id,
+          campus_id: activeWorkspace.campus_id,
+        }),
       ]);
 
       setEvent(eventData);
@@ -77,7 +105,7 @@ export default function EventDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [eventId, router, userProfile]);
+  }, [activeWorkspace.campus_id, activeWorkspace.org_id, eventId, router, userProfile]);
 
   useEffect(() => {
     void Promise.resolve().then(loadDetail);
@@ -89,11 +117,25 @@ export default function EventDetailPage() {
     }
 
     try {
+      const orgId =
+        event.organization_id ||
+        event.org_id ||
+        (event as unknown as Record<string, unknown>).orgId;
+      const campusId =
+        event.campus_id ||
+        event.univ_id ||
+        (event as unknown as Record<string, unknown>).campusId ||
+        (event as unknown as Record<string, unknown>).univId;
+
       await addEventMember({
         eventId: event.id,
         userId,
         roleInEvent,
         addedBy: userProfile.id,
+        organization_id: (orgId as string) || activeWorkspace.org_id,
+        org_id: (orgId as string) || activeWorkspace.org_id,
+        campus_id: (campusId as string) || activeWorkspace.campus_id,
+        univ_id: (campusId as string) || activeWorkspace.campus_id,
       });
       void showSuccess("Anggota berhasil ditambahkan ke acara!");
       await loadDetail();
@@ -133,7 +175,20 @@ export default function EventDetailPage() {
     }
 
     try {
-      const newTaskId = await createTask(input, userProfile.id);
+      const orgId = event?.orgId || event?.org_id || event?.organization_id || userProfile.orgId || userProfile.org_id || userProfile.organization_id;
+      const campusId = event?.univId || event?.univ_id || event?.campusId || event?.campus_id || userProfile.univId || userProfile.univ_id || userProfile.campusId || userProfile.campus_id || "";
+      const taskWithTenant: TaskInput = {
+        ...input,
+        organization_id: orgId,
+        org_id: orgId,
+        orgId: orgId,
+        campus_id: campusId,
+        campusId: campusId,
+        univ_id: campusId,
+        univId: campusId,
+        event_id: eventId,
+      };
+      const newTaskId = await createTask(taskWithTenant, userProfile.id);
       void showSuccess("Job desk berhasil ditambahkan ke acara!");
 
       // Non-blocking asynchronous WhatsApp broadcast

@@ -66,11 +66,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as {
+    const questionsToday = await countQuestionsToday(profile.id);
+    const dailyLimit = getDailyLimit();
+
+    if (questionsToday >= dailyLimit) {
+      return NextResponse.json(
+        { error: `Batas ${dailyLimit} pertanyaan hari ini sudah tercapai.` },
+        { status: 429 },
+      );
+    }
+
+    let body: {
       question?: string;
       eventId?: string;
     };
-    const question = body.question?.trim() ?? "";
+
+    try {
+      body = (await request.json()) as {
+        question?: string;
+        eventId?: string;
+      };
+    } catch {
+      return NextResponse.json(
+        { error: "Request body tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    const question = body?.question?.trim() ?? "";
 
     if (!question) {
       return NextResponse.json(
@@ -86,26 +109,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const questionsToday = await countQuestionsToday(profile.id);
-
-    const dailyLimit = getDailyLimit();
-
-    if (questionsToday >= dailyLimit) {
-      return NextResponse.json(
-        { error: `Batas ${dailyLimit} pertanyaan hari ini sudah tercapai.` },
-        { status: 429 },
-      );
-    }
+    const userOrgId = profile.organization_id || profile.org_id || ((profile as unknown as Record<string, unknown>).orgId as string) || "main_org";
+    const userCampusId = profile.campus_id || profile.univ_id || ((profile as unknown as Record<string, unknown>).campusId as string) || "ui";
 
     // --- Reference Search Intent Detection ---
     if (isReferenceSearchQuestion(question)) {
-      // Check cache first
-      const cached = await getCachedResponse(question, "reference_search");
+      // Check cache first (namespaced by orgId)
+      const cacheKey = `${userOrgId}:${question}`;
+      const cached = await getCachedResponse(cacheKey, "reference_search");
       if (cached) {
         const logRef = getAdminDb().collection("ai_logs").doc();
         await logRef.set({
           id: logRef.id,
-          organization_id: profile.organization_id || "main_org",
+          organization_id: userOrgId,
+          org_id: userOrgId,
+          orgId: userOrgId,
+          campus_id: userCampusId,
+          univ_id: userCampusId,
           asked_by: profile.id,
           question,
           context_summary: "Reference search query - Cache Hit",
@@ -123,16 +143,23 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Perform detailed search
-      const detailedResult = await searchDesignReferencesDetailed(question);
+      // Perform detailed search scoped to tenant
+      const detailedResult = await searchDesignReferencesDetailed(question, {
+        org_id: userOrgId,
+        campus_id: userCampusId,
+      });
 
       // Save to cache (10 mins TTL)
-      await setCachedResponse(question, "reference_search", detailedResult.answer, 10);
+      await setCachedResponse(cacheKey, "reference_search", detailedResult.answer, 10);
 
       const logRef = getAdminDb().collection("ai_logs").doc();
       await logRef.set({
         id: logRef.id,
-        organization_id: profile.organization_id || "main_org",
+        organization_id: userOrgId,
+        org_id: userOrgId,
+        orgId: userOrgId,
+        campus_id: userCampusId,
+        univ_id: userCampusId,
         asked_by: profile.id,
         question,
         context_summary: `Reference search query - Intent: ${detailedResult.intent.intent}, Subtype: ${detailedResult.intent.subtype || "-"}`,

@@ -17,13 +17,16 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  Building2,
 } from "lucide-react";
 
 import { useState, useEffect } from "react";
 import { getDivisionById } from "@/lib/firebase/divisions";
+import { useWorkspace } from "@/hooks/use-workspace";
 
 const sidebarIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "/dashboard": LayoutDashboard,
+  "/dashboard/workspace": Building2,
   "/dashboard/tasks": ClipboardList,
   "/dashboard/calendar": CalendarDays,
   "/dashboard/events": Calendar,
@@ -50,6 +53,7 @@ export function NeoSidebar({
 }: NeoSidebarProps) {
   const pathname = usePathname();
   const { userProfile } = useAuth();
+  const { activeWorkspace, activeOrmawa } = useWorkspace();
   const navItems = getDashboardNavigation(userProfile);
   const [fetchedDivisionName, setFetchedDivisionName] = useState<string | null>(null);
 
@@ -114,6 +118,41 @@ export function NeoSidebar({
           </button>
         )}
       </div>
+
+      {/* Active Workspace Indicator */}
+      {(!isCollapsed || isMobile) ? (
+        <div className="mx-3 mt-3 mb-1 p-2.5 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-linear-to-r from-sky-50 to-indigo-50/40 dark:from-sky-950/40 dark:to-indigo-950/20">
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-700 dark:text-sky-300">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Ruang Aktif
+            </span>
+            <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-sky-200 dark:bg-sky-900 text-sky-900 dark:text-sky-200">
+              {activeWorkspace.campus_code}
+            </span>
+          </div>
+          <Link
+            href="/dashboard/workspace"
+            className="block text-xs font-bold text-slate-900 dark:text-white truncate hover:text-sky-600 dark:hover:text-sky-400 transition-colors"
+            title={`${activeWorkspace.org_name} (${activeWorkspace.campus_name})`}
+          >
+            {activeOrmawa.short_name || activeWorkspace.org_name}
+          </Link>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+            {activeWorkspace.campus_name}
+          </p>
+        </div>
+      ) : (
+        <div className="mx-auto mt-3 mb-1 flex justify-center">
+          <Link
+            href="/dashboard/workspace"
+            className="flex size-9 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-black text-xs border border-sky-300 dark:border-sky-800 hover:ring-2 hover:ring-sky-500/30 transition-all"
+            title={`Ruang Aktif: ${activeWorkspace.org_name} (${activeWorkspace.campus_code})`}
+          >
+            {activeWorkspace.campus_code}
+          </Link>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-2 p-4 overflow-y-auto">

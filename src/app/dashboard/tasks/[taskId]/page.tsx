@@ -16,11 +16,14 @@ import type { Event, Task, TaskStatusLog, TaskUpload, UserProfile } from "@/type
 import { db } from "@/lib/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 
+import { useWorkspace } from "@/hooks/use-workspace";
+
 export default function TaskDetailPage() {
   const params = useParams<{ taskId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { userProfile } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const [task, setTask] = useState<Task | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -44,10 +47,32 @@ export default function TaskDetailPage() {
     setError("");
 
     try {
-      const taskData = await getTaskById(taskId);
+      const taskData = await getTaskById(taskId, {
+        org_id: activeWorkspace.org_id,
+        campus_id: activeWorkspace.campus_id,
+      });
 
       if (!taskData) {
         setTask(null);
+        return;
+      }
+
+      const existingOrg =
+        taskData.organization_id ||
+        taskData.org_id ||
+        (taskData as unknown as Record<string, unknown>).orgId;
+      const existingCampus =
+        taskData.campus_id ||
+        taskData.univ_id ||
+        (taskData as unknown as Record<string, unknown>).univId ||
+        (taskData as unknown as Record<string, unknown>).campusId;
+
+      if (activeWorkspace.org_id && existingOrg && activeWorkspace.org_id !== existingOrg) {
+        router.replace("/dashboard/unauthorized");
+        return;
+      }
+      if (activeWorkspace.campus_id && existingCampus && activeWorkspace.campus_id !== existingCampus) {
+        router.replace("/dashboard/unauthorized");
         return;
       }
 
@@ -66,8 +91,11 @@ export default function TaskDetailPage() {
       }
 
       const [usersData, eventsData, logData, uploadData] = await Promise.all([
-        getMembers().catch(() => [userProfile]),
-        getEventsForProfile(userProfile).catch(() => []),
+        getMembers(activeWorkspace.org_id, activeWorkspace.campus_id).catch(() => [userProfile]),
+        getEventsForProfile(userProfile, {
+          org_id: activeWorkspace.org_id,
+          campus_id: activeWorkspace.campus_id,
+        }).catch(() => []),
         getTaskStatusLogs(taskId).catch(() => []),
         getTaskUploads(taskId).catch(() => []),
       ]);
@@ -95,7 +123,7 @@ export default function TaskDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [router, taskId, userProfile]);
+  }, [activeWorkspace.campus_id, activeWorkspace.org_id, router, taskId, userProfile]);
 
   useEffect(() => {
     void Promise.resolve().then(loadDetail);

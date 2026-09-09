@@ -301,15 +301,32 @@ async function handleCron(request: Request) {
 
       // Live Send
       try {
+        const digestOrgId = digest.tasks[0]?.task.org_id || digest.tasks[0]?.task.orgId || digest.tasks[0]?.task.organization_id;
         const dispatchResult = await sendWhatsAppMessage({
           target: targetGroupId,
           message: messageContent,
           type: "group",
           mentions: digest.mentionedPhones,
+          org_id: digestOrgId,
         });
 
+        if (dispatchResult.skipped) {
+          await logWhatsAppDigestDispatch({
+            organizationId: digestOrgId ?? "main_org",
+            recipient: targetGroupId,
+            messageContent,
+            status: "skipped",
+            taskIds: digest.taskIds,
+            categories: digest.categories,
+            mentionedPhones: digest.mentionedPhones,
+            errorMessage: dispatchResult.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+            provider: dispatchResult.provider,
+          });
+          return;
+        }
+
         const whatsappLogId = await logWhatsAppDigestDispatch({
-          organizationId: digest.tasks[0]?.task.organization_id ?? "main_org",
+          organizationId: digestOrgId ?? "main_org",
           recipient: targetGroupId,
           messageContent,
           status: "sent",

@@ -662,6 +662,7 @@ export { mapTaskSubcategoryToDesignType } from "@/lib/reference-utils";
 
 export async function searchDesignReferencesDetailed(
   question: string,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
 ): Promise<{
   answer: string;
   intent: SearchIntent;
@@ -673,6 +674,9 @@ export async function searchDesignReferencesDetailed(
   const cleanQuestion = question.toLowerCase().trim();
   const intent = detectSearchIntent(cleanQuestion);
 
+  const targetOrgId = workspaceFilter?.org_id;
+  const targetCampusId = workspaceFilter?.campus_id;
+
   const db = getAdminDb();
   const snapshot = await db
     .collection("design_references")
@@ -681,7 +685,16 @@ export async function searchDesignReferencesDetailed(
 
   const allReferences: DesignReference[] = [];
   snapshot.forEach((doc) => {
-    allReferences.push({ id: doc.id, ...doc.data() } as DesignReference);
+    const data = doc.data() as Record<string, unknown>;
+    if (targetOrgId) {
+      const docOrg = data.organization_id || data.org_id || data.orgId || "main_org";
+      if (docOrg !== targetOrgId) return;
+    }
+    if (targetCampusId) {
+      const docCampus = data.campus_id || data.campusId || data.univ_id || data.univId || "ui";
+      if (docCampus !== targetCampusId) return;
+    }
+    allReferences.push({ id: doc.id, ...data } as DesignReference);
   });
 
   // Fetch tasks candidate for reference
@@ -693,7 +706,12 @@ export async function searchDesignReferencesDetailed(
   const allEventsSnap = await db.collection("events").get();
   const eventsMap = new Map<string, string>();
   allEventsSnap.forEach((doc) => {
-    eventsMap.set(doc.id, doc.data().name || "");
+    const eData = doc.data();
+    if (targetOrgId) {
+      const eOrg = eData.organization_id || eData.org_id || eData.orgId || "main_org";
+      if (eOrg !== targetOrgId) return;
+    }
+    eventsMap.set(doc.id, eData.name || "");
   });
 
   const taskPromises: Promise<{
@@ -703,6 +721,14 @@ export async function searchDesignReferencesDetailed(
   }>[] = [];
   tasksSnapshot.forEach((doc) => {
     const taskData = doc.data() as Record<string, unknown>;
+    if (targetOrgId) {
+      const tOrg = taskData.organization_id || taskData.org_id || taskData.orgId || "main_org";
+      if (tOrg !== targetOrgId) return;
+    }
+    if (targetCampusId) {
+      const tCampus = taskData.campus_id || taskData.campusId || taskData.univ_id || taskData.univId || "ui";
+      if (tCampus !== targetCampusId) return;
+    }
     const taskId = doc.id;
     const promise = doc.ref.collection("uploads").orderBy("version_number", "desc").get().then((uploadsSnap) => {
       const uploads: TaskUpload[] = [];

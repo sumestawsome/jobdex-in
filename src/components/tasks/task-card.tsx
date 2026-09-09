@@ -10,6 +10,7 @@ import { formatTaskDate } from "@/lib/firebase/tasks";
 import { getRiskLevelFromTask, getRiskLabel } from "@/lib/task-risk";
 import { SuggestedReferencesDialog } from "@/components/references/suggested-references-dialog";
 import { Badge } from "@/components/ui/badge";
+import { WorkspaceBadge } from "@/components/workspace/workspace-badge";
 import type { Event, Task, UserProfile } from "@/types";
 
 import { Eye, Pencil, Archive, Sparkles } from "lucide-react";
@@ -53,9 +54,13 @@ export function TaskCard({
     <Card className="flex flex-col justify-between m-1">
       <div>
         <CardHeader>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <TaskStatusBadge status={task.status} />
             <TaskPriorityBadge priority={task.priority} />
+            <WorkspaceBadge
+              campusId={task.campus_id || task.univ_id}
+              orgId={task.org_id || task.organization_id}
+            />
           </div>
           <CardTitle className="mt-3 text-lg font-bold text-slate-900 dark:text-white">{task.name}</CardTitle>
         </CardHeader>

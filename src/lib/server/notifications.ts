@@ -123,11 +123,26 @@ export async function notifyTaskEvent(input: NotifyTaskEventInput) {
       throw new Error("Target WhatsApp untuk notifikasi task tidak ditemukan.");
     }
 
+    const taskOrgId = task.org_id || task.orgId || task.organization_id;
     const result = await sendWhatsAppMessage({
       target: target.recipient,
       message,
       type: target.targetType === "personal" ? "phone" : "group",
+      org_id: taskOrgId,
     });
+
+    if (result.skipped) {
+      await createWhatsAppLog({
+        task,
+        eventType: input.eventType,
+        message,
+        status: "skipped",
+        target,
+        provider: result.provider,
+        errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+      });
+      return { sent: false, target, skipped: true, reason: result.error };
+    }
 
     await createWhatsAppLog({
       task,

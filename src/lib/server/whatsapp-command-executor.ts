@@ -338,9 +338,18 @@ export async function confirmPreviewCommand(
         const taskRef = db.collection("tasks").doc();
         const batch = db.batch();
 
+        const taskOrgId = (user as any).orgId || user.organization_id || (user as any).org_id || "main_org";
+        const taskCampusId = (user as any).univId || (user as any).campus_id || (user as any).univ_id || (user as any).campusId || "";
+
         batch.set(taskRef, {
           id: taskRef.id,
-          organization_id: "main_org",
+          organization_id: taskOrgId,
+          org_id: taskOrgId,
+          orgId: taskOrgId,
+          campus_id: taskCampusId,
+          campusId: taskCampusId,
+          univ_id: taskCampusId,
+          univId: taskCampusId,
           type: isAcara ? "acara" : "divisi",
           division_id: isAcara ? "" : "humas_media_kreatif",
           event_id: eventId,
@@ -373,6 +382,13 @@ export async function confirmPreviewCommand(
         batch.set(logRef, {
           id: logRef.id,
           task_id: taskRef.id,
+          organization_id: taskOrgId,
+          org_id: taskOrgId,
+          orgId: taskOrgId,
+          campus_id: taskCampusId,
+          campusId: taskCampusId,
+          univ_id: taskCampusId,
+          univId: taskCampusId,
           from_status: "",
           to_status: "belum_dimulai",
           changed_by: user.id,
@@ -518,11 +534,20 @@ export async function confirmPreviewCommand(
         const batch = db.batch();
         const createdTaskIds: string[] = [];
 
+        const taskOrgId = (user as any).orgId || user.organization_id || (user as any).org_id || "main_org";
+        const taskCampusId = (user as any).univId || (user as any).campus_id || (user as any).univ_id || (user as any).campusId || "";
+
         for (const item of resolvedItems) {
           const taskRef = db.collection("tasks").doc();
           batch.set(taskRef, {
             id: taskRef.id,
-            organization_id: "main_org",
+            organization_id: taskOrgId,
+            org_id: taskOrgId,
+            orgId: taskOrgId,
+            campus_id: taskCampusId,
+            campusId: taskCampusId,
+            univ_id: taskCampusId,
+            univId: taskCampusId,
             type: isAcara ? "acara" : "divisi",
             division_id: isAcara ? "" : "humas_media_kreatif",
             event_id: eventId,
@@ -555,6 +580,13 @@ export async function confirmPreviewCommand(
           batch.set(logRef, {
             id: logRef.id,
             task_id: taskRef.id,
+            organization_id: taskOrgId,
+            org_id: taskOrgId,
+            orgId: taskOrgId,
+            campus_id: taskCampusId,
+            campusId: taskCampusId,
+            univ_id: taskCampusId,
+            univId: taskCampusId,
             from_status: "",
             to_status: "belum_dimulai",
             changed_by: user.id,

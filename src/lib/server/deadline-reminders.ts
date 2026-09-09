@@ -966,7 +966,13 @@ export async function logWhatsAppDispatch(data: {
 }
 
 export async function processSmartFollowupReminders(
-  sendWhatsAppMessage: (payload: { target: string; message: string; type?: "phone" | "group" }) => Promise<{ provider: string; responseText?: string }>
+  sendWhatsAppMessage: (payload: {
+    target: string;
+    message: string;
+    type?: "phone" | "group";
+    org_id?: string;
+    orgId?: string;
+  }) => Promise<{ provider: string; responseText?: string; skipped?: boolean; error?: string }>
 ) {
   const db = getAdminDb();
   let sent = 0;
@@ -1041,7 +1047,20 @@ export async function processSmartFollowupReminders(
         ].join("\n");
         
         try {
-          const result = await sendWhatsAppMessage({ target: picPhone, message: msg, type: "phone" });
+          const taskOrgId = task.org_id || task.orgId || task.organization_id;
+          const result = await sendWhatsAppMessage({ target: picPhone, message: msg, type: "phone", org_id: taskOrgId });
+          if (result.skipped) {
+            await logWhatsAppDispatch({
+              task,
+              recipient: picPhone,
+              recipientType: "personal",
+              messageContent: msg,
+              status: "skipped",
+              errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              provider: result.provider,
+            });
+            continue;
+          }
           const whatsappLogId = await logWhatsAppDispatch({
             task,
             recipient: picPhone,
@@ -1091,7 +1110,20 @@ export async function processSmartFollowupReminders(
         ].join("\n");
         
         try {
-          const result = await sendWhatsAppMessage({ target: picPhone, message: msg, type: "phone" });
+          const taskOrgId = task.org_id || task.orgId || task.organization_id;
+          const result = await sendWhatsAppMessage({ target: picPhone, message: msg, type: "phone", org_id: taskOrgId });
+          if (result.skipped) {
+            await logWhatsAppDispatch({
+              task,
+              recipient: picPhone,
+              recipientType: "personal",
+              messageContent: msg,
+              status: "skipped",
+              errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              provider: result.provider,
+            });
+            continue;
+          }
           const whatsappLogId = await logWhatsAppDispatch({
             task,
             recipient: picPhone,
@@ -1142,7 +1174,20 @@ export async function processSmartFollowupReminders(
         ].join("\n");
         
         try {
-          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group" });
+          const taskOrgId = task.org_id || task.orgId || task.organization_id;
+          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group", org_id: taskOrgId });
+          if (result.skipped) {
+            await logWhatsAppDispatch({
+              task,
+              recipient: targetGroupId,
+              recipientType: "group",
+              messageContent: msg,
+              status: "skipped",
+              errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              provider: result.provider,
+            });
+            continue;
+          }
           const whatsappLogId = await logWhatsAppDispatch({
             task,
             recipient: targetGroupId,
@@ -1189,7 +1234,20 @@ export async function processSmartFollowupReminders(
         ].join("\n");
         
         try {
-          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group" });
+          const taskOrgId = task.org_id || task.orgId || task.organization_id;
+          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group", org_id: taskOrgId });
+          if (result.skipped) {
+            await logWhatsAppDispatch({
+              task,
+              recipient: targetGroupId,
+              recipientType: "group",
+              messageContent: msg,
+              status: "skipped",
+              errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              provider: result.provider,
+            });
+            continue;
+          }
           const whatsappLogId = await logWhatsAppDispatch({
             task,
             recipient: targetGroupId,
@@ -1237,7 +1295,20 @@ export async function processSmartFollowupReminders(
         ].join("\n");
         
         try {
-          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group" });
+          const taskOrgId = task.org_id || task.orgId || task.organization_id;
+          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group", org_id: taskOrgId });
+          if (result.skipped) {
+            await logWhatsAppDispatch({
+              task,
+              recipient: targetGroupId,
+              recipientType: "group",
+              messageContent: msg,
+              status: "skipped",
+              errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              provider: result.provider,
+            });
+            continue;
+          }
           const whatsappLogId = await logWhatsAppDispatch({
             task,
             recipient: targetGroupId,

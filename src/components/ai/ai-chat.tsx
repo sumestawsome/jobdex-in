@@ -6,9 +6,11 @@ import { AIHistoryDateSeparator } from "@/components/ai/ai-history-date-separato
 import { AILoadingMessage } from "@/components/ai/ai-loading-message";
 import { AIMessage } from "@/components/ai/ai-message";
 import { AIQuickPrompts } from "@/components/ai/ai-quick-prompts";
+import { AIQuotaWarning, countUserQuestionsToday, DEFAULT_AI_DAILY_LIMIT } from "@/components/ai/ai-quota-warning";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useWorkspace } from "@/hooks/use-workspace";
 import { getRecentAILogs } from "@/lib/firebase/ai-logs";
 import { getMembers } from "@/lib/firebase/members";
 import { formatDateSeparator, formatTime } from "@/lib/date-utils";
@@ -62,14 +64,23 @@ function ToastList({ toasts, onDismiss }: { toasts: ToastEntry[]; onDismiss: (id
 
 export function AIChat() {
   const { user, userProfile } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const [logs, setLogs] = useState<AILog[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [error, setError] = useState("");
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [isRateLimited, setIsRateLimited] = useState(false);
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  const currentUserId = userProfile?.id || user?.uid;
+  const usedToday = useMemo(
+    () => countUserQuestionsToday(logs, currentUserId),
+    [logs, currentUserId],
+  );
+  const isQuotaExhausted = usedToday >= DEFAULT_AI_DAILY_LIMIT || isRateLimited;
 
   const showToast = useCallback((type: ToastEntry["type"], title: string, message: string) => {
     const id = crypto.randomUUID();
@@ -94,8 +105,8 @@ export function AIChat() {
 
     try {
       const [logData, userData] = await Promise.all([
-        getRecentAILogs(),
-        getMembers().catch(() => (userProfile ? [userProfile] : [])),
+        getRecentAILogs(activeWorkspace),
+        getMembers(activeWorkspace.org_id, activeWorkspace.campus_id).catch(() => (userProfile ? [userProfile] : [])),
       ]);
 
       setLogs(logData);
@@ -105,7 +116,7 @@ export function AIChat() {
     } finally {
       setHistoryLoading(false);
     }
-  }, [userProfile]);
+  }, [userProfile, activeWorkspace]);
 
   const initialQueryProcessedRef = useRef(false);
 
@@ -158,6 +169,13 @@ export function AIChat() {
       return;
     }
 
+    if (isQuotaExhausted) {
+      const quotaMsg = `Batas kuota harian (${DEFAULT_AI_DAILY_LIMIT} pertanyaan) telah tercapai. Coba lagi besok atau gunakan menu Referensi.`;
+      setError(quotaMsg);
+      showToast("error", "Kuota Habis", quotaMsg);
+      return;
+    }
+
     setError("");
     setLoading(true);
     // Immediately jump to bottom so loading bubble is visible
@@ -174,6 +192,13 @@ export function AIChat() {
         body: JSON.stringify({ question }),
       });
       const result = (await response.json()) as AIQueryResponse;
+
+      if (response.status === 429) {
+        setIsRateLimited(true);
+        const limitMsg = result.error ?? `Batas kuota harian (${DEFAULT_AI_DAILY_LIMIT} pertanyaan) telah tercapai.`;
+        showToast("error", "Batas Kuota Tercapai", limitMsg);
+        throw new Error(limitMsg);
+      }
 
       if (!response.ok || !result.answer) {
         throw new Error(result.error ?? "AI Assistant gagal menjawab.");
@@ -249,6 +274,15 @@ export function AIChat() {
       {/* Toast notifications (fixed position, outside scroll) */}
       <ToastList toasts={toasts} onDismiss={dismissToast} />
 
+      {/* Quota Status & Warning (Always First) */}
+      <AIQuotaWarning
+        logs={logs}
+        userId={currentUserId}
+        dailyLimit={DEFAULT_AI_DAILY_LIMIT}
+        isRateLimited={isRateLimited}
+        className="mb-3 shrink-0"
+      />
+
       {/* Scrollable Chat Area */}
       <section className="flex-1 min-h-0 overflow-y-auto space-y-4 jd-neo-card bg-[var(--secondary-background)] p-4 dark:bg-neutral-900/30 mb-4">
         {historyLoading ? (
@@ -315,8 +349,16 @@ export function AIChat() {
             {historyLoading ? "Memuat..." : "Refresh Riwayat"}
           </button>
         </div>
-        <AIQuickPrompts disabled={loading} onSelect={ask} />
-        <AIInput disabled={loading} onSubmit={ask} />
+        <AIQuickPrompts disabled={loading || isQuotaExhausted} onSelect={ask} />
+        <AIInput
+          disabled={loading || isQuotaExhausted}
+          placeholder={
+            isQuotaExhausted
+              ? "Batas kuota harian tercapai (20/20). Coba lagi besok."
+              : "Tanyakan progress, deadline, atau referensi desain..."
+          }
+          onSubmit={ask}
+        />
       </div>
     </div>
   );

@@ -121,10 +121,26 @@ const DONUT_STATUSES: TaskStatus[] = [
 
 export async function getDashboardData(
   profile: UserProfile,
-  filterDivisionId?: string
+  filterDivisionId?: string,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
 ): Promise<DashboardData> {
   const role = profile.role;
   const isStaff = role === "super_admin" || role === "koordinator_divisi";
+
+  const targetOrgId = workspaceFilter?.org_id || profile.organization_id || profile.org_id;
+  const targetCampusId = workspaceFilter?.campus_id || profile.campus_id || profile.univ_id;
+
+  const matchesTenant = (item: Record<string, unknown>): boolean => {
+    if (targetOrgId) {
+      const org = item.organization_id || item.org_id || item.orgId || "org-ui-bem";
+      if (org !== targetOrgId) return false;
+    }
+    if (targetCampusId) {
+      const campus = item.campus_id || item.campusId || item.univ_id || item.univId || "ui";
+      if (campus !== targetCampusId) return false;
+    }
+    return true;
+  };
 
   let allEvents: Event[] = [];
   let tasks: Task[] = [];
@@ -140,6 +156,9 @@ export async function getDashboardData(
     tasks = tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
     allEvents = eventsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Event));
     usersSnap.docs.forEach((d) => usersMap.set(d.id, { id: d.id, ...d.data() } as UserProfile));
+
+    tasks = tasks.filter((t) => matchesTenant(t as unknown as Record<string, unknown>));
+    allEvents = allEvents.filter((e) => matchesTenant(e as unknown as Record<string, unknown>));
 
     if (role === "koordinator_divisi" && profile.division_id) {
       tasks = tasks.filter((t) => t.division_id === profile.division_id);
@@ -217,7 +236,7 @@ export async function getDashboardData(
         const taskMap = new Map<string, Task>();
         tasks.forEach((t) => taskMap.set(t.id, t));
         eventTasks.forEach((t) => taskMap.set(t.id, t));
-        tasks = Array.from(taskMap.values());
+        tasks = Array.from(taskMap.values()).filter((t) => matchesTenant(t as unknown as Record<string, unknown>));
       } catch (err) {
         console.error("[dashboard-data] Failed to load event tasks:", err);
       }
@@ -270,7 +289,10 @@ export async function getDashboardData(
     return updatedAt !== null && updatedAt >= weekStart;
   }).length;
 
-  const totalMembers = role === "super_admin" ? usersMap.size : 0;
+  const tenantMembersCount = Array.from(usersMap.values()).filter((u) =>
+    matchesTenant(u as unknown as Record<string, unknown>)
+  ).length;
+  const totalMembers = role === "super_admin" ? (tenantMembersCount || usersMap.size) : 0;
 
   // ── Status distribution (donut) ────────────────────────────────────────────
   const statusCountMap: Partial<Record<TaskStatus, number>> = {};

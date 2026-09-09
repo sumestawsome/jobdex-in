@@ -2,10 +2,22 @@ import "server-only";
 import type { WhatsAppSendPayload, WhatsAppSendResult } from "./provider";
 import { normalizeWhatsAppGroupId, isGroupRecipient } from "./index";
 
-export async function sendViaFonnte(payload: WhatsAppSendPayload): Promise<WhatsAppSendResult> {
-  const token = process.env.FONNTE_API_TOKEN;
-  const apiUrl = process.env.FONNTE_API_URL || "https://api.fonnte.com/send";
-  const defaultCountryCode = process.env.FONNTE_DEFAULT_COUNTRY_CODE || "62";
+export type FonnteCredentials = {
+  token: string;
+  apiUrl?: string;
+  defaultCountryCode?: string;
+};
+
+export async function sendViaFonnte(
+  payload: WhatsAppSendPayload,
+  credentials?: FonnteCredentials
+): Promise<WhatsAppSendResult> {
+  const token = credentials?.token || process.env.FONNTE_API_TOKEN;
+  let apiUrl = credentials?.apiUrl || process.env.FONNTE_API_URL || "https://api.fonnte.com/send";
+  if (!apiUrl.endsWith("/send")) {
+    apiUrl = `${apiUrl.replace(/\/$/, "")}/send`;
+  }
+  const defaultCountryCode = credentials?.defaultCountryCode || process.env.FONNTE_DEFAULT_COUNTRY_CODE || "62";
 
   if (!token) {
     throw new Error("Konfigurasi FONNTE_API_TOKEN tidak ditemukan.");

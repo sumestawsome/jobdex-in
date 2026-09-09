@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Upload, Plus } from "lucide-react";
+import Link from "next/link";
+import { Upload, Plus, Building2, ArrowRight } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ReferenceDetailDialog } from "@/components/references/reference-detail-dialog";
 import { ReferenceFilters } from "@/components/references/reference-filters";
@@ -11,6 +12,7 @@ import { ReferenceFormDialog } from "@/components/references/reference-form-dial
 import { ReferenceBulkImportDialog } from "@/components/references/reference-bulk-import-dialog";
 import { ReferencesGrid } from "@/components/references/references-grid";
 import { useAuth } from "@/hooks/use-auth";
+import { useWorkspace } from "@/hooks/use-workspace";
 import {
   archiveDesignReference,
   canCreateDesignReference,
@@ -36,6 +38,7 @@ import type {
 
 export default function ReferencesPage() {
   const { userProfile } = useAuth();
+  const { activeWorkspace, activeCampus, activeOrmawa } = useWorkspace();
   const [references, setReferences] = useState<ReferenceListItem[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -65,11 +68,16 @@ export default function ReferencesPage() {
     setError("");
 
     try {
+      const workspaceFilter = {
+        org_id: activeWorkspace.org_id,
+        campus_id: activeWorkspace.campus_id,
+      };
+
       const [referencesData, usersData, eventsData, divisionsData] = await Promise.all([
-        getCombinedReferencesForDashboard(userProfile),
-        getMembers().catch(() => [userProfile]),
-        getEventsForProfile(userProfile).catch(() => []),
-        getDivisions().catch(() => []),
+        getCombinedReferencesForDashboard(userProfile, workspaceFilter),
+        getMembers(activeWorkspace.org_id, activeWorkspace.campus_id).catch(() => [userProfile]),
+        getEventsForProfile(userProfile, workspaceFilter).catch(() => []),
+        getDivisions(activeWorkspace.org_id, activeWorkspace.campus_id).catch(() => []),
       ]);
 
       setReferences(referencesData);
@@ -88,7 +96,7 @@ export default function ReferencesPage() {
     } finally {
       setLoading(false);
     }
-  }, [userProfile]);
+  }, [userProfile, activeWorkspace.org_id, activeWorkspace.campus_id]);
 
   useEffect(() => {
     void Promise.resolve().then(loadReferences);
@@ -190,12 +198,30 @@ export default function ReferencesPage() {
       return;
     }
 
+    if (!referenceId && !activeWorkspace.org_id) {
+      await showError("Pilih ruang kerja aktif terlebih dahulu sebelum menambahkan referensi.");
+      return;
+    }
+
     try {
       if (referenceId) {
-        await updateDesignReference(referenceId, input);
+        await updateDesignReference(referenceId, input, {
+          org_id: activeWorkspace.org_id,
+          campus_id: activeWorkspace.campus_id,
+        });
         await showSuccess("Referensi berhasil diperbarui.", "Sukses");
       } else {
-        await createDesignReference(input, userProfile.id);
+        const inputWithTenant = {
+          ...input,
+          organization_id: activeWorkspace.org_id,
+          org_id: activeWorkspace.org_id,
+          orgId: activeWorkspace.org_id,
+          campus_id: activeWorkspace.campus_id,
+          campusId: activeWorkspace.campus_id,
+          univ_id: activeWorkspace.campus_id,
+          univId: activeWorkspace.campus_id,
+        };
+        await createDesignReference(inputWithTenant, userProfile.id);
         await showSuccess("Referensi baru berhasil ditambahkan.", "Sukses");
       }
       await loadReferences();
@@ -218,7 +244,10 @@ export default function ReferencesPage() {
     }
 
     try {
-      await archiveDesignReference(reference.id);
+      await archiveDesignReference(reference.id, {
+        org_id: activeWorkspace.org_id,
+        campus_id: activeWorkspace.campus_id,
+      });
       await showSuccess(`Referensi "${reference.title}" berhasil diarsipkan.`, "Sukses");
       await loadReferences();
     } catch {
@@ -260,6 +289,35 @@ export default function ReferencesPage() {
 
   return (
     <div className="space-y-6">
+      {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 px-4 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/70 dark:bg-sky-950/30">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="flex size-7 items-center justify-center rounded-lg bg-sky-600 text-white font-black text-xs shrink-0">
+            {activeWorkspace.campus_code}
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                {activeOrmawa.name}
+              </span>
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                Terisolasi
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              {activeCampus.name} • Menampilkan referensi desain terfilter untuk ruang kerja ini
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/dashboard/workspace"
+          className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline inline-flex items-center gap-1 shrink-0"
+        >
+          <span>Ganti Ruang Kerja</span>
+          <ArrowRight className="size-3" />
+        </Link>
+      </div>
+
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
           <h1 className="text-3xl font-bold text-slate-950 dark:text-slate-50">
@@ -323,21 +381,28 @@ export default function ReferencesPage() {
         />
       ) : (
         <EmptyState
-          title="Belum ada referensi yang cocok"
-          description="Coba ubah filter pencarian, atau tambahkan referensi baru jika Anda memiliki akses."
+          title={`Belum ada referensi di ${activeOrmawa.short_name}`}
+          description={`Ruang kerja ${activeOrmawa.name} (${activeCampus.code}) belum memiliki referensi desain yang cocok. Coba sesuaikan filter atau tambahkan referensi baru.`}
           action={
-            canCreate ? (
-              <div className="flex flex-wrap gap-2 justify-center">
-                <Button type="button" variant="secondary" size="sm" onClick={() => setBulkImportOpen(true)}>
-                  <Upload className="h-4 w-4" />
-                  Import Banyak
+            <div className="flex flex-wrap gap-2 justify-center">
+              {canCreate ? (
+                <>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setBulkImportOpen(true)}>
+                    <Upload className="h-4 w-4" />
+                    Import Banyak
+                  </Button>
+                  <Button type="button" size="sm" onClick={openCreateForm}>
+                    <Plus className="h-4 w-4" />
+                    Tambah Referensi di {activeOrmawa.short_name}
+                  </Button>
+                </>
+              ) : null}
+              <Link href="/dashboard/workspace">
+                <Button variant="outline" size="sm">
+                  Ganti Ruang Kerja
                 </Button>
-                <Button type="button" size="sm" onClick={openCreateForm}>
-                  <Plus className="h-4 w-4" />
-                  Tambah Referensi
-                </Button>
-              </div>
-            ) : null
+              </Link>
+            </div>
           }
         />
       )}

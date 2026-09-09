@@ -2,6 +2,7 @@ import "server-only";
 import { sendViaWablas } from "./wablas-provider";
 import { sendViaFonnte } from "./fonnte-provider";
 import { getWhatsAppSystemSettings } from "../whatsapp-settings";
+import { getOrmawaGatewayConfig } from "../ormawa-whatsapp-gateway";
 import type { WhatsAppSendPayload, WhatsAppSendResult, WhatsAppProviderName, WhatsAppSendTarget } from "./provider";
 
 export class WhatsAppRateLimitError extends Error {
@@ -100,6 +101,41 @@ export async function sendWhatsAppMessage(payload: WhatsAppSendPayload): Promise
     console.warn("[WHATSAPP SANDBOX] Failed to check sandbox settings, proceeding with original payload:", settingsErr);
   }
 
+  // --- Multi-Tenant BYO Gateway Ormawa Routing ---
+  const orgId = effectivePayload.org_id || effectivePayload.orgId;
+  if (orgId) {
+    const ormawaGateway = await getOrmawaGatewayConfig(orgId);
+    if (!ormawaGateway || !ormawaGateway.api_token || !ormawaGateway.is_active) {
+      console.warn(
+        `[WhatsApp Multi-Tenant] Gateway ormawa ${orgId} belum diatur atau dinonaktifkan. Pengiriman dibatalkan demi mencegah kebocoran antar-ormawa.`
+      );
+      return {
+        ok: false,
+        provider: (ormawaGateway?.provider || "fonnte") as WhatsAppProviderName,
+        target: effectivePayload.target,
+        error: `Gateway WhatsApp ormawa (${orgId}) belum diatur. Pengiriman dibatalkan agar tidak menggunakan nomor ormawa lain.`,
+        skipped: true,
+        notConfigured: true,
+      };
+    }
+
+    // Gunakan gateway milik ormawa pemilik data
+    if (ormawaGateway.provider === "fonnte") {
+      return sendViaFonnte(effectivePayload, {
+        token: ormawaGateway.api_token,
+        apiUrl: ormawaGateway.server_url,
+      });
+    }
+
+    if (ormawaGateway.provider === "wablas") {
+      return sendViaWablas(effectivePayload, {
+        token: ormawaGateway.api_token,
+        apiUrl: ormawaGateway.server_url,
+      });
+    }
+  }
+
+  // Fallback ke gateway global sistem (hanya jika data tidak terikat ke ormawa spesifik)
   if (provider === "fonnte") {
     return sendViaFonnte(effectivePayload);
   }
