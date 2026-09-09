@@ -13,13 +13,13 @@ export const TARGET_DEFAULT_CAMPUS = {
 };
 
 export const TARGET_DEFAULT_ORMAWA = {
-  id: "org-undiksha-bem",
+  id: "org-undiksha-forkom-kip",
   campus_id: "univ-undiksha",
   univ_id: "univ-undiksha",
-  name: "BEM REMA Undiksha",
-  short_name: "BEM Undiksha",
-  type: "BEM" as const,
-  description: "Lembaga eksekutif mahasiswa tingkat universitas penanggung jawab program kerja terpadu Undiksha.",
+  name: "Forkom KIP-Kuliah Undiksha",
+  short_name: "Forkom KIP Undiksha",
+  type: "UKM" as const,
+  description: "Organisasi kemahasiswaan penerima KIP-Kuliah di lingkungan Universitas Pendidikan Ganesha.",
   is_active: true,
   member_count: 0,
   active_event_count: 0,

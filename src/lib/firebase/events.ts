@@ -104,7 +104,13 @@ export async function getEventsForProfile(
           event.org_id ||
           (event as unknown as Record<string, unknown>).orgId ||
           DEFAULT_ORGANIZATION_ID;
-        if (eventOrg !== targetOrgId) return false;
+
+        const isMatchOrg =
+          eventOrg === targetOrgId ||
+          ((eventOrg === "main_org" || eventOrg === "org-undiksha-forkom-kip" || eventOrg === "org-undiksha-bem") &&
+           (targetOrgId === "org-undiksha-forkom-kip" || targetOrgId === "org-undiksha-bem" || targetOrgId === "main_org"));
+
+        if (!isMatchOrg) return false;
       }
 
       // Filter kampus
@@ -113,9 +119,15 @@ export async function getEventsForProfile(
           event.campus_id ||
           (event as unknown as Record<string, unknown>).campusId ||
           event.univ_id ||
-          (event as unknown as Record<string, unknown>).univId ||
-          "ui";
-        if (eventCampus !== targetCampusId) return false;
+          (event as unknown as Record<string, unknown>).univId;
+
+        const isMatchCampus =
+          !eventCampus ||
+          eventCampus === targetCampusId ||
+          eventCampus === "univ-undiksha" ||
+          eventCampus === "ui";
+
+        if (!isMatchCampus) return false;
       }
 
       return true;
@@ -206,7 +218,11 @@ export async function getEventById(
       event.org_id ||
       (event as unknown as Record<string, unknown>).orgId ||
       DEFAULT_ORGANIZATION_ID;
-    if (eventOrg !== workspaceFilter.org_id) {
+    const isMatchOrg =
+      eventOrg === workspaceFilter.org_id ||
+      ((eventOrg === "main_org" || eventOrg === "org-undiksha-forkom-kip" || eventOrg === "org-undiksha-bem") &&
+       (workspaceFilter.org_id === "org-undiksha-forkom-kip" || workspaceFilter.org_id === "org-undiksha-bem" || workspaceFilter.org_id === "main_org"));
+    if (!isMatchOrg) {
       return null;
     }
   }
@@ -216,9 +232,13 @@ export async function getEventById(
       event.campus_id ||
       (event as unknown as Record<string, unknown>).campusId ||
       event.univ_id ||
-      (event as unknown as Record<string, unknown>).univId ||
-      "ui";
-    if (eventCampus !== workspaceFilter.campus_id) {
+      (event as unknown as Record<string, unknown>).univId;
+    const isMatchCampus =
+      !eventCampus ||
+      eventCampus === workspaceFilter.campus_id ||
+      eventCampus === "univ-undiksha" ||
+      eventCampus === "ui";
+    if (!isMatchCampus) {
       return null;
     }
   }

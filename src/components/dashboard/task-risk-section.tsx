@@ -39,14 +39,21 @@ export function TaskRiskSection({ profile }: TaskRiskSectionProps) {
 
         const matchesTenant = (item: Record<string, unknown>): boolean => {
           if (targetOrgId) {
-            const org = item.organization_id || item.org_id || item.orgId || "org-undiksha-bem";
-            const isLegacyOrg = (!item.organization_id && !item.org_id && !item.orgId) && (targetOrgId === "org-undiksha-bem" || targetOrgId === "org-ui-bem");
-            if (org !== targetOrgId && !isLegacyOrg) return false;
+            const org = item.organization_id || item.org_id || item.orgId || "org-undiksha-forkom-kip";
+            const isLegacyOrg =
+              org === targetOrgId ||
+              ((org === "main_org" || org === "org-undiksha-forkom-kip" || org === "org-undiksha-bem") &&
+               (targetOrgId === "org-undiksha-forkom-kip" || targetOrgId === "org-undiksha-bem" || targetOrgId === "main_org"));
+            if (!isLegacyOrg) return false;
           }
           if (targetCampusId) {
             const campus = item.campus_id || item.campusId || item.univ_id || item.univId || "univ-undiksha";
-            const isLegacyCampus = (!item.campus_id && !item.campusId && !item.univ_id && !item.univId) && (targetCampusId === "univ-undiksha" || targetCampusId === "univ-ui");
-            if (campus !== targetCampusId && !isLegacyCampus) return false;
+            const isLegacyCampus =
+              campus === targetCampusId ||
+              campus === "univ-undiksha" ||
+              campus === "ui" ||
+              (!item.campus_id && !item.campusId && !item.univ_id && !item.univId);
+            if (!isLegacyCampus) return false;
           }
           return true;
         };

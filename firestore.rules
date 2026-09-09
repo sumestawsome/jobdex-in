@@ -70,19 +70,31 @@ service cloud.firestore {
                     ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.univ_id
                     : ("univId" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
                       ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.univId
-                      : "ui")))
+                      : "univ-undiksha")))
             )
-          : "ui");
+          : "univ-undiksha");
     }
 
     function isSameOrg(docOrg, userOrg) {
       return docOrg == userOrg ||
-        ((docOrg == "main_org" || docOrg == "org-ui-bem") && (userOrg == "main_org" || userOrg == "org-ui-bem"));
+        docOrg == "main_org" ||
+        docOrg == "org-undiksha-forkom-kip" ||
+        docOrg == "org-undiksha-bem" ||
+        docOrg == "org-ui-bem" ||
+        userOrg == "main_org" ||
+        userOrg == "org-undiksha-forkom-kip" ||
+        userOrg == "org-undiksha-bem" ||
+        userOrg == "org-ui-bem";
     }
 
     function isSameCampus(docCampus, userCampus) {
       return docCampus == userCampus ||
-        ((docCampus == "" || docCampus == "ui") && (userCampus == "" || userCampus == "ui"));
+        docCampus == "" ||
+        docCampus == "univ-undiksha" ||
+        docCampus == "ui" ||
+        userCampus == "" ||
+        userCampus == "univ-undiksha" ||
+        userCampus == "ui";
     }
 
     function matchesTenant(data) {
@@ -97,9 +109,9 @@ service cloud.firestore {
         ? data.campus_id
         : ("campusId" in data
           ? data.campusId
-          : ("univ_id" in data ? data.univ_id : ("univId" in data ? data.univId : "ui")));
+          : ("univ_id" in data ? data.univ_id : ("univId" in data ? data.univId : "univ-undiksha")));
 
-      return isSameOrg(docOrg, userOrg) && isSameCampus(docCampus, userCampus);
+      return isSuperAdmin() || (isSameOrg(docOrg, userOrg) && isSameCampus(docCampus, userCampus));
     }
 
     function canManageEvent(eventId) {

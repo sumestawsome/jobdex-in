@@ -33,13 +33,18 @@ export async function getMembers(organizationId?: string, campusId?: string): Pr
 
   if (organizationId) {
     try {
-      if (campusId) {
-        snapshot = await getDocs(query(usersRef, where("organization_id", "==", organizationId), where("campus_id", "==", campusId)));
-      } else {
-        snapshot = await getDocs(query(usersRef, where("organization_id", "==", organizationId)));
+      const orgIds = [organizationId];
+      if (organizationId === "org-undiksha-forkom-kip" || organizationId === "main_org" || organizationId === "org-undiksha-bem") {
+        orgIds.push("main_org", "org-undiksha-forkom-kip", "org-undiksha-bem");
       }
+      const uniqueOrgs = [...new Set(orgIds)];
+      snapshot = await getDocs(query(usersRef, where("organization_id", "in", uniqueOrgs)));
     } catch {
-      snapshot = await getDocs(query(usersRef, where("organization_id", "==", organizationId)));
+      try {
+        snapshot = await getDocs(query(usersRef, where("organization_id", "==", organizationId)));
+      } catch {
+        snapshot = await getDocs(query(usersRef, orderBy("name", "asc")));
+      }
     }
   } else {
     snapshot = await getDocs(query(usersRef, orderBy("name", "asc")));
@@ -49,15 +54,19 @@ export async function getMembers(organizationId?: string, campusId?: string): Pr
 
   if (organizationId) {
     results = results.filter((item) => {
-      const itemOrg = item.orgId || item.org_id || item.organization_id;
-      return itemOrg === organizationId;
+      const itemOrg = item.orgId || item.org_id || item.organization_id || "main_org";
+      return (
+        itemOrg === organizationId ||
+        ((itemOrg === "main_org" || itemOrg === "org-undiksha-forkom-kip" || itemOrg === "org-undiksha-bem") &&
+         (organizationId === "org-undiksha-forkom-kip" || organizationId === "org-undiksha-bem" || organizationId === "main_org"))
+      );
     });
   }
 
   if (campusId) {
     results = results.filter((item) => {
       const itemCampus = item.univId || item.campusId || item.campus_id || item.univ_id;
-      return !itemCampus || itemCampus === campusId;
+      return !itemCampus || itemCampus === campusId || itemCampus === "univ-undiksha" || itemCampus === "ui";
     });
   }
 

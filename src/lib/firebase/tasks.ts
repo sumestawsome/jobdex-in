@@ -65,7 +65,11 @@ export async function getTasksForProfile(
         task.org_id ||
         (task as unknown as Record<string, unknown>).orgId ||
         DEFAULT_ORGANIZATION_ID;
-      if (taskOrg !== targetOrgId) return false;
+      const isMatchOrg =
+        taskOrg === targetOrgId ||
+        ((taskOrg === "main_org" || taskOrg === "org-undiksha-forkom-kip" || taskOrg === "org-undiksha-bem") &&
+         (targetOrgId === "org-undiksha-forkom-kip" || targetOrgId === "org-undiksha-bem" || targetOrgId === "main_org"));
+      if (!isMatchOrg) return false;
     }
 
     if (targetCampusId) {
@@ -73,9 +77,13 @@ export async function getTasksForProfile(
         task.campus_id ||
         (task as unknown as Record<string, unknown>).campusId ||
         task.univ_id ||
-        (task as unknown as Record<string, unknown>).univId ||
-        "ui";
-      if (taskCampus !== targetCampusId) return false;
+        (task as unknown as Record<string, unknown>).univId;
+      const isMatchCampus =
+        !taskCampus ||
+        taskCampus === targetCampusId ||
+        taskCampus === "univ-undiksha" ||
+        taskCampus === "ui";
+      if (!isMatchCampus) return false;
     }
 
     return true;
@@ -108,7 +116,11 @@ export async function getTasksByEvent(
         t.org_id ||
         (t as unknown as Record<string, unknown>).orgId ||
         DEFAULT_ORGANIZATION_ID;
-      return tOrg === workspaceFilter.org_id;
+      return (
+        tOrg === workspaceFilter.org_id ||
+        ((tOrg === "main_org" || tOrg === "org-undiksha-forkom-kip" || tOrg === "org-undiksha-bem") &&
+         (workspaceFilter.org_id === "org-undiksha-forkom-kip" || workspaceFilter.org_id === "org-undiksha-bem" || workspaceFilter.org_id === "main_org"))
+      );
     });
   }
 
@@ -118,9 +130,13 @@ export async function getTasksByEvent(
         t.campus_id ||
         (t as unknown as Record<string, unknown>).campusId ||
         t.univ_id ||
-        (t as unknown as Record<string, unknown>).univId ||
-        "ui";
-      return tCampus === workspaceFilter.campus_id;
+        (t as unknown as Record<string, unknown>).univId;
+      return (
+        !tCampus ||
+        tCampus === workspaceFilter.campus_id ||
+        tCampus === "univ-undiksha" ||
+        tCampus === "ui"
+      );
     });
   }
 
@@ -148,7 +164,11 @@ export async function getTaskById(
       task.org_id ||
       (task as unknown as Record<string, unknown>).orgId ||
       DEFAULT_ORGANIZATION_ID;
-    if (taskOrg !== workspaceFilter.org_id) {
+    const isMatchOrg =
+      taskOrg === workspaceFilter.org_id ||
+      ((taskOrg === "main_org" || taskOrg === "org-undiksha-forkom-kip" || taskOrg === "org-undiksha-bem") &&
+       (workspaceFilter.org_id === "org-undiksha-forkom-kip" || workspaceFilter.org_id === "org-undiksha-bem" || workspaceFilter.org_id === "main_org"));
+    if (!isMatchOrg) {
       return null;
     }
   }
@@ -158,9 +178,13 @@ export async function getTaskById(
       task.campus_id ||
       (task as unknown as Record<string, unknown>).campusId ||
       task.univ_id ||
-      (task as unknown as Record<string, unknown>).univId ||
-      "ui";
-    if (taskCampus !== workspaceFilter.campus_id) {
+      (task as unknown as Record<string, unknown>).univId;
+    const isMatchCampus =
+      !taskCampus ||
+      taskCampus === workspaceFilter.campus_id ||
+      taskCampus === "univ-undiksha" ||
+      taskCampus === "ui";
+    if (!isMatchCampus) {
       return null;
     }
   }

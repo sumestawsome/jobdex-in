@@ -175,12 +175,12 @@ export default function TasksPage() {
         (deadlineFilter === "overdue" && deadline < today) ||
         (deadlineFilter === "week" && deadline >= today && deadline <= weekAhead);
 
-      const taskOrgId = (task as unknown as { org_id?: string }).org_id;
+      const taskOrgId = (task as unknown as { org_id?: string; organization_id?: string }).org_id || (task as unknown as { organization_id?: string }).organization_id;
       const matchesWorkspace =
         !taskOrgId ||
         taskOrgId === activeWorkspace.org_id ||
-        activeWorkspace.org_id === "org-undiksha-bem" ||
-        activeWorkspace.org_id === "org-ui-bem";
+        ((taskOrgId === "main_org" || taskOrgId === "org-undiksha-forkom-kip" || taskOrgId === "org-undiksha-bem") &&
+         (activeWorkspace.org_id === "org-undiksha-forkom-kip" || activeWorkspace.org_id === "org-undiksha-bem" || activeWorkspace.org_id === "main_org"));
 
       return (
         matchesWorkspace &&

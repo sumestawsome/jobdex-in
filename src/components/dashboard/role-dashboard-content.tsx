@@ -117,7 +117,9 @@ export function RoleDashboardContent() {
         if (
           result.summary.activeJobs > 0 ||
           result.summary.activeEvents > 0 ||
+          activeWorkspace.org_id === "org-undiksha-forkom-kip" ||
           activeWorkspace.org_id === "org-undiksha-bem" ||
+          activeWorkspace.org_id === "main_org" ||
           activeWorkspace.org_id === "org-ui-bem"
         ) {
           if (mounted) setData(result);

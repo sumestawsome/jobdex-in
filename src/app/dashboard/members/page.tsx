@@ -98,8 +98,18 @@ function MembersManagement() {
       const memberOrgId = member.orgId || member.org_id || member.organization_id;
       const memberCampusId = member.univId || member.campusId || member.campus_id || member.univ_id;
 
-      const matchesOrg = !activeWorkspace.org_id || memberOrgId === activeWorkspace.org_id;
-      const matchesCampus = !activeWorkspace.campus_id || !memberCampusId || memberCampusId === activeWorkspace.campus_id;
+      const matchesOrg =
+        !activeWorkspace.org_id ||
+        !memberOrgId ||
+        memberOrgId === activeWorkspace.org_id ||
+        ((memberOrgId === "main_org" || memberOrgId === "org-undiksha-forkom-kip" || memberOrgId === "org-undiksha-bem") &&
+         (activeWorkspace.org_id === "org-undiksha-forkom-kip" || activeWorkspace.org_id === "org-undiksha-bem" || activeWorkspace.org_id === "main_org"));
+      const matchesCampus =
+        !activeWorkspace.campus_id ||
+        !memberCampusId ||
+        memberCampusId === activeWorkspace.campus_id ||
+        memberCampusId === "univ-undiksha" ||
+        memberCampusId === "ui";
       const matchesWorkspace = matchesOrg && matchesCampus;
 
       return matchesWorkspace && matchesSearch && matchesRole && matchesStatus && matchesDivision;
@@ -217,7 +227,7 @@ function MembersManagement() {
         <div className="rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total anggota</p>
           <p className="text-2xl font-bold text-slate-950 dark:text-slate-50">
-            {(activeWorkspace.org_id === "org-undiksha-bem" || activeWorkspace.org_id === "org-ui-bem")
+            {(activeWorkspace.org_id === "org-undiksha-forkom-kip" || activeWorkspace.org_id === "org-undiksha-bem" || activeWorkspace.org_id === "org-ui-bem")
               ? filteredMembers.length
               : activeOrmawa.member_count}
           </p>

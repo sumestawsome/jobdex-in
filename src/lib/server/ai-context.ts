@@ -96,14 +96,21 @@ function matchesProfileTenant(
   const targetCampusId = profile.campus_id || profile.univ_id;
 
   if (targetOrgId) {
-    const org = item.organization_id || item.org_id || item.orgId || "org-undiksha-bem";
-    const isLegacyOrgMatch = (!item.organization_id && !item.org_id && !item.orgId) && (targetOrgId === "org-undiksha-bem" || targetOrgId === "org-ui-bem");
-    if (org !== targetOrgId && !isLegacyOrgMatch) return false;
+    const org = item.organization_id || item.org_id || item.orgId || "org-undiksha-forkom-kip";
+    const isLegacyOrgMatch =
+      org === targetOrgId ||
+      ((org === "main_org" || org === "org-undiksha-forkom-kip" || org === "org-undiksha-bem") &&
+       (targetOrgId === "org-undiksha-forkom-kip" || targetOrgId === "org-undiksha-bem" || targetOrgId === "main_org"));
+    if (!isLegacyOrgMatch) return false;
   }
   if (targetCampusId) {
     const campus = item.campus_id || item.campusId || item.univ_id || item.univId || "univ-undiksha";
-    const isLegacyCampusMatch = (!item.campus_id && !item.campusId && !item.univ_id && !item.univId) && (targetCampusId === "univ-undiksha" || targetCampusId === "univ-ui");
-    if (campus !== targetCampusId && !isLegacyCampusMatch) return false;
+    const isLegacyCampusMatch =
+      campus === targetCampusId ||
+      campus === "univ-undiksha" ||
+      campus === "ui" ||
+      (!item.campus_id && !item.campusId && !item.univ_id && !item.univId);
+    if (!isLegacyCampusMatch) return false;
   }
   return true;
 }

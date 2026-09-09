@@ -135,8 +135,16 @@ function EventsManagement() {
 
       const eventOrgId = event.org_id || event.organization_id;
       const eventCampusId = event.campus_id || event.univ_id;
-      const matchesOrg = !eventOrgId || eventOrgId === activeWorkspace.org_id;
-      const matchesCampus = !eventCampusId || eventCampusId === activeWorkspace.campus_id;
+      const matchesOrg =
+        !eventOrgId ||
+        eventOrgId === activeWorkspace.org_id ||
+        ((eventOrgId === "main_org" || eventOrgId === "org-undiksha-forkom-kip" || eventOrgId === "org-undiksha-bem") &&
+         (activeWorkspace.org_id === "org-undiksha-forkom-kip" || activeWorkspace.org_id === "org-undiksha-bem" || activeWorkspace.org_id === "main_org"));
+      const matchesCampus =
+        !eventCampusId ||
+        eventCampusId === activeWorkspace.campus_id ||
+        eventCampusId === "univ-undiksha" ||
+        eventCampusId === "ui";
       const matchesWorkspace = matchesOrg && matchesCampus;
 
       return matchesWorkspace && matchesSearch && matchesStatus && matchesDate;
