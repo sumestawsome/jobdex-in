@@ -338,8 +338,8 @@ export async function confirmPreviewCommand(
         const taskRef = db.collection("tasks").doc();
         const batch = db.batch();
 
-        const taskOrgId = (user as any).orgId || user.organization_id || (user as any).org_id || "main_org";
-        const taskCampusId = (user as any).univId || (user as any).campus_id || (user as any).univ_id || (user as any).campusId || "";
+        const taskOrgId = user.orgId || user.organization_id || user.org_id || "main_org";
+        const taskCampusId = user.univId || user.campus_id || user.univ_id || user.campusId || "";
 
         batch.set(taskRef, {
           id: taskRef.id,
@@ -534,8 +534,8 @@ export async function confirmPreviewCommand(
         const batch = db.batch();
         const createdTaskIds: string[] = [];
 
-        const taskOrgId = (user as any).orgId || user.organization_id || (user as any).org_id || "main_org";
-        const taskCampusId = (user as any).univId || (user as any).campus_id || (user as any).univ_id || (user as any).campusId || "";
+        const taskOrgId = user.orgId || user.organization_id || user.org_id || "main_org";
+        const taskCampusId = user.univId || user.campus_id || user.univ_id || user.campusId || "";
 
         for (const item of resolvedItems) {
           const taskRef = db.collection("tasks").doc();

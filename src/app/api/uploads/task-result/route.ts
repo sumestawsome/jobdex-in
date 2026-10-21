@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { validateFileUpload } from "@/lib/upload-validation";
-import { buildCloudinaryThumbnail, uploadImageBuffer } from "@/lib/server/cloudinary";
+import { buildCloudinaryThumbnail, uploadImageBuffer, validateCloudinaryConfig } from "@/lib/server/cloudinary";
 import { canUploadTaskResult, getServerAuthContext } from "@/lib/server/auth";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import { notifyTaskEvent } from "@/lib/server/notifications";
@@ -21,12 +21,13 @@ function getSourceLinkType(url?: string): "canva" | "figma" | "google_docs" | "g
 }
 
 export async function POST(request: NextRequest) {
-  // 1. Validasi Content-Type multipart
-  const contentType = request.headers.get("content-type") || "";
-  if (!contentType.toLowerCase().includes("multipart/form-data")) {
+  // 1. Validasi Kredensial Cloudinary di awal (mencegah silent crash)
+  const cldConfig = validateCloudinaryConfig();
+  if (!cldConfig.valid) {
+    console.error("[api/uploads/task-result] Kredensial Cloudinary belum lengkap:", cldConfig.error);
     return NextResponse.json(
-      { error: "Content-Type harus multipart/form-data." },
-      { status: 400 }
+      { error: cldConfig.error || "Layanan penyimpanan Cloudinary belum dikonfigurasi di server." },
+      { status: 500 }
     );
   }
 
@@ -57,7 +58,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const taskId = formData.get("taskId");
-    const file = formData.get("file");
+    const fileEntry = formData.get("file");
+    const file = fileEntry instanceof File ? fileEntry : null;
 
     const sourceLink = formData.get("sourceLink") as string | null;
     const uploadNote = formData.get("uploadNote") as string | null;
@@ -96,9 +98,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Validasi Bukti Pengerjaan (File atau Source Link)
-    const hasFile = file instanceof File && file.name && file.size > 0;
+    const hasFile = file !== null && file.name && file.size > 0;
     
-    if (file && typeof file !== "string") {
+    if (file) {
       if (file.size === 0) {
         return NextResponse.json(
           { error: "File yang diunggah tidak boleh kosong (0 bytes)." },
@@ -128,13 +130,15 @@ export async function POST(request: NextRequest) {
     let fileSize = 0;
     let fileType = "";
 
-    if (hasFile && file instanceof File) {
-      const buffer = Buffer.from(await file.arrayBuffer());
+    if (hasFile && file) {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
       const folder = `jobdex/${task.organization_id || "main_org"}/tasks/${taskId}`;
       const cloudinaryResult = await uploadImageBuffer({
         buffer,
         folder,
         fileName: file.name,
+        mimeType: file.type,
       });
       uploadUrl = cloudinaryResult.secure_url;
       const isImage = file.type.startsWith("image/");
@@ -145,21 +149,30 @@ export async function POST(request: NextRequest) {
       fileType = file.type;
     }
 
-    const sourceLinkType = getSourceLinkType(sourceLink || undefined);
-
     const uploadRef = taskRef.collection("uploads").doc();
-    const shouldCreateStatusLog = task.status !== "menunggu_approval";
-    const logRef = shouldCreateStatusLog
-      ? taskRef.collection("status_logs").doc()
-      : null;
     const batch = db.batch();
 
-    const orgId = task.orgId || task.organization_id || profile.orgId || profile.organization_id || "main_org";
-    const campusId = task.univId || task.campus_id || profile.univId || profile.campus_id || profile.univ_id || "";
+    const orgId = task.org_id || task.orgId || task.organization_id || "main_org";
+    const campusId = task.campus_id || task.campusId || task.univ_id || task.univId || "";
 
     batch.set(uploadRef, {
       id: uploadRef.id,
       task_id: taskId,
+      version_number: versionNumber,
+      file_url: uploadUrl || null,
+      thumbnail_url: thumbnailUrl || null,
+      public_id: publicId || null,
+      file_name: fileName || null,
+      file_size: fileSize || null,
+      file_type: fileType || null,
+      source_link: sourceLink ? sourceLink.trim() : null,
+      source_link_type: getSourceLinkType(sourceLink || undefined) || null,
+      output_type: outputType || (hasFile ? "image" : "link"),
+      notes: uploadNote ? uploadNote.trim() : null,
+      is_final_candidate: isFinalCandidate,
+      uploaded_by: profile.id,
+      uploaded_by_name: profile.name,
+      uploaded_at: FieldValue.serverTimestamp(),
       organization_id: orgId,
       org_id: orgId,
       orgId: orgId,
@@ -167,36 +180,26 @@ export async function POST(request: NextRequest) {
       campusId: campusId,
       univ_id: campusId,
       univId: campusId,
-      upload_url: uploadUrl,
-      thumbnail_url: thumbnailUrl,
-      public_id: publicId,
-      file_name: fileName,
-      file_size: fileSize,
-      file_type: fileType,
-      version_number: versionNumber,
-      uploaded_by: profile.id,
-      uploaded_at: FieldValue.serverTimestamp(),
-      source_link: sourceLink || "",
-      source_link_type: sourceLinkType || "",
-      upload_note: uploadNote || "",
-      output_type: outputType || "",
-      is_final_candidate: isFinalCandidate,
     });
 
-    const taskUpdatePayload: Record<string, unknown> = {
+    const isTransitionToReview = task.status !== "draft_selesai" && task.status !== "menunggu_approval";
+
+    const taskUpdates: Record<string, unknown> = {
+      result_design_url: uploadUrl || sourceLink || task.result_design_url || "",
       status: "menunggu_approval",
       approval_status: "pending",
       updated_at: FieldValue.serverTimestamp(),
     };
 
-    if (uploadUrl) {
-      taskUpdatePayload.result_design_url = uploadUrl;
-    }
-    if (sourceLink) {
-      taskUpdatePayload.source_link = sourceLink;
+    if (sourceLink && sourceLink.trim()) {
+      taskUpdates.source_link = sourceLink.trim();
     }
 
-    batch.update(taskRef, taskUpdatePayload);
+    batch.update(taskRef, taskUpdates);
+
+    const logRef = isTransitionToReview
+      ? taskRef.collection("status_logs").doc()
+      : null;
 
     if (logRef) {
       batch.set(logRef, {

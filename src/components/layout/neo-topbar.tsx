@@ -9,15 +9,13 @@ import { showSuccess } from "@/lib/swal";
 import { useTheme } from "@/components/theme/theme-provider";
 import { USER_ROLE_LABELS } from "@/lib/roles";
 import { Sun, Moon, LogOut, User, Home, ChevronDown, Menu, AlertTriangle } from "lucide-react";
-import { getDivisionById } from "@/lib/firebase/divisions";
 import { subscribeWhatsAppSystemSettings } from "@/lib/firebase/system-settings";
 import type { WhatsAppSystemSettings } from "@/types";
 import { WorkspaceNavSwitcher } from "@/components/workspace/workspace-nav-switcher";
-import { useWorkspace } from "@/hooks/use-workspace";
 
 function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard") return "Ringkasan";
-  if (pathname.startsWith("/dashboard/workspace")) return "Pilih Ruang Kerja";
+  if (pathname.startsWith("/dashboard/workspace")) return "Ruang Kerja";
   if (pathname.startsWith("/dashboard/tasks")) return "Job Desk";
   if (pathname.startsWith("/dashboard/events")) return "Acara";
   if (pathname.startsWith("/dashboard/members")) return "Anggota";
@@ -25,7 +23,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith("/dashboard/ai")) return "AI Assistant";
   if (pathname.startsWith("/dashboard/setup")) return "Setup";
   if (pathname.startsWith("/dashboard/settings")) return "Pengaturan";
-  if (pathname.startsWith("/dashboard/profile")) return "Profile";
+  if (pathname.startsWith("/dashboard/profile")) return "Profil";
   return "Dashboard";
 }
 
@@ -46,11 +44,9 @@ export function NeoTopbar(props: {
   const pathname = usePathname();
   const { user, userProfile } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { activeWorkspace, activeOrmawa } = useWorkspace();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [fetchedDivisionName, setFetchedDivisionName] = useState<string | null>(null);
   const [waSettings, setWaSettings] = useState<WhatsAppSystemSettings | null>(null);
 
   useEffect(() => {
@@ -66,22 +62,6 @@ export function NeoTopbar(props: {
     };
   }, []);
 
-  useEffect(() => {
-    if (userProfile?.role !== "super_admin" && userProfile?.division_id) {
-      getDivisionById(userProfile.division_id)
-        .then((div) => {
-          if (div) {
-            setFetchedDivisionName(div.name);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [userProfile?.division_id, userProfile?.role]);
-
-  const divisionName = userProfile?.role === "super_admin"
-    ? "JobDex.in Workspace"
-    : (fetchedDivisionName || "Humas & Media Kreatif");
-
   async function handleLogout() {
     setIsLoggingOut(true);
     await logoutUser();
@@ -90,162 +70,158 @@ export function NeoTopbar(props: {
   }
 
   const isDark = theme === "dark";
+  const pageTitle = getPageTitle(pathname);
 
   return (
-    <header className="jd-neo-topbar sticky top-0 z-40 w-full">
+    <header className="sticky top-0 z-40 w-full bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 rounded-none shadow-none">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         
-        {/* Title and Badge Info */}
+        {/* ── SISI KIRI ────────────────────────────────────────────────────────── */}
         <div className="flex items-center gap-3">
+          {/* Tombol Hamburger Menu (Mobile Only) */}
           {props.onToggleMobileMenu && (
             <button
               type="button"
               onClick={props.onToggleMobileMenu}
-              className="lg:hidden p-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer shrink-0 transition-all shadow-xs"
-              title="Buka Menu"
+              className="md:hidden p-2 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer shrink-0 transition-colors shadow-none"
+              title="Buka Menu Navigasi"
+              aria-label="Buka Menu"
             >
-              <Menu size={16} />
+              <Menu size={18} />
             </button>
           )}
-          <span className="jd-neo-badge bg-main text-main-foreground">
-            {getPageTitle(pathname)}
-          </span>
 
-          {/* Active Workspace Pill Indicator */}
-          <Link
-            href="/dashboard/workspace"
-            className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/50 transition-colors"
-            title={`Ruang Kerja Aktif: ${activeWorkspace.org_name} (${activeWorkspace.campus_name})`}
-          >
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-bold">{activeWorkspace.campus_code}</span>
-            <span className="text-slate-300 dark:text-slate-600">•</span>
-            <span className="truncate max-w-[130px] font-medium">{activeOrmawa.short_name || activeWorkspace.org_name}</span>
-          </Link>
+          {/* Breadcrumb Sederhana (Desktop Only) */}
+          <div className="hidden md:flex items-center gap-2 text-xs">
+            <span className="text-zinc-400 dark:text-zinc-500 font-medium">Dashboard</span>
+            <span className="text-zinc-300 dark:text-zinc-700">/</span>
+            <span className="font-bold text-zinc-900 dark:text-zinc-100">{pageTitle}</span>
+          </div>
 
-          <p className="hidden xl:block text-xs font-bold text-neutral-500 dark:text-neutral-400">
-            {divisionName}
-          </p>
-
-          {/* Global WhatsApp Sandbox Active Indicator */}
+          {/* WhatsApp Sandbox Active Indicator (Desktop only if active) */}
           {waSettings?.isTestMode && (
             <Link
               href="/dashboard/settings"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black tracking-wide bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border-2 border-amber-500 shadow-xs hover:opacity-90 transition-all cursor-pointer"
-              title="WhatsApp Sandbox Mode sedang AKTIF! Semua notifikasi dialihkan ke grup testing. Klik untuk mengatur."
+              className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[10px] font-bold bg-amber-50 dark:bg-amber-950/80 text-amber-900 dark:text-amber-300 border border-amber-400 dark:border-amber-700 shadow-none hover:opacity-90 transition-opacity"
+              title="WhatsApp Sandbox Mode aktif"
             >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-              </span>
-              <AlertTriangle className="size-3 text-amber-600 dark:text-amber-400" />
+              <AlertTriangle className="size-3 text-warning shrink-0" />
               <span>WA SANDBOX ACTIVE</span>
             </Link>
           )}
         </div>
 
-        {/* Action controls */}
+        {/* ── SISI TENGAH (Mobile Only: Judul Halaman Ringkas) ──────────────────── */}
+        <div className="md:hidden flex-1 text-center truncate px-2">
+          <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
+            {pageTitle}
+          </span>
+        </div>
+
+        {/* ── SISI KANAN (Controls & Profil) ───────────────────────────────────── */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Multi-Tenant Workspace Cascading Switcher */}
-          <WorkspaceNavSwitcher />
+          {/* Multi-Tenant Workspace Cascading Switcher (Desktop only) */}
+          <div className="hidden md:block">
+            <WorkspaceNavSwitcher />
+          </div>
           
-          {/* Theme toggle */}
+          {/* Theme Toggle Button (Mobile & Desktop) */}
           {mounted && (
             <button
               type="button"
               onClick={toggleTheme}
-              className="w-10 h-10 flex items-center justify-center jd-neo-button p-0"
-              title={isDark ? "Aktifkan light mode" : "Aktifkan dark mode"}
+              className="size-9 flex items-center justify-center rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 shadow-none transition-colors cursor-pointer"
+              title={isDark ? "Beralih ke mode terang" : "Beralih ke mode gelap"}
+              aria-label="Toggle theme"
             >
               {isDark ? (
-                <Sun size={18} color="#facc15" fill="#facc15" className="shrink-0" />
+                <Sun size={16} className="text-amber-400 shrink-0" />
               ) : (
-                <Moon size={18} color="currentColor" fill="currentColor" className="shrink-0" />
+                <Moon size={16} className="text-zinc-600 dark:text-zinc-400 shrink-0" />
               )}
             </button>
           )}
 
-          {/* User Info & Quick Controls */}
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="jd-neo-button h-10 px-1.5 sm:px-3 flex items-center gap-2 text-sm"
-              >
-                {/* Avatar */}
-                {userProfile?.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={userProfile.avatar_url}
-                    alt={userProfile?.name || "Avatar"}
-                    className="size-8 rounded-full border border-slate-200 dark:border-slate-800 object-cover shrink-0"
-                  />
-                ) : (
-                  <div className="size-8 rounded-full border border-slate-200 dark:border-slate-800 bg-sky-100 dark:bg-sky-950/40 flex items-center justify-center text-xs font-semibold text-sky-700 dark:text-sky-400 shrink-0">
-                    {getInitials(userProfile?.name || user?.displayName)}
-                  </div>
-                )}
-
-                {/* Name & Role (Desktop) */}
-                <div className="hidden sm:flex flex-col items-start text-left leading-tight">
-                  <span className="font-bold text-foreground text-xs truncate max-w-[120px]">
-                    {userProfile?.name ?? user?.displayName ?? "User"}
-                  </span>
-                  <span className="text-[10px] font-normal text-neutral-500 dark:text-neutral-400">
-                    {userProfile?.role ? USER_ROLE_LABELS[userProfile.role] : "Anggota"}
-                  </span>
+          {/* User Profile Avatar & Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="h-9 px-1.5 sm:px-2.5 flex items-center gap-2 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-none transition-colors cursor-pointer"
+              aria-label="Menu akun pengguna"
+            >
+              {/* Avatar Mini */}
+              {userProfile?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={userProfile.avatar_url}
+                  alt={userProfile?.name || "Avatar"}
+                  className="size-6 sm:size-7 rounded-none border border-zinc-200 dark:border-zinc-700 object-cover shrink-0"
+                />
+              ) : (
+                <div className="size-6 sm:size-7 rounded-none border border-zinc-200 dark:border-zinc-700 bg-primary/10 text-primary flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0">
+                  {getInitials(userProfile?.name || user?.displayName)}
                 </div>
-
-                <ChevronDown size={14} className="text-foreground shrink-0 hidden sm:block" />
-              </button>
-
-              {dropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-48 z-20 jd-neo-card p-2 flex flex-col gap-1 shadow-shadow">
-                    <div className="px-2 py-1.5 border-b border-neutral-100 dark:border-neutral-800 mb-1">
-                      <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Akun Anda</p>
-                      <p className="text-xs font-black text-foreground truncate">
-                        {userProfile?.name ?? user?.displayName ?? "Anggota"}
-                      </p>
-                    </div>
-                    <Link
-                      href="/dashboard/profile"
-                      className="flex items-center gap-2 p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded font-bold text-xs text-neutral-800 dark:text-neutral-200"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <User size={14} />
-                      Profile
-                    </Link>
-                    <Link
-                      href="/"
-                      className="flex items-center gap-2 p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded font-bold text-xs text-neutral-800 dark:text-neutral-200"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <Home size={14} />
-                      Landing Page
-                    </Link>
-                    <hr className="border-neutral-200 dark:border-neutral-700 my-1" />
-                    <button
-                      type="button"
-                      disabled={isLoggingOut}
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        void handleLogout();
-                      }}
-                      className="flex w-full text-left items-center gap-2 p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded font-bold text-xs"
-                    >
-                      <LogOut size={14} />
-                      {isLoggingOut ? "Keluar..." : "Logout"}
-                    </button>
-                  </div>
-                </>
               )}
-            </div>
-          </div>
 
+              {/* Name & Role (Desktop Only) */}
+              <div className="hidden sm:flex flex-col items-start text-left leading-tight">
+                <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs truncate max-w-[120px]">
+                  {userProfile?.name ?? user?.displayName ?? "User"}
+                </span>
+                <span className="text-[10px] font-normal text-zinc-500 dark:text-zinc-400">
+                  {userProfile?.role ? USER_ROLE_LABELS[userProfile.role] : "Anggota"}
+                </span>
+              </div>
+
+              <ChevronDown size={14} className="text-zinc-400 shrink-0 hidden sm:block" />
+            </button>
+
+            {dropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+                <div className="absolute right-0 mt-1 w-48 z-20 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none p-1.5 flex flex-col gap-0.5">
+                  <div className="px-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800 mb-1">
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Akun Anda</p>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                      {userProfile?.name ?? user?.displayName ?? "Anggota"}
+                    </p>
+                  </div>
+                  <Link
+                    href="/dashboard/profile"
+                    className="flex items-center gap-2 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-semibold text-xs text-zinc-800 dark:text-zinc-200 transition-colors"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <User size={14} className="text-zinc-500" />
+                    <span>Profil Saya</span>
+                  </Link>
+                  <Link
+                    href="/"
+                    className="flex items-center gap-2 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-semibold text-xs text-zinc-800 dark:text-zinc-200 transition-colors"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <Home size={14} className="text-zinc-500" />
+                    <span>Halaman Utama</span>
+                  </Link>
+                  <hr className="border-zinc-200 dark:border-zinc-800 my-1" />
+                  <button
+                    type="button"
+                    disabled={isLoggingOut}
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      void handleLogout();
+                    }}
+                    className="flex w-full text-left items-center gap-2 p-2 text-danger hover:bg-red-50 dark:hover:bg-red-950/30 rounded-none font-semibold text-xs cursor-pointer transition-colors"
+                  >
+                    <LogOut size={14} />
+                    <span>{isLoggingOut ? "Keluar..." : "Logout"}</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
+
       </div>
     </header>
   );

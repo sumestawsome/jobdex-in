@@ -45,10 +45,9 @@ export function DashboardBarChart({ data }: Props) {
               >
                 {/* Done overlay */}
                 <div
-                  className="absolute left-0 top-0 h-full rounded-full transition-all duration-700"
+                  className="absolute left-0 top-0 h-full rounded-full transition-all duration-700 bg-[#242424] dark:bg-white"
                   style={{
                     width: `${donePct}%`,
-                    background: "linear-gradient(90deg, #38bdf8, #0ea5e9)",
                   }}
                 />
               </div>

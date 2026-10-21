@@ -456,8 +456,8 @@ export async function handleApproveTaskCommand(
     });
 
     // Create status log
-    const taskOrgId = (task as any).orgId || (task as any).org_id || task.organization_id || "";
-    const taskCampusId = (task as any).univId || (task as any).campus_id || (task as any).univ_id || (task as any).campusId || "";
+    const taskOrgId = task.orgId || task.org_id || task.organization_id || "";
+    const taskCampusId = task.univId || task.campus_id || task.univ_id || task.campusId || "";
     const logRef = db.collection("tasks").doc(task.id).collection("status_logs").doc();
     await logRef.set({
       id: logRef.id,
@@ -601,8 +601,8 @@ export async function handleUpdateTaskStatusCommand(
     await db.collection("tasks").doc(task.id).update(updateParams);
 
     // Create status log
-    const taskOrgId = (task as any).orgId || (task as any).org_id || task.organization_id || "";
-    const taskCampusId = (task as any).univId || (task as any).campus_id || (task as any).univ_id || (task as any).campusId || "";
+    const taskOrgId = task.orgId || task.org_id || task.organization_id || "";
+    const taskCampusId = task.univId || task.campus_id || task.univ_id || task.campusId || "";
     const logNote = notes ? `Update status via WhatsApp: ${notes}` : "Update status via WhatsApp command";
     const logRef = db.collection("tasks").doc(task.id).collection("status_logs").doc();
     await logRef.set({
@@ -1281,8 +1281,8 @@ export async function handleChecklistCommand(
     });
 
     // Create status log
-    const taskOrgId = (task as any).orgId || (task as any).org_id || task.organization_id || "";
-    const taskCampusId = (task as any).univId || (task as any).campus_id || (task as any).univ_id || (task as any).campusId || "";
+    const taskOrgId = task.orgId || task.org_id || task.organization_id || "";
+    const taskCampusId = task.univId || task.campus_id || task.univ_id || task.campusId || "";
     const logRef = db.collection("tasks").doc(task.id).collection("status_logs").doc();
     await logRef.set({
       id: logRef.id,

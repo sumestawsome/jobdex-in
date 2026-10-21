@@ -1,4 +1,4 @@
-﻿import { TASK_STATUS_LABELS } from "@/lib/task-status";
+import { TASK_STATUS_LABELS } from "@/lib/task-status";
 import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 import type { Task, TaskStatus, UserProfile } from "@/types";
 
@@ -27,8 +27,13 @@ export function buildWhatsAppMessage(
   eventType: WhatsAppEventType,
   input: NotificationTemplateInput,
 ) {
-  const actorName = input.actor?.name ?? "User tidak ditemukan";
-  const picName = input.pic?.name ?? "PIC tidak ditemukan";
+  const taskTitle = input.task.name || (input.task as { title?: string }).title || "Tugas Tanpa Judul";
+  const actorName = input.actor?.name ?? "Rekan Panitia";
+  const picName = input.pic?.name ?? "PIC belum ditentukan";
+  const picPhone = input.pic?.whatsapp_number
+    ? input.pic.whatsapp_number.replace(/[^\d]/g, "").replace(/^0/, "62")
+    : "";
+  const picDisplay = picPhone ? `@${picPhone} (${picName})` : picName;
   const coordinatorName = input.coordinator?.name ?? actorName;
   const deadline = formatTaskDate(input.task.deadline);
   const statusLabel = input.status
@@ -37,67 +42,78 @@ export function buildWhatsAppMessage(
 
   if (eventType === "task_help_needed") {
     return [
-      WA_LABEL.reminder + " Perlu Bantuan",
+      "🚨 *Ada Kendala Pengerjaan Tugas*",
       "",
-      `Anggota: ${actorName}`,
-      `Tugas: ${input.task.name}`,
-      `Status: ${statusLabel}`,
-      `Kendala: ${input.stuckNotes || input.note || "-"}`,
-      `Deadline: ${deadline}`,
+      `*${actorName}* butuh bantuan untuk tugas *${taskTitle}*:`,
+      `> ${input.stuckNotes || input.note || "Kendala teknis/materi pengerjaan"}`,
+      "",
+      `PIC: *${picDisplay}*`,
+      `Status: *${statusLabel}*`,
+      `Deadline: *${deadline}*`,
+      "",
+      "Yuk rekan-rekan atau koordinator terkait, tolong dibantu yaa! 🙏",
+      "👉 Cek detail: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
     ].join("\n");
   }
 
   if (eventType === "task_result_uploaded") {
     return [
-      WA_LABEL.reminder + " Hasil Desain Diupload",
+      "🎨 *Draf Desain Udah Diupload!*",
       "",
-      `Anggota: ${actorName}`,
-      `Tugas: ${input.task.name}`,
-      "Status: Menunggu Approval",
-      `Preview: ${input.thumbnailUrl || "-"}`,
+      `*${actorName}* baru aja beres upload hasil buat tugas *${taskTitle}*.`,
       `Link: ${input.uploadUrl || "-"}`,
+      ...(input.thumbnailUrl ? [`Preview: ${input.thumbnailUrl}`] : []),
+      "",
+      "Tolong dicek ya koor, biar bisa langsung di-acc atau dikasih catatan kalau butuh polesan lagi.",
+      "👉 Cek tugas: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
     ].join("\n");
   }
 
   if (eventType === "task_revision_requested") {
     return [
-      WA_LABEL.reminder + " Revisi Diperlukan",
+      "📝 *Ada Catatan Revisi*",
       "",
-      `Tugas: ${input.task.name}`,
-      `PIC: ${picName}`,
-      `Catatan Revisi: ${input.revisionNotes || input.note || "-"}`,
+      `Buat tugas *${taskTitle}* (PIC: *${picDisplay}*), ada masukan dari koordinator nih:`,
+      `> ${input.revisionNotes || input.note || "Perlu penyesuaian detail"}`,
+      "",
+      "Semangat polesnya ya, ditunggu update terbarunya! 💪",
+      "👉 Cek detail: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
     ].join("\n");
   }
 
   if (eventType === "task_approved") {
     return [
-      WA_LABEL.reminder + " Tugas Disetujui",
+      "🎉 *Mantap! Tugas Disetujui*",
       "",
-      `Tugas: ${input.task.name}`,
-      `PIC: ${picName}`,
-      `Disetujui oleh: ${coordinatorName}`,
+      `Tugas *${taskTitle}* garapan *${picName}* udah resmi di-approve sama *${coordinatorName}*.`,
+      "Otomatis tersimpan ke arsip desain. Makasih banyak kerja kerasnya! ✨",
+      "👉 Cek arsip: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
     ].join("\n");
   }
 
   if (eventType === "task_created") {
     return [
-      WA_LABEL.reminder + " Tugas Baru",
+      "✨ *Ada tugas baru nih buat kamu!*",
       "",
-      `Tugas: ${input.task.name}`,
-      `PIC: ${picName}`,
+      `Tugas: *${taskTitle}*`,
+      `PIC: *${picDisplay}*`,
+      `Deadline: *${deadline}*`,
       `Koordinator: ${coordinatorName}`,
-      `Deadline: ${deadline}`,
+      "",
+      "Kalau udah mulai dikerjain, jangan lupa update statusnya ya! 🙌",
+      "👉 Cek tugas: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
     ].join("\n");
   }
 
   return [
-    WA_LABEL.reminder + " Update Tugas",
+    "📌 *Update Progress Tugas*",
     "",
-    `Nama: ${actorName}`,
-    `Tugas: ${input.task.name}`,
-    `Status: ${statusLabel}`,
-    `Catatan: ${input.note || "-"}`,
-    `Deadline: ${deadline}`,
+    `*${actorName}* baru aja memperbarui tugas *${taskTitle}*.`,
+    `Status: *${statusLabel}*`,
+    ...(input.note ? [`Catatan: ${input.note}`] : []),
+    `Deadline: *${deadline}*`,
+    "",
+    "👉 Cek tugas: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
   ].join("\n");
 }
 

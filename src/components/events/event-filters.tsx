@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { EVENT_STATUS_OPTIONS } from "@/lib/event-status";
 import type { EventStatus } from "@/types";
+import { Search } from "lucide-react";
 
 export type EventDateFilter = "all" | "upcoming" | "past";
 
@@ -14,7 +15,7 @@ type EventFiltersProps = {
 };
 
 const selectClassName =
-  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
+  "h-9 w-full rounded-lg border border-[#e1e2e3] bg-white px-3 text-xs font-medium text-[#242424] outline-none transition-colors focus:border-[#242424] focus:ring-1 focus:ring-[#242424]/10 shadow-2xs cursor-pointer";
 
 export function EventFilters({
   search,
@@ -25,12 +26,14 @@ export function EventFilters({
   onDateFilterChange,
 }: EventFiltersProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-[1.5fr_1fr_1fr]">
-      <div className="col-span-2 md:col-span-1">
+    <div className="grid grid-cols-2 gap-2.5 md:grid-cols-[1.5fr_1fr_1fr]">
+      <div className="col-span-2 md:col-span-1 relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#898989]" />
         <Input
           placeholder="Cari nama acara..."
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
+          className="pl-8 h-9 text-xs rounded-lg border-[#e1e2e3] bg-white text-[#242424] placeholder:text-[#898989] focus:ring-1 focus:ring-[#242424] shadow-2xs"
         />
       </div>
       <select
@@ -38,7 +41,7 @@ export function EventFilters({
         value={status}
         onChange={(event) => onStatusChange(event.target.value as "all" | EventStatus)}
       >
-        <option value="all">Semua status</option>
+        <option value="all">Semua Status</option>
         {EVENT_STATUS_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -52,9 +55,9 @@ export function EventFilters({
           onDateFilterChange(event.target.value as EventDateFilter)
         }
       >
-        <option value="all">Semua tanggal</option>
-        <option value="upcoming">Akan datang</option>
-        <option value="past">Sudah lewat</option>
+        <option value="all">Semua Tanggal</option>
+        <option value="upcoming">Akan Datang</option>
+        <option value="past">Sudah Lewat</option>
       </select>
     </div>
   );

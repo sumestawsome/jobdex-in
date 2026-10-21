@@ -4,7 +4,6 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
   useCallback,
   useMemo,
   type ReactNode,
@@ -39,25 +38,25 @@ export interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [activeWorkspace, setActiveWorkspaceState] = useState<ActiveWorkspace>(DEFAULT_ACTIVE_WORKSPACE);
-
-  // Sync from localStorage on client mount
-  useEffect(() => {
+  const [activeWorkspace, setActiveWorkspaceState] = useState<ActiveWorkspace>(() => {
+    if (typeof window === "undefined") {
+      return DEFAULT_ACTIVE_WORKSPACE;
+    }
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as ActiveWorkspace;
-        // Verify that the stored campus & ormawa still exist in dummy data
         const campusExists = DUMMY_CAMPUSES.some((c) => c.id === parsed.campus_id);
         const ormawaExists = DUMMY_ORMAWAS.some((o) => o.id === parsed.org_id);
         if (campusExists && ormawaExists) {
-          setActiveWorkspaceState(parsed);
+          return parsed;
         }
       }
     } catch {
-      // LocalStorage access failure or parse error fallback
+      // LocalStorage access failure fallback
     }
-  }, []);
+    return DEFAULT_ACTIVE_WORKSPACE;
+  });
 
   const setActiveWorkspace = useCallback((workspace: ActiveWorkspace) => {
     setActiveWorkspaceState(workspace);

@@ -203,30 +203,42 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       {/* Calendar Grid Container */}
-      <div className="lg:col-span-2 space-y-4 bg-[var(--secondary-background)] border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+      <div className="lg:col-span-2 space-y-4 bg-white border border-[#e1e2e3] rounded-xl p-5 sm:p-6 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Calendar className="size-5 text-sky-600 dark:text-sky-400" />
-            <h2 className="text-lg font-bold text-[var(--foreground)]">
+            <Calendar className="size-4.5 text-[#242424]" />
+            <h2 className="text-base sm:text-lg font-bold text-[#242424]">
               {monthNames[currentMonth]} {currentYear}
             </h2>
           </div>
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="icon" onClick={prevMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={setToday}>
-              <Calendar className="h-4 w-4" />
-              Hari Ini
-            </Button>
-            <Button variant="outline" size="icon" onClick={nextMonth}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <button
+              type="button"
+              onClick={prevMonth}
+              className="size-8 rounded-lg border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] flex items-center justify-center transition-all shadow-2xs cursor-pointer"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={setToday}
+              className="h-8 px-3 rounded-lg border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+            >
+              <Calendar className="size-3.5" />
+              <span>Hari Ini</span>
+            </button>
+            <button
+              type="button"
+              onClick={nextMonth}
+              className="size-8 rounded-lg border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] flex items-center justify-center transition-all shadow-2xs cursor-pointer"
+            >
+              <ChevronRight className="size-4" />
+            </button>
           </div>
         </div>
 
         {/* Days of Week Header */}
-        <div className="grid grid-cols-7 text-center text-xs font-semibold text-[var(--jd-neo-muted)] uppercase tracking-wider pb-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-[#898989] uppercase tracking-wider pb-2 border-b border-[#e1e2e3]">
           <div>Min</div>
           <div>Sen</div>
           <div>Sel</div>
@@ -261,13 +273,14 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
             return (
               <button
                 key={idx}
+                type="button"
                 onClick={() => setSelectedDate(day)}
                 className={`relative h-16 p-1.5 rounded-lg border text-left flex flex-col justify-between transition-all duration-100 cursor-pointer ${
                   isSelected
-                    ? "bg-sky-600 border-sky-600 text-white shadow-sm z-10"
+                    ? "bg-[#242424] border-[#242424] text-white shadow-xs z-10"
                     : isCurrentMonth
-                    ? "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[var(--foreground)] hover:bg-slate-50 dark:hover:bg-slate-800"
-                    : "bg-slate-50 dark:bg-slate-950/40 border-slate-100 dark:border-slate-900 text-[var(--jd-neo-muted)] opacity-65 hover:bg-slate-100 dark:hover:bg-slate-900"
+                    ? "bg-white border-[#e1e2e3] text-[#242424] hover:bg-[#f7f7f8]"
+                    : "bg-[#f7f7f8] border-[#e1e2e3]/60 text-[#898989] opacity-60 hover:bg-[#f0f0f2]"
                 }`}
               >
                 {/* Date Number */}
@@ -276,8 +289,8 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
                     className={`text-xs font-semibold ${
                       isToday
                         ? isSelected
-                          ? "inline-flex items-center justify-center size-5 rounded-full bg-white text-sky-600 font-bold"
-                          : "inline-flex items-center justify-center size-5 rounded-full bg-sky-600 text-white"
+                          ? "inline-flex items-center justify-center size-5 rounded-full bg-white text-[#242424] font-bold"
+                          : "inline-flex items-center justify-center size-5 rounded-full bg-[#242424] text-white"
                         : "text-inherit"
                     }`}
                   >
@@ -289,10 +302,10 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
                 {dayTasks.length > 0 && (
                   <div className="flex items-center gap-1 mt-auto text-[9px] font-semibold">
                     <span
-                      className="size-2 rounded-full shrink-0"
-                      style={{ backgroundColor: maxRiskColor || "#94A3B8" }}
-                    ></span>
-                    <span className={isSelected ? "text-white" : "text-[var(--jd-neo-muted)]"}>
+                      className="size-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: maxRiskColor || "#898989" }}
+                    />
+                    <span className={isSelected ? "text-white" : "text-[#898989]"}>
                       {dayTasks.length} Tugas
                     </span>
                   </div>
@@ -304,12 +317,12 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
       </div>
 
       {/* Selected Day Task List (Sidebar/Details) */}
-      <div className="border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 shadow-sm p-5 space-y-4">
+      <div className="border border-[#e1e2e3] rounded-xl bg-white shadow-2xs p-5 space-y-4">
         <div>
-          <h3 className="text-xs font-semibold text-[var(--jd-neo-muted)] uppercase tracking-wider">
+          <h3 className="text-[11px] font-semibold text-[#898989] uppercase tracking-wider">
             Tugas Deadline
           </h3>
-          <p className="text-base font-bold text-[var(--foreground)] mt-1">
+          <p className="text-base font-bold text-[#242424] mt-1">
             {selectedDate
               ? selectedDate.toLocaleDateString("id-ID", {
                   weekday: "long",
@@ -323,15 +336,15 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
 
         {loading ? (
           <div className="space-y-3 animate-pulse pt-2">
-            <div className="h-20 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-850 shadow-sm"></div>
-            <div className="h-20 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-850 shadow-sm"></div>
+            <div className="h-20 bg-[#f7f7f8] rounded-lg border border-[#e1e2e3]" />
+            <div className="h-20 bg-[#f7f7f8] rounded-lg border border-[#e1e2e3]" />
           </div>
         ) : selectedDayTasks.length === 0 ? (
-          <div className="py-8 px-4 text-center text-xs font-semibold text-[var(--jd-neo-muted)] bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
-            Tidak ada tugas deadline di tanggal ini.
+          <div className="py-10 px-4 text-center text-xs font-medium text-[#898989] bg-[#f7f7f8] border border-dashed border-[#e1e2e3] rounded-lg">
+            Tidak ada tugas deadline pada tanggal ini.
           </div>
         ) : (
-          <div className="space-y-3 overflow-y-auto max-h-[360px] pr-1">
+          <div className="space-y-2.5 overflow-y-auto max-h-[380px] pr-1">
             {selectedDayTasks.map((task) => {
               const riskLevel = getRiskLevelFromTask(task);
               const riskColor = getRiskColor(riskLevel);
@@ -349,34 +362,35 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
               return (
                 <div
                   key={task.id}
-                  className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-shadow space-y-2 flex flex-col justify-between"
+                  className="p-3.5 rounded-lg border border-[#e1e2e3] bg-[#f7f7f8] shadow-2xs hover:border-[#b0b2b5] transition-colors space-y-2.5 flex flex-col justify-between"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <span
-                        className="size-2 rounded-full shrink-0"
+                        className="size-1.5 rounded-full shrink-0"
                         style={{ backgroundColor: riskColor }}
-                      ></span>
-                      <span className="text-[10px] font-semibold text-[var(--jd-neo-muted)] uppercase tracking-wider">
+                      />
+                      <span className="text-[10px] font-semibold text-[#898989] uppercase tracking-wider">
                         {divisionOrEventName}
                       </span>
                     </div>
-                    <h4 className="font-bold text-[var(--foreground)] text-xs line-clamp-2">
+                    <h4 className="font-bold text-[#242424] text-xs line-clamp-2">
                       {task.name}
                     </h4>
-                    <div className="flex justify-between items-center text-[10px] text-[var(--jd-neo-muted)] pt-1">
-                      <span>PIC: {picUser ? picUser.name : "-"}</span>
-                      <span className="font-semibold text-[var(--foreground)]">
+                    <div className="flex justify-between items-center text-[11px] text-[#898989] pt-1">
+                      <span>PIC: <strong className="text-[#242424]">{picUser ? picUser.name : "-"}</strong></span>
+                      <span className="font-semibold text-[#242424]">
                         {statusLabels[task.status] || task.status}
                       </span>
                     </div>
                   </div>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 mt-1">
-                    <Link href={`/dashboard/tasks/${task.id}`} passHref legacyBehavior>
-                      <Button variant="secondary" size="sm" className="w-full">
-                        <Eye className="h-4 w-4" />
-                        Buka Detail Task
-                      </Button>
+                  <div className="pt-2 border-t border-[#e1e2e3]">
+                    <Link
+                      href={`/dashboard/tasks/${task.id}`}
+                      className="w-full inline-flex items-center justify-center gap-1.5 h-7.5 px-3 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold shadow-2xs transition-all"
+                    >
+                      <Eye className="size-3 text-[#898989]" />
+                      <span>Buka Detail Tugas</span>
                     </Link>
                   </div>
                 </div>

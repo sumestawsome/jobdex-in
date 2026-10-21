@@ -25,9 +25,9 @@ export function ReferenceCard({
   onArchive,
 }: ReferenceCardProps) {
   return (
-    <Card className="flex flex-col justify-between m-1 overflow-hidden">
+    <Card className="flex flex-col justify-between overflow-hidden rounded-none shadow-none border border-border">
       {reference.thumbnail_url ? (
-        <div className="h-44 border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-955">
+        <div className="h-44 border-b border-border bg-muted">
           {/* Manual thumbnail URLs can come from arbitrary hosts; avoid broad Next image allowlists. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

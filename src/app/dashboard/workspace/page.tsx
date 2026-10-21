@@ -1,394 +1,414 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Building2,
   Users,
-  Calendar,
   CheckCircle2,
   Search,
   ArrowRight,
-  Sparkles,
-  LayoutDashboard,
+  Settings,
+  ShieldCheck,
   Check,
+  CalendarCheck2,
+  FolderKanban,
 } from "lucide-react";
-import { DUMMY_CAMPUSES, DUMMY_ORMAWAS } from "@/lib/workspace-dummy-data";
+import { DUMMY_CAMPUSES } from "@/lib/workspace-dummy-data";
 import type { OrmawaType } from "@/types/workspace";
 import { useWorkspace } from "@/hooks/use-workspace";
 
-const TYPE_COLORS: Record<OrmawaType, { badge: string; border: string; bg: string }> = {
-  BEM: {
-    badge: "bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border-sky-200 dark:border-sky-800",
-    border: "hover:border-sky-500/50",
-    bg: "from-sky-500/10 to-transparent",
+export interface UserWorkspaceItem {
+  id: string;
+  campusId: string;
+  name: string;
+  campusName: string;
+  campusCode: string;
+  initials: string;
+  type: OrmawaType;
+  role: string;
+  activeTasks: number;
+  totalMembers: number;
+}
+
+const INITIAL_USER_WORKSPACES: UserWorkspaceItem[] = [
+  {
+    id: "main_org",
+    campusId: "univ-undiksha",
+    name: "Forkom KIP-Kuliah Undiksha",
+    campusName: "Universitas Pendidikan Ganesha",
+    campusCode: "UNDIKSHA",
+    initials: "FK",
+    type: "UKM",
+    role: "Super Admin",
+    activeTasks: 4,
+    totalMembers: 48,
   },
-  DPM: {
-    badge: "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800",
-    border: "hover:border-purple-500/50",
-    bg: "from-purple-500/10 to-transparent",
-  },
-  HMJ: {
-    badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-    border: "hover:border-emerald-500/50",
-    bg: "from-emerald-500/10 to-transparent",
-  },
-  UKM: {
-    badge: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-    border: "hover:border-amber-500/50",
-    bg: "from-amber-500/10 to-transparent",
-  },
-  LAINNYA: {
-    badge: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-    border: "hover:border-slate-400/50",
-    bg: "from-slate-500/10 to-transparent",
-  },
-};
+];
 
-export default function WorkspaceSelectionPage() {
-  const { activeWorkspace, selectWorkspace } = useWorkspace();
-  const [selectedCampusId, setSelectedCampusId] = useState<string>(activeWorkspace.campus_id);
-  const [selectedType, setSelectedType] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [switchSuccessMessage, setSwitchSuccessMessage] = useState<string | null>(null);
+export default function WorkspaceManagementPage() {
+  const { activeWorkspace, setActiveWorkspace, selectWorkspace, campuses } = useWorkspace();
 
-  const selectedCampus = DUMMY_CAMPUSES.find((c) => c.id === selectedCampusId) || DUMMY_CAMPUSES[0];
+  const [workspaceList] = useState<UserWorkspaceItem[]>(INITIAL_USER_WORKSPACES);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER">("ALL");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const campusOrmawas = DUMMY_ORMAWAS.filter((o) => o.campus_id === selectedCampusId);
+  const allCampuses = campuses.length > 0 ? campuses : DUMMY_CAMPUSES;
 
-  const filteredOrmawas = campusOrmawas.filter((ormawa) => {
-    const matchesType = selectedType === "ALL" || ormawa.type === selectedType;
-    const matchesSearch =
-      searchQuery.trim() === "" ||
-      ormawa.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ormawa.short_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ormawa.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesType && matchesSearch;
-  });
+  // Active workspace detail card
+  const currentWorkspaceItem = useMemo(() => {
+    const found = workspaceList.find(
+      (w) => w.id === activeWorkspace.org_id || w.name.toLowerCase() === activeWorkspace.org_name.toLowerCase()
+    );
+    if (found) return found;
 
-  const handleSelectOrmawa = (campusId: string, orgId: string) => {
-    const campus = DUMMY_CAMPUSES.find((c) => c.id === campusId);
-    const ormawa = DUMMY_ORMAWAS.find((o) => o.id === orgId);
-    if (!campus || !ormawa) return;
+    // Fallback if matched from global state
+    return {
+      id: activeWorkspace.org_id || "main_org",
+      campusId: activeWorkspace.campus_id || "univ-undiksha",
+      name: activeWorkspace.org_name || "Forkom KIP-Kuliah Undiksha",
+      campusName: activeWorkspace.campus_name || "Universitas Pendidikan Ganesha",
+      campusCode: activeWorkspace.campus_code || "UNDIKSHA",
+      initials: (activeWorkspace.org_name || "FK")
+        .split(" ")
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase() || "FK",
+      type: (activeWorkspace.org_type as OrmawaType) || "UKM",
+      role: "Super Admin",
+      activeTasks: 4,
+      totalMembers: 48,
+    };
+  }, [workspaceList, activeWorkspace]);
 
-    selectWorkspace(campusId, orgId);
+  // Filtered list of workspaces
+  const filteredWorkspaces = useMemo(() => {
+    return workspaceList.filter((item) => {
+      const matchesSearch =
+        searchQuery.trim() === "" ||
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.campusName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.role.toLowerCase().includes(searchQuery.toLowerCase());
 
-    setSwitchSuccessMessage(`Ruang kerja dialihkan ke ${ormawa.short_name} (${campus.code})`);
+      const matchesRole =
+        roleFilter === "ALL" ||
+        (roleFilter === "ADMIN" && (item.role.includes("Admin") || item.role.includes("Koordinator"))) ||
+        (roleFilter === "MEMBER" && item.role.includes("Anggota"));
+
+      return matchesSearch && matchesRole;
+    });
+  }, [workspaceList, searchQuery, roleFilter]);
+
+  // Handler switch workspace
+  const handleSwitchWorkspace = (workspace: UserWorkspaceItem) => {
+    const matchedCampus = allCampuses.find(
+      (c) => c.id === workspace.campusId || c.code.toLowerCase() === workspace.campusCode.toLowerCase()
+    ) || allCampuses[0];
+
+    const ok = selectWorkspace(matchedCampus.id, workspace.id);
+    if (!ok) {
+      setActiveWorkspace({
+        campus_id: matchedCampus.id,
+        campusId: matchedCampus.id,
+        univ_id: matchedCampus.id,
+        univId: matchedCampus.id,
+        campus_name: matchedCampus.name,
+        campus_code: matchedCampus.code,
+        org_id: workspace.id,
+        orgId: workspace.id,
+        org_name: workspace.name,
+        org_type: workspace.type,
+      });
+    }
+
+    setToastMessage(`Berhasil beralih ke ruang kerja "${workspace.name}"`);
     setTimeout(() => {
-      setSwitchSuccessMessage(null);
-    }, 4000);
+      setToastMessage(null);
+    }, 3500);
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-linear-to-br from-sky-500/10 via-slate-50 to-indigo-500/10 dark:from-sky-950/40 dark:via-slate-900/60 dark:to-indigo-950/40 p-6 sm:p-8 shadow-xs">
-        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/80 px-3 py-1 text-xs font-semibold text-sky-700 dark:text-sky-300">
-              <Sparkles className="size-3.5 text-sky-500" />
-              Multi-Tenant Architecture
-            </div>
-            <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              Pilih Ruang Kerja Kampus & Organisasi
-            </h1>
-            <p className="mt-1 text-sm sm:text-base text-slate-600 dark:text-slate-400 max-w-2xl">
-              Akses kegiatan, struktur panitia, dan pembagian tugas yang terisolasi aman berdasarkan universitas dan organisasi mahasiswa (BEM, DPM, HMJ, UKM).
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            >
-              <LayoutDashboard className="size-4 text-sky-500" />
-              Ke Dashboard Utama
-            </Link>
-          </div>
+    <div className="flex flex-col gap-6 max-w-[1280px] mx-auto w-full pb-16">
+      {/* ── 1. Header Halaman ─────────────────────────────────────────────────── */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200 dark:border-zinc-800">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            Ruang Kerja &amp; Organisasi
+          </h1>
+          <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+            Kelola ruang kerja aktif dan akses kepengurusan ormawa Anda.
+          </p>
         </div>
 
-        {/* Success toast notification */}
-        {switchSuccessMessage && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800/60 dark:bg-emerald-950/50 px-4 py-2.5 text-sm font-medium text-emerald-800 dark:text-emerald-300 animate-in fade-in slide-in-from-top-1">
-            <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>{switchSuccessMessage}</span>
+        <div className="flex items-center gap-2.5 shrink-0">
+          {/* Tombol Buat Ruang Kerja Dinonaktifkan Sementara */}
+          <div className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 shadow-none cursor-not-allowed">
+            <span>Pendaftaran Ruang Kerja Dinonaktifkan</span>
           </div>
-        )}
-      </div>
+        </div>
+      </header>
 
-      {/* Active Workspace Status Card */}
-      <div className="rounded-2xl border-2 border-sky-500/30 dark:border-sky-500/40 bg-white dark:bg-slate-900 p-6 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 h-32 w-32 bg-radial from-sky-500/20 to-transparent blur-2xl pointer-events-none" />
-        
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-tr from-sky-500 to-indigo-600 text-white font-black text-xl shadow-md">
-              {activeWorkspace.campus_code}
+      {/* ── 2. Banner Workspace Aktif ─────────────────────────────────────────── */}
+      <section className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none p-5 sm:p-6 shadow-none relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+          {/* Sisi Kiri: Info Workspace Aktif */}
+          <div className="flex items-start sm:items-center gap-4">
+            {/* Avatar Inisial */}
+            <div className="size-13 sm:size-14 rounded-none bg-primary text-primary-foreground font-bold flex flex-col items-center justify-center shrink-0 shadow-none text-center">
+              <span className="text-base font-extrabold tracking-tight">
+                {currentWorkspaceItem.initials}
+              </span>
+              <span className="text-[9px] font-semibold opacity-80 uppercase tracking-wider -mt-0.5">
+                {currentWorkspaceItem.campusCode.slice(0, 4)}
+              </span>
             </div>
+
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-sky-600 dark:text-sky-400 uppercase tracking-wider">
-                  Ruang Kerja Aktif Saat Ini
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="inline-flex items-center gap-1.5 rounded-none bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 text-[11px] font-semibold text-success border border-emerald-200 dark:border-emerald-800">
+                  <span className="size-1.5 rounded-none bg-success" />
+                  Aktif Saat Ini
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Aktif
+                <span className="text-xs text-zinc-300 dark:text-zinc-600">•</span>
+                <span className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  <ShieldCheck className="size-3.5 text-primary" />
+                  <span>Peran: <strong className="text-zinc-900 dark:text-zinc-100">{currentWorkspaceItem.role}</strong></span>
                 </span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-0.5">
-                {activeWorkspace.org_name}
+
+              <h2 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-zinc-100 leading-tight">
+                {currentWorkspaceItem.name}
               </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
-                <Building2 className="size-3.5" />
-                {activeWorkspace.campus_name}
-                <span className="text-slate-300 dark:text-slate-600">•</span>
-                <span className="font-semibold text-slate-700 dark:text-slate-300">{activeWorkspace.org_type}</span>
+
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1.5">
+                <Building2 className="size-3.5 text-zinc-400" />
+                <span>{currentWorkspaceItem.campusName}</span>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard/tasks"
-              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white px-5 py-2.5 text-sm font-semibold shadow-sm transition-all"
-            >
-              Lihat Job Desk Ormawa Ini
-              <ArrowRight className="size-4" />
-            </Link>
-          </div>
-        </div>
-      </div>
+          {/* Sisi Kanan: Metrik Ringkas & Tombol Aksi */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-zinc-200 dark:border-zinc-800">
+            {/* Metrik Anggota & Tugas */}
+            <div className="flex items-center gap-4 px-3.5 py-2 rounded-none bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 text-xs">
+              <div>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">Anggota</span>
+                <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{currentWorkspaceItem.totalMembers}</span>
+              </div>
+              <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-700" />
+              <div>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">Tugas Aktif</span>
+                <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{currentWorkspaceItem.activeTasks}</span>
+              </div>
+            </div>
 
-      {/* Step 1: Pilih Kampus */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="flex size-6 items-center justify-center rounded-full bg-sky-600 text-white text-xs font-bold">1</span>
-              Pilih Kampus / Universitas
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Pilih induk perguruan tinggi untuk menampilkan ormawa yang bernaung di dalamnya.
-            </p>
-          </div>
-          <span className="text-xs font-medium text-slate-500">
-            {DUMMY_CAMPUSES.length} Kampus Tersedia
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {DUMMY_CAMPUSES.map((campus) => {
-            const isSelected = campus.id === selectedCampusId;
-            return (
-              <button
-                key={campus.id}
-                type="button"
-                onClick={() => {
-                  setSelectedCampusId(campus.id);
-                  setSelectedType("ALL");
-                }}
-                className={`
-                  text-left rounded-xl p-4 border transition-all cursor-pointer relative overflow-hidden
-                  ${
-                    isSelected
-                      ? "border-sky-500 bg-sky-50/50 dark:bg-sky-950/30 ring-2 ring-sky-500/20 shadow-xs"
-                      : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
-                  }
-                `}
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard/settings"
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-none transition-colors"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-200 text-sm">
-                    {campus.code}
-                  </div>
-                  {isSelected && (
-                    <span className="rounded-full bg-sky-600 text-white p-1">
-                      <Check className="size-3" />
-                    </span>
-                  )}
-                </div>
-                <div className="mt-3">
-                  <h3 className="font-semibold text-slate-900 dark:text-white text-sm leading-tight">
-                    {campus.name}
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
-                    {campus.city}
-                  </p>
-                </div>
-                <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-                  <span>{campus.ormawa_count} Ormawa</span>
-                  <span className="text-sky-600 dark:text-sky-400 font-medium">Buka &rarr;</span>
-                </div>
-              </button>
-            );
-          })}
+                <Settings className="size-3.5 text-zinc-500" />
+                <span>Pengaturan Ruang Kerja</span>
+              </Link>
+              <Link
+                href="/dashboard/tasks"
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-none bg-primary hover:bg-primary-hover text-primary-foreground shadow-none transition-colors"
+              >
+                <span>Buka Job Desk</span>
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Step 2: Pilih Ormawa di Kampus Terpilih */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      {/* ── 3. Grid / List Daftar Ruang Kerja ─────────────────────────────────── */}
+      <section className="space-y-4">
+        {/* Sub-header & Filter Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="flex size-6 items-center justify-center rounded-full bg-sky-600 text-white text-xs font-bold">2</span>
-              Pilih Ormawa di {selectedCampus.name}
+            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+              <span>Daftar Ruang Kerja Terdaftar</span>
+              <span className="px-2 py-0.5 rounded-none bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-[11px] font-semibold border border-zinc-200 dark:border-zinc-700">
+                {filteredWorkspaces.length}
+              </span>
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Pilih organisasi mahasiswa yang ingin Anda kelola atau pantau.
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Ruang kerja resmi yang terhubung dengan akun Anda.
             </p>
           </div>
 
-          {/* Filter Bar & Search */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Search Input */}
             <div className="relative">
-              <Search className="size-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="size-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Cari ormawa..."
+                placeholder="Cari ruang kerja..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-44 sm:w-56 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-8 pr-3 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                className="h-9 w-48 sm:w-60 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 pl-8 pr-3 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:border-primary shadow-none"
               />
             </div>
 
-            <div className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
-              {(["ALL", "BEM", "DPM", "HMJ", "UKM"] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setSelectedType(type)}
-                  className={`
-                    px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer
-                    ${
-                      selectedType === type
-                        ? "bg-sky-600 text-white shadow-xs"
-                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                    }
-                  `}
-                >
-                  {type === "ALL" ? "Semua" : type}
-                </button>
-              ))}
+            {/* Role Filter Tabs */}
+            <div className="flex items-center rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-0.5 shadow-none text-xs">
+              <button
+                type="button"
+                onClick={() => setRoleFilter("ALL")}
+                className={`px-2.5 py-1 rounded-none text-xs font-semibold transition-colors cursor-pointer ${
+                  roleFilter === "ALL"
+                    ? "bg-primary text-primary-foreground shadow-none"
+                    : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                }`}
+              >
+                Semua
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleFilter("ADMIN")}
+                className={`px-2.5 py-1 rounded-none text-xs font-semibold transition-colors cursor-pointer ${
+                  roleFilter === "ADMIN"
+                    ? "bg-primary text-primary-foreground shadow-none"
+                    : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                }`}
+              >
+                Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleFilter("MEMBER")}
+                className={`px-2.5 py-1 rounded-none text-xs font-semibold transition-colors cursor-pointer ${
+                  roleFilter === "MEMBER"
+                    ? "bg-primary text-primary-foreground shadow-none"
+                    : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                }`}
+              >
+                Anggota
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Ormawa Grid */}
-        {filteredOrmawas.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-800 p-10 text-center">
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Tidak ada ormawa yang cocok dengan pencarian &quot;{searchQuery}&quot; atau filter {selectedType}.
+        {/* Card Grid */}
+        {filteredWorkspaces.length === 0 ? (
+          <div className="rounded-none border border-dashed border-zinc-200 dark:border-zinc-800 p-12 text-center bg-white dark:bg-zinc-900">
+            <FolderKanban className="size-8 text-zinc-400 mx-auto mb-2" />
+            <p className="text-xs sm:text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              Tidak ada ruang kerja yang sesuai dengan kata kunci &quot;{searchQuery}&quot;.
             </p>
             <button
               type="button"
               onClick={() => {
                 setSearchQuery("");
-                setSelectedType("ALL");
+                setRoleFilter("ALL");
               }}
-              className="mt-3 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline"
+              className="mt-2 text-xs font-semibold text-primary hover:underline cursor-pointer"
             >
-              Reset Filter
+              Reset Pencarian
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredOrmawas.map((ormawa) => {
-              const isCurrent =
-                activeWorkspace.campus_id === selectedCampus.id &&
-                activeWorkspace.org_id === ormawa.id;
-              const colorInfo = TYPE_COLORS[ormawa.type] || TYPE_COLORS.LAINNYA;
+            {filteredWorkspaces.map((workspace) => {
+              const isCurrent = workspace.id === activeWorkspace.org_id || workspace.id === "main_org";
 
               return (
                 <div
-                  key={ormawa.id}
+                  key={workspace.id}
                   className={`
-                    group rounded-xl border bg-white dark:bg-slate-900 p-5 shadow-xs transition-all flex flex-col justify-between
+                    rounded-none border bg-white dark:bg-zinc-900 p-5 shadow-none transition-colors flex flex-col justify-between gap-4
                     ${
                       isCurrent
-                        ? "border-sky-500 dark:border-sky-500 ring-2 ring-sky-500/20"
-                        : `border-slate-200 dark:border-slate-800 ${colorInfo.border}`
+                        ? "border-primary"
+                        : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
                     }
                   `}
                 >
                   <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-bold ${colorInfo.badge}`}>
-                        {ormawa.type}
-                      </span>
-                      {isCurrent ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-sky-600 dark:text-sky-400">
-                          <CheckCircle2 className="size-3.5" />
-                          Ruang Aktif
-                        </span>
-                      ) : null}
+                    {/* Header Card: Avatar + Role Badge */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="size-11 rounded-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold text-sm flex items-center justify-center shrink-0">
+                        {workspace.initials}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        {isCurrent ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none bg-emerald-50 dark:bg-emerald-950/40 text-success text-[11px] font-semibold border border-emerald-200 dark:border-emerald-800">
+                            <CheckCircle2 className="size-3" />
+                            Aktif
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-none bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-[11px] font-semibold border border-zinc-200 dark:border-zinc-700">
+                            {workspace.type}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <h3 className="mt-3 text-base font-bold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
-                      {ormawa.name}
-                    </h3>
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      {ormawa.short_name}
-                    </p>
+                    {/* Titles */}
+                    <div className="mt-3">
+                      <h3 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 leading-snug line-clamp-1">
+                        {workspace.name}
+                      </h3>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-1">
+                        {workspace.campusName}
+                      </p>
+                    </div>
 
-                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                      {ormawa.description}
-                    </p>
+                    {/* Role Indicator */}
+                    <div className="mt-2.5 flex items-center gap-1.5 text-xs">
+                      <span className="text-zinc-500">Peran Anda:</span>
+                      <span className="font-semibold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-none text-[11px]">
+                        {workspace.role}
+                      </span>
+                    </div>
 
-                    {/* Quick Metrics */}
-                    <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-2.5 text-center text-xs">
-                      <div>
-                        <div className="flex items-center justify-center gap-1 text-slate-400 text-[10px]">
-                          <Users className="size-3" />
-                          <span>Anggota</span>
+                    {/* Metrik Mini */}
+                    <div className="mt-3.5 grid grid-cols-2 gap-2 rounded-none bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 p-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <CalendarCheck2 className="size-3.5 text-zinc-400" />
+                        <div>
+                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">Tugas Aktif</span>
+                          <span className="font-bold text-zinc-900 dark:text-zinc-100">{workspace.activeTasks} tugas</span>
                         </div>
-                        <span className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block">
-                          {ormawa.member_count}
-                        </span>
                       </div>
-                      <div className="border-x border-slate-200 dark:border-slate-700">
-                        <div className="flex items-center justify-center gap-1 text-slate-400 text-[10px]">
-                          <Calendar className="size-3" />
-                          <span>Acara</span>
+                      <div className="flex items-center gap-2 border-l border-zinc-200 dark:border-zinc-700 pl-2">
+                        <Users className="size-3.5 text-zinc-400" />
+                        <div>
+                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">Anggota</span>
+                          <span className="font-bold text-zinc-900 dark:text-zinc-100">{workspace.totalMembers} orang</span>
                         </div>
-                        <span className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block">
-                          {ormawa.active_event_count}
-                        </span>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-center gap-1 text-slate-400 text-[10px]">
-                          <CheckCircle2 className="size-3" />
-                          <span>Tugas</span>
-                        </div>
-                        <span className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block">
-                          {ormawa.active_task_count}
-                        </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  {/* Tombol Aksi Beralih / Masuk */}
+                  <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
                     <button
                       type="button"
-                      onClick={() => handleSelectOrmawa(selectedCampus.id, ormawa.id)}
+                      onClick={() => handleSwitchWorkspace(workspace)}
                       disabled={isCurrent}
                       className={`
-                        w-full rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5
+                        w-full h-8.5 rounded-none text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-none
                         ${
                           isCurrent
-                            ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-default"
-                            : "bg-slate-900 hover:bg-sky-600 text-white dark:bg-slate-800 dark:hover:bg-sky-600"
+                            ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-200 dark:border-zinc-700 cursor-default"
+                            : "border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
                         }
                       `}
                     >
                       {isCurrent ? (
                         <>
-                          <Check className="size-3.5" />
-                          Ruang Kerja Terpilih
+                          <Check className="size-3.5 text-success stroke-[2.5]" />
+                          <span>Ruang Kerja Terpilih</span>
                         </>
                       ) : (
                         <>
-                          Gunakan Ruang Kerja Ini
-                          <ArrowRight className="size-3.5" />
+                          <span>Masuk Ruang Kerja</span>
+                          <ArrowRight className="size-3.5 text-zinc-400" />
                         </>
                       )}
                     </button>
@@ -398,7 +418,15 @@ export default function WorkspaceSelectionPage() {
             })}
           </div>
         )}
-      </div>
+      </section>
+
+      {/* ── Feedback Toast ───────────────────────────────────────────────────── */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-none border border-zinc-700 bg-zinc-900 text-white text-xs font-semibold shadow-none animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <CheckCircle2 className="size-4 text-emerald-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

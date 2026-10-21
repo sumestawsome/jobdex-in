@@ -284,17 +284,17 @@ export function AIChat() {
       />
 
       {/* Scrollable Chat Area */}
-      <section className="flex-1 min-h-0 overflow-y-auto space-y-4 jd-neo-card bg-[var(--secondary-background)] p-4 dark:bg-neutral-900/30 mb-4">
+      <section className="flex-1 min-h-0 overflow-y-auto space-y-3 rounded-xl border border-[#e1e2e3] bg-white p-4 sm:p-5 mb-3 shadow-2xs">
         {historyLoading ? (
-          <div className="jd-neo-card p-4 text-sm font-normal text-slate-500 bg-white">
+          <div className="rounded-lg border border-[#e1e2e3] p-4 text-xs font-medium text-[#898989] bg-[#f7f7f8] text-center">
             Memuat riwayat chat...
           </div>
         ) : groupedLogs.length ? (
           groupedLogs.map((group) => (
-            <div key={group.label} className="space-y-4">
+            <div key={group.label} className="space-y-3">
               <AIHistoryDateSeparator label={group.label} />
               {group.items.map((log) => (
-                <div key={log.id} className="space-y-3">
+                <div key={log.id} className="space-y-2.5">
                   <AIMessage
                     role="user"
                     content={log.question}
@@ -328,23 +328,23 @@ export function AIChat() {
       </section>
 
       {/* Sticky Bottom Composer */}
-      <div className="bg-[var(--background)] border-t border-border pt-3 space-y-3 shrink-0 sticky bottom-0 z-10 pb-2">
+      <div className="bg-transparent pt-1 space-y-2 shrink-0 sticky bottom-0 z-10 pb-1">
         {/* Error alert (inline, above input) */}
         {error ? (
-          <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs font-medium text-red-700">
+          <div className="flex items-center gap-2 rounded-lg bg-[#feebe8] border border-[#fecaca] px-3 py-2 text-xs font-medium text-[#e94235]">
             <XCircle className="size-3.5 shrink-0" />
             {error}
           </div>
         ) : null}
 
         {/* Quick Prompts Header */}
-        <div className="flex items-center justify-between px-1">
-          <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pertanyaan Cepat</span>
+        <div className="flex items-center justify-between px-0.5">
+          <span className="text-[11px] font-semibold text-[#898989] uppercase tracking-wider">Pertanyaan Cepat</span>
           <button
             type="button"
             onClick={loadHistory}
             disabled={historyLoading}
-            className="text-[11px] font-bold text-neutral-800 hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white transition-colors underline cursor-pointer"
+            className="text-[11px] font-semibold text-[#242424] hover:underline transition-colors cursor-pointer"
           >
             {historyLoading ? "Memuat..." : "Refresh Riwayat"}
           </button>

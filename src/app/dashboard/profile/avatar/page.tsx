@@ -10,7 +10,6 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   ArrowLeft,
   UploadCloud,
-  AlertCircle,
   CheckCircle2,
   Camera,
   FileImage,
@@ -154,7 +153,7 @@ export default function AvatarUploadPage() {
 
       if (!response.ok || !data.avatar_url) {
         const status = response.status;
-        let errorMsg = data.error || "Gagal mengunggah foto profil ke server.";
+        const errorMsg = data.error || "Gagal mengunggah foto profil ke server.";
         let tip = "Pastikan koneksi internet stabil dan coba kembali beberapa saat lagi.";
 
         if (status === 500) {

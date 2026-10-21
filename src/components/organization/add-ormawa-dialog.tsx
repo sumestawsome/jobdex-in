@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { X, Building2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,8 +30,11 @@ export function AddOrmawaDialog({
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [prevOpen, setPrevOpen] = useState(open);
 
-  useEffect(() => {
+  // Sync state during render when dialog opens (React 19 pattern to avoid effect cascades)
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setCampusId(defaultCampusId);
       setName("");
@@ -40,7 +43,7 @@ export function AddOrmawaDialog({
       setDescription("");
       setError("");
     }
-  }, [open, defaultCampusId]);
+  }
 
   if (!open) return null;
 
@@ -103,27 +106,27 @@ export function AddOrmawaDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="relative w-full max-w-lg rounded-2xl border border-[#e1e2e3] bg-white shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-[#898989] hover:bg-[#f7f7f8] hover:text-[#242424] transition-colors"
         >
           <X className="size-4" />
         </button>
 
         {/* Dialog Header */}
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-[#f7f7f8] border border-[#e1e2e3] text-[#242424]">
             <Building2 className="size-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            <h2 className="text-lg font-bold text-[#242424]">
               Tambah Ormawa Baru
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-[#898989]">
               Daftarkan BEM, DPM, HMJ, atau UKM di bawah kampus pilihan.
             </p>
           </div>
@@ -132,20 +135,20 @@ export function AddOrmawaDialog({
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/40 p-3 text-xs font-semibold text-red-700 dark:text-red-300">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
               {error}
             </div>
           )}
 
           {/* 1. Pilih Kampus */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[#242424] mb-1">
               Kampus Induk <span className="text-red-500">*</span>
             </label>
             <select
               value={campusId}
               onChange={(e) => setCampusId(e.target.value)}
-              className="h-10 w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+              className="h-10 w-full rounded-xl border border-[#e1e2e3] bg-white px-3 text-xs text-[#242424] focus:outline-hidden focus:border-[#242424] focus:ring-1 focus:ring-[#242424]"
               required
             >
               {campuses.map((c) => (
@@ -158,7 +161,7 @@ export function AddOrmawaDialog({
 
           {/* 2. Jenis Ormawa */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[#242424] mb-1">
               Jenis Organisasi <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-5 gap-1.5">
@@ -167,10 +170,10 @@ export function AddOrmawaDialog({
                   key={t}
                   type="button"
                   onClick={() => setType(t)}
-                  className={`py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                  className={`py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer text-center ${
                     type === t
-                      ? "border-sky-500 bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 ring-2 ring-sky-500/20"
-                      : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-slate-300"
+                      ? "border-[#242424] bg-[#242424] text-white shadow-2xs font-semibold"
+                      : "border-[#e1e2e3] bg-white text-[#898989] hover:border-[#242424]/40 hover:text-[#242424]"
                   }`}
                 >
                   {t}
@@ -181,7 +184,7 @@ export function AddOrmawaDialog({
 
           {/* 3. Nama Lengkap */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[#242424] mb-1">
               Nama Lengkap Ormawa <span className="text-red-500">*</span>
             </label>
             <Input
@@ -190,25 +193,27 @@ export function AddOrmawaDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              className="border-[#e1e2e3] focus:border-[#242424] focus:ring-1 focus:ring-[#242424]"
             />
           </div>
 
           {/* 4. Nama Singkat */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Singkatan / Nama Panggilan
+            <label className="block text-xs font-semibold text-[#242424] mb-1">
+              Singkatan / Akronim
             </label>
             <Input
               type="text"
               placeholder="Contoh: HMTE"
               value={shortName}
               onChange={(e) => setShortName(e.target.value)}
+              className="border-[#e1e2e3] focus:border-[#242424] focus:ring-1 focus:ring-[#242424]"
             />
           </div>
 
           {/* 5. Deskripsi */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[#242424] mb-1">
               Deskripsi Singkat
             </label>
             <textarea
@@ -216,17 +221,18 @@ export function AddOrmawaDialog({
               placeholder="Deskripsi peran dan fokus kegiatan ormawa..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+              className="w-full rounded-xl border border-[#e1e2e3] bg-white p-2.5 text-xs text-[#242424] placeholder:text-[#898989] focus:outline-hidden focus:border-[#242424] focus:ring-1 focus:ring-[#242424]"
             />
           </div>
 
-          <div className="mt-6 flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="mt-6 flex items-center justify-end gap-2 pt-3 border-t border-[#e1e2e3]">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
               disabled={isSubmitting}
+              className="border-[#e1e2e3] hover:bg-[#f7f7f8] text-[#242424]"
             >
               Batal
             </Button>
@@ -234,7 +240,7 @@ export function AddOrmawaDialog({
               type="submit"
               size="sm"
               disabled={isSubmitting}
-              className="bg-sky-600 hover:bg-sky-500 text-white"
+              className="bg-[#242424] hover:bg-[#141414] text-white shadow-xs"
             >
               <Save className="size-3.5 mr-1.5" />
               <span>Simpan Ormawa</span>

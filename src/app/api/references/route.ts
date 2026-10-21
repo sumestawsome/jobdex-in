@@ -66,6 +66,26 @@ export async function GET(request: NextRequest) {
       console.warn("[api/references] Failed to fetch divisions", divisionsRes.reason);
     }
 
+    const isMatchingOrg = (docOrg: unknown, targetOrg: string | null | undefined): boolean => {
+      if (!targetOrg) return true;
+      const orgStr = safeString(docOrg || "main_org");
+      const targetStr = safeString(targetOrg);
+      if (orgStr === targetStr) return true;
+      // Anggap main_org dan org-undiksha-forkom-kip adalah organisasi yang sama (Forkom KIP Undiksha)
+      const isForkomKip = (o: string) => o === "main_org" || o === "org-undiksha-forkom-kip";
+      return isForkomKip(orgStr) && isForkomKip(targetStr);
+    };
+
+    const isMatchingCampus = (docCampus: unknown, targetCampus: string | null | undefined): boolean => {
+      if (!targetCampus) return true;
+      const campusStr = safeString(docCampus);
+      // Jika field campus_id kosong/undefined atau "ui", jangan dieliminasi dari filter
+      if (!campusStr || campusStr === "" || campusStr === "ui") return true;
+      if (campusStr === targetCampus) return true;
+      const isUndiksha = (c: string) => c === "univ-undiksha" || c === "undiksha";
+      return isUndiksha(campusStr) && isUndiksha(targetCampus);
+    };
+
     const userOrgId = profile.organization_id || profile.org_id || ((profile as unknown as Record<string, unknown>).orgId as string) || "";
     const userCampusId = profile.campus_id || profile.univ_id || ((profile as unknown as Record<string, unknown>).campusId as string) || "";
     const requestedOrgId = request.nextUrl.searchParams.get("org_id");
@@ -78,13 +98,13 @@ export async function GET(request: NextRequest) {
       targetOrgId = requestedOrgId || userOrgId;
       targetCampusId = requestedCampusId || userCampusId;
     } else {
-      if (requestedOrgId && userOrgId && requestedOrgId !== userOrgId) {
+      if (requestedOrgId && userOrgId && !isMatchingOrg(requestedOrgId, userOrgId)) {
         return NextResponse.json(
           { error: "Akses ditolak: Anda tidak memiliki izin mengakses data organisasi lain." },
           { status: 403 }
         );
       }
-      if (requestedCampusId && userCampusId && requestedCampusId !== userCampusId) {
+      if (requestedCampusId && userCampusId && !isMatchingCampus(requestedCampusId, userCampusId)) {
         return NextResponse.json(
           { error: "Akses ditolak: Anda tidak memiliki izin mengakses data kampus lain." },
           { status: 403 }
@@ -97,14 +117,12 @@ export async function GET(request: NextRequest) {
     if (eventsSnap) {
       eventsSnap.forEach((doc) => {
         const data = doc.data() as Record<string, unknown>;
-        if (targetOrgId) {
-          const org = data.organization_id || data.org_id || data.orgId || "main_org";
-          if (org !== targetOrgId) return;
-        }
-        if (targetCampusId) {
-          const campus = data.campus_id || data.campusId || data.univ_id || data.univId || "ui";
-          if (campus !== targetCampusId) return;
-        }
+        const org = data.organization_id || data.org_id || data.orgId;
+        if (!isMatchingOrg(org, targetOrgId)) return;
+
+        const campus = data.campus_id || data.campusId || data.univ_id || data.univId;
+        if (!isMatchingCampus(campus, targetCampusId)) return;
+
         eventsMap.set(doc.id, safeString(data?.name || ""));
       });
     }
@@ -115,14 +133,12 @@ export async function GET(request: NextRequest) {
     if (divisionsSnap) {
       divisionsSnap.forEach((doc) => {
         const data = doc.data() as Record<string, unknown>;
-        if (targetOrgId) {
-          const org = data.organization_id || data.org_id || data.orgId || "main_org";
-          if (org !== targetOrgId) return;
-        }
-        if (targetCampusId) {
-          const campus = data.campus_id || data.campusId || data.univ_id || data.univId || "ui";
-          if (campus !== targetCampusId) return;
-        }
+        const org = data.organization_id || data.org_id || data.orgId;
+        if (!isMatchingOrg(org, targetOrgId)) return;
+
+        const campus = data.campus_id || data.campusId || data.univ_id || data.univId;
+        if (!isMatchingCampus(campus, targetCampusId)) return;
+
         divisionsMap.set(doc.id, safeString(data?.name || ""));
       });
     }
@@ -132,14 +148,12 @@ export async function GET(request: NextRequest) {
     if (referencesSnap) {
       referencesSnap.forEach((doc) => {
         const data = doc.data() as Record<string, unknown>;
-        if (targetOrgId) {
-          const org = data.organization_id || data.org_id || data.orgId || "main_org";
-          if (org !== targetOrgId) return;
-        }
-        if (targetCampusId) {
-          const campus = data.campus_id || data.campusId || data.univ_id || data.univId || "ui";
-          if (campus !== targetCampusId) return;
-        }
+        const org = data.organization_id || data.org_id || data.orgId;
+        if (!isMatchingOrg(org, targetOrgId)) return;
+
+        const campus = data.campus_id || data.campusId || data.univ_id || data.univId;
+        if (!isMatchingCampus(campus, targetCampusId)) return;
+
         manualReferences.push({ id: doc.id, ...data } as DesignReference);
       });
     }
@@ -213,14 +227,12 @@ export async function GET(request: NextRequest) {
     if (tasksSnap) {
       tasksSnap.forEach((doc) => {
         const data = doc.data() as Record<string, unknown>;
-        if (targetOrgId) {
-          const org = data.organization_id || data.org_id || data.orgId || "main_org";
-          if (org !== targetOrgId) return;
-        }
-        if (targetCampusId) {
-          const campus = data.campus_id || data.campusId || data.univ_id || data.univId || "ui";
-          if (campus !== targetCampusId) return;
-        }
+        const org = data.organization_id || data.org_id || data.orgId;
+        if (!isMatchingOrg(org, targetOrgId)) return;
+
+        const campus = data.campus_id || data.campusId || data.univ_id || data.univId;
+        if (!isMatchingCampus(campus, targetCampusId)) return;
+
         approvedTasks.push({ id: doc.id, ...data } as Task);
       });
     }

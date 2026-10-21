@@ -634,6 +634,35 @@ export function buildReminderDigest(
   };
 }
 
+export function getFriendlyStatusLabel(status: string): string {
+  switch (status) {
+    case "perlu_revisi":
+      return "Perlu Revisi ⚠️";
+    case "sedang_dikerjakan":
+      return "Sedang Dikerjakan ⏳";
+    case "belum_dimulai":
+      return "Belum Dimulai 📋";
+    case "stuck":
+      return "Stuck 🚨";
+    case "butuh_bantuan":
+      return "Butuh Bantuan 🆘";
+    case "menunggu_materi":
+      return "Menunggu Materi 📥";
+    case "menunggu_approval":
+      return "Menunggu Approval 👀";
+    case "draft_selesai":
+      return "Draft Selesai ✨";
+    case "revisi_dikerjakan":
+      return "Revisi Dikerjakan 🛠️";
+    case "approved":
+      return "Disetujui ✅";
+    case "ditunda":
+      return "Ditunda ⏸️";
+    default:
+      return `${getFormattedStatus(status)} 📌`;
+  }
+}
+
 export function buildDigestReminderMessage(
   digest: ReminderDigest,
   now = new Date(),
@@ -642,7 +671,7 @@ export function buildDigestReminderMessage(
   const dateText = formatIndonesianDate(now);
   const includedTaskIds = new Set<string>();
   let renderedCount = 0;
-  const sections: string[] = [];
+  const taskLines: string[] = [];
 
   for (const category of DIGEST_CATEGORY_ORDER) {
     const categoryTasks = digest.tasks.filter((item) =>
@@ -653,9 +682,6 @@ export function buildDigestReminderMessage(
       continue;
     }
 
-    const lines: string[] = [DIGEST_CATEGORY_LABELS[category]];
-    let sectionIndex = 1;
-
     for (const item of categoryTasks) {
       if (renderedCount >= maxTasks) {
         break;
@@ -665,63 +691,66 @@ export function buildDigestReminderMessage(
         continue;
       }
 
-      const picName = item.pic?.name || "PIC tidak ditemukan";
+      const taskTitle =
+        item.task.name ||
+        (item.task as { title?: string }).title ||
+        "Tugas Tanpa Judul";
+      const picName = item.pic?.name || "Belum ada PIC";
       const phone = normalizeMentionPhone(item.pic?.whatsapp_number);
-      const mentionText = phone ? ` (@${phone})` : "";
+      const picDisplay = phone ? `@${phone} (${picName})` : picName;
       const deadline = item.task.deadline
         ? formatIndonesianDate(item.task.deadline)
         : "-";
-      const status = getFormattedStatus(item.task.status);
+      const statusText = getFriendlyStatusLabel(item.task.status);
+      const eventOrDivLabel = item.task.type === "acara" ? "Acara" : "Divisi";
+      const eventOrDivVal =
+        item.divisionOrEventName && item.divisionOrEventName !== "-"
+          ? item.divisionOrEventName
+          : item.task.type === "acara"
+          ? "Acara Ormawa"
+          : "Humas dan Media Kreatif";
+
       const notes =
-        category === "stuck" && item.task.stuck_notes
-          ? `   Kendala: ${item.task.stuck_notes}\n`
+        (category === "stuck" || item.task.status === "stuck") &&
+        item.task.stuck_notes
+          ? `\n   • Kendala: ${item.task.stuck_notes}`
           : "";
 
-      lines.push(
-        `${sectionIndex}. ${item.task.name}
-   PIC: ${picName}${mentionText}
-   Deadline: ${deadline}
-   Status: ${status}
-   Divisi/Acara: ${item.divisionOrEventName}
-${notes}   Aksi: ${getDigestAction(item)}`
+      renderedCount++;
+      taskLines.push(
+        `${renderedCount}. *${taskTitle}*\n   • ${eventOrDivLabel}: ${eventOrDivVal}\n   • PIC: ${picDisplay}\n   • Deadline: ${deadline}\n   • Status: ${statusText}${notes}`
       );
 
       includedTaskIds.add(item.task.id);
-      renderedCount++;
-      sectionIndex++;
     }
+  }
 
-    if (lines.length > 1) {
-      sections.push(lines.join("\n\n"));
-    }
+  if (taskLines.length === 0) {
+    return [
+      `📢 *Halo rekan-rekan Forkom KIP!*`,
+      `Tidak ada tugas yang mendesak atau perlu dicek per siang ini (${dateText}). Semua pengerjaan aman terkendali! 🎉`,
+      ``,
+      `👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
+    ].join("\n");
   }
 
   const remainingCount = Math.max(digest.taskIds.length - renderedCount, 0);
   const remainingText =
     remainingCount > 0
-      ? `\n\nDan ${remainingCount} tugas lainnya. Buka dashboard JobdexIn untuk melihat lengkapnya.`
+      ? `\n_(dan ${remainingCount} tugas lainnya)_\n`
       : "";
 
-  return `${WA_LABEL.digestReminder}
-
-Rekap tugas perlu ditindaklanjuti
-Tanggal cek: ${dateText}
-
-${sections.join("\n\n")}
-
-Ringkasan:
-- Overdue: ${digest.categories.overdue}
-- Menunggu Approval: ${digest.categories.waitingApproval}
-- Stuck/Butuh Bantuan: ${digest.categories.stuck}
-- Hari-H: ${digest.categories.today}
-- H-1: ${digest.categories.h_1}
-- H-2/H-3: ${digest.categories.h_2_h_3}
-- H-5/H-7: ${digest.categories.h_5_h_7}
-
-Catatan:
-Task stuck/butuh bantuan yang sudah overdue ditampilkan di bagian OVERDUE.
-
-Buka dashboard untuk detail lengkap.${remainingText}`;
+  return [
+    `📢 *Halo rekan-rekan Forkom KIP!*`,
+    `Ini rekap tugas yang lagi jalan dan butuh dicek per siang ini (${dateText}):`,
+    ``,
+    taskLines.join("\n\n"),
+    remainingText,
+    `Yuk yang belum update atau mau nyetor draf, bisa langsung setor yaa. Semangat! 🔥`,
+    `👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
+  ]
+    .filter((line, i, arr) => !(line === "" && arr[i - 1] === ""))
+    .join("\n");
 }
 
 export function getDigestDateKey(date = new Date()) {
@@ -875,20 +904,24 @@ export async function logWhatsAppDigestDispatch(data: {
  * Builds formatted Personal WhatsApp Reminder message to PIC
  */
 export function buildPersonalReminderMessage(task: Task, picName: string): string {
+  const taskTitle = task.name || (task as { title?: string }).title || "Tugas Tanpa Judul";
   const formattedDeadline = formatIndonesianDate(task.deadline);
-  const formattedStatus = getFormattedStatus(task.status);
+  const formattedStatus = getFriendlyStatusLabel(task.status);
   const formattedPriority = getFormattedPriority(task.priority);
 
-  return `${WA_LABEL.reminderPribadi}
-
-Halo ${picName}, kamu punya job desk yang perlu diperhatikan:
-
-Tugas: ${task.name}
-Deadline: ${formattedDeadline}
-Status: ${formattedStatus}
-Prioritas: ${formattedPriority}
-
-Mohon update progress di JobdexIn jika sudah dikerjakan.`;
+  return [
+    `✨ *Halo ${picName}!*`,
+    ``,
+    `Ada job desk yang perlu diperhatikan nih:`,
+    ``,
+    `• Tugas: *${taskTitle}*`,
+    `• Deadline: ${formattedDeadline}`,
+    `• Status: ${formattedStatus}`,
+    `• Prioritas: ${formattedPriority}`,
+    ``,
+    `Kalau udah mulai dikerjakan atau mau setor draf, langsung update di JobdexIn yaa. Semangat! 🙌`,
+    `👉 https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
+  ].join("\n");
 }
 
 /**
@@ -1009,46 +1042,75 @@ export async function processSmartFollowupReminders(
   for (const doc of tasksSnap.docs) {
     const task = { id: doc.id, ...doc.data() } as Task;
     if (task.status === "approved") continue;
-    
+
+    const taskTitle =
+      task.name || (task as { title?: string }).title || "Tugas Tanpa Judul";
     const pic = task.pic_id ? usersMap.get(task.pic_id) : null;
-    const picPhone = pic?.whatsapp_number ? pic.whatsapp_number.replace(/[^\d]/g, "").replace(/^0/, "62") : "";
-    
-    const target = await resolveTaskNotificationTarget(task, eventsCache, divisionsMap);
-    const targetGroupId = target?.targetType === "personal" ? "" : target?.recipient || "";
-    
+    const rawPicPhone = pic?.whatsapp_number
+      ? pic.whatsapp_number.replace(/[^\d]/g, "").replace(/^0/, "62")
+      : "";
+    const picPhone = rawPicPhone;
+    const picDisplay = picPhone
+      ? `@${picPhone} (${pic?.name || "PIC"})`
+      : pic?.name || "Belum ada PIC";
+
+    const target = await resolveTaskNotificationTarget(
+      task,
+      eventsCache,
+      divisionsMap,
+    );
+    const targetGroupId =
+      target?.targetType === "personal" ? "" : target?.recipient || "";
+
     const diffDays = getTaskDeadlineDiffDays(task);
-    
+
     // Compute last update elapsed time
-    const updatedAt = task.updated_at && typeof task.updated_at === "object" && "toDate" in task.updated_at
-      ? (task.updated_at as { toDate: () => Date }).toDate()
-      : task.updated_at instanceof Date
-      ? task.updated_at
-      : new Date();
-    
-    const hoursSinceUpdate = (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60);
-    
+    const updatedAt =
+      task.updated_at &&
+      typeof task.updated_at === "object" &&
+      "toDate" in task.updated_at
+        ? (task.updated_at as { toDate: () => Date }).toDate()
+        : task.updated_at instanceof Date
+        ? task.updated_at
+        : new Date();
+
+    const hoursSinceUpdate =
+      (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60);
+
     // Evaluate rules:
-    
+
     // Rule 1: H-3 but status is belum_dimulai -> Personal reminder to PIC
     if (diffDays === 3 && task.status === "belum_dimulai" && picPhone) {
       const type = "h_3_belum_dimulai";
-      const alreadySent = await hasReminderBeenSent(task.id, type, "personal", picPhone);
+      const alreadySent = await hasReminderBeenSent(
+        task.id,
+        type,
+        "personal",
+        picPhone,
+      );
       if (!alreadySent) {
         const msg = [
-          `[*JobdexIn* Reminder]`,
+          `✨ *Halo ${pic?.name || "Rekan"}!*`,
           ``,
-          `Halo ${pic?.name || "Rekan"}, task "${task.name}" deadline H-3.`,
+          `Mau ngingetin nih, tugas *${taskTitle}* deadlinenya tinggal H-3 (${formatIndonesianDate(
+            task.deadline,
+          )}).`,
+          `Status sekarang masih *Belum Dimulai*.`,
           ``,
-          `Status saat ini: Belum Dimulai`,
-          ``,
-          `Yuk mulai dikerjakan dan update progress kamu!`,
-          `Update cepat:`,
-          `!jobdex ${task.name} sudah mulai dikerjakan`
+          `Yuk mulai dicicil atau update statusnya yaa. Semangat! 🙌`,
+          `_Cepat update: balas \`!jobdex ${taskTitle} sudah mulai dikerjakan\`_`,
+          `👉 https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
         ].join("\n");
-        
+
         try {
-          const taskOrgId = task.org_id || task.orgId || task.organization_id;
-          const result = await sendWhatsAppMessage({ target: picPhone, message: msg, type: "phone", org_id: taskOrgId });
+          const taskOrgId =
+            task.org_id || task.orgId || task.organization_id;
+          const result = await sendWhatsAppMessage({
+            target: picPhone,
+            message: msg,
+            type: "phone",
+            org_id: taskOrgId,
+          });
           if (result.skipped) {
             await logWhatsAppDispatch({
               task,
@@ -1056,7 +1118,9 @@ export async function processSmartFollowupReminders(
               recipientType: "personal",
               messageContent: msg,
               status: "skipped",
-              errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              errorMessage:
+                result.error ||
+                "Gateway WhatsApp ormawa belum dikonfigurasi.",
               provider: result.provider,
             });
             continue;
@@ -1068,13 +1132,23 @@ export async function processSmartFollowupReminders(
             messageContent: msg,
             status: "sent",
             wablasResponse: result.responseText,
-            provider: result.provider
+            provider: result.provider,
           });
-          await createTaskReminderLog({ task, reminderType: type, channel: "personal", recipient: picPhone, messageContent: msg, whatsappLogId });
+          await createTaskReminderLog({
+            task,
+            reminderType: type,
+            channel: "personal",
+            recipient: picPhone,
+            messageContent: msg,
+            whatsappLogId,
+          });
           sent++;
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
-          console.error(`Failed to send personal reminder PIC ${picPhone}:`, err);
+          console.error(
+            `Failed to send personal reminder PIC ${picPhone}:`,
+            err,
+          );
           failed++;
           errors.push({ target: picPhone, reason: errMsg });
           await logWhatsAppDispatch({
@@ -1084,34 +1158,43 @@ export async function processSmartFollowupReminders(
             messageContent: msg,
             status: "failed",
             errorMessage: errMsg,
-            provider: process.env.WHATSAPP_PROVIDER || "wablas"
+            provider: process.env.WHATSAPP_PROVIDER || "wablas",
           });
         }
       }
     }
-    
+
     // Rule 2: H-1 but status is not menunggu_approval or approved -> Personal reminder to PIC
     if (diffDays === 1 && task.status !== "menunggu_approval" && picPhone) {
       const type = "h_1_urgent";
-      const alreadySent = await hasReminderBeenSent(task.id, type, "personal", picPhone);
+      const alreadySent = await hasReminderBeenSent(
+        task.id,
+        type,
+        "personal",
+        picPhone,
+      );
       if (!alreadySent) {
-        const statusLabel = getFormattedStatus(task.status);
+        const statusLabel = getFriendlyStatusLabel(task.status);
         const msg = [
-          `[*JobdexIn* Reminder]`,
+          `⚠️ *Halo ${pic?.name || "Rekan"}!*`,
           ``,
-          `Halo ${pic?.name || "Rekan"}, task "${task.name}" deadline H-1.`,
+          `Tugas *${taskTitle}* deadlinenya besok (H-1) nih!`,
+          `Status saat ini: *${statusLabel}*`,
           ``,
-          `Status saat ini: ${statusLabel}`,
-          ``,
-          `Update cepat:`,
-          `!jobdex ${task.name} sudah upload`,
-          `atau`,
-          `!jobdex ${task.name} stuck, catatan: [kendala]`
+          `Kalau drafnya udah siap, langsung setor drafnya yaa biar bisa dicek koor. Semangat pol-polan! 💪`,
+          `_Cepat update: balas \`!jobdex ${taskTitle} sudah upload\` atau lapor kendala via \`!jobdex ${taskTitle} stuck\`_`,
+          `👉 https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
         ].join("\n");
-        
+
         try {
-          const taskOrgId = task.org_id || task.orgId || task.organization_id;
-          const result = await sendWhatsAppMessage({ target: picPhone, message: msg, type: "phone", org_id: taskOrgId });
+          const taskOrgId =
+            task.org_id || task.orgId || task.organization_id;
+          const result = await sendWhatsAppMessage({
+            target: picPhone,
+            message: msg,
+            type: "phone",
+            org_id: taskOrgId,
+          });
           if (result.skipped) {
             await logWhatsAppDispatch({
               task,
@@ -1119,7 +1202,9 @@ export async function processSmartFollowupReminders(
               recipientType: "personal",
               messageContent: msg,
               status: "skipped",
-              errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              errorMessage:
+                result.error ||
+                "Gateway WhatsApp ormawa belum dikonfigurasi.",
               provider: result.provider,
             });
             continue;
@@ -1131,13 +1216,23 @@ export async function processSmartFollowupReminders(
             messageContent: msg,
             status: "sent",
             wablasResponse: result.responseText,
-            provider: result.provider
+            provider: result.provider,
           });
-          await createTaskReminderLog({ task, reminderType: type, channel: "personal", recipient: picPhone, messageContent: msg, whatsappLogId });
+          await createTaskReminderLog({
+            task,
+            reminderType: type,
+            channel: "personal",
+            recipient: picPhone,
+            messageContent: msg,
+            whatsappLogId,
+          });
           sent++;
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
-          console.error(`Failed to send personal reminder PIC ${picPhone}:`, err);
+          console.error(
+            `Failed to send personal reminder PIC ${picPhone}:`,
+            err,
+          );
           failed++;
           errors.push({ target: picPhone, reason: errMsg });
           await logWhatsAppDispatch({
@@ -1147,35 +1242,51 @@ export async function processSmartFollowupReminders(
             messageContent: msg,
             status: "failed",
             errorMessage: errMsg,
-            provider: process.env.WHATSAPP_PROVIDER || "wablas"
+            provider: process.env.WHATSAPP_PROVIDER || "wablas",
           });
         }
       }
     }
-    
+
     // Rule 3: Stuck/butuh bantuan > 12 hours -> Group alert
-    if ((task.status === "stuck" || task.status === "butuh_bantuan") && hoursSinceUpdate >= 12 && targetGroupId) {
+    if (
+      (task.status === "stuck" || task.status === "butuh_bantuan") &&
+      hoursSinceUpdate >= 12 &&
+      targetGroupId
+    ) {
       const type = "stuck_12h";
-      const alreadySent = await hasReminderBeenSent(task.id, type, "group", targetGroupId);
+      const alreadySent = await hasReminderBeenSent(
+        task.id,
+        type,
+        "group",
+        targetGroupId,
+      );
       if (!alreadySent) {
         const durationStr = Math.round(hoursSinceUpdate) + " jam";
-        const constraint = task.stuck_notes ? `Kendala: ${task.stuck_notes}` : "Kendala: Tidak disebutkan";
+        const constraint = task.stuck_notes
+          ? `Kendala: ${task.stuck_notes}`
+          : "Kendala: Tidak disebutkan";
         const msg = [
-          `[*JobdexIn* Koor Alert]`,
+          `🚨 *Halo Koor & Rekan-rekan!*`,
           ``,
-          `Ada tugas butuh perhatian:`,
-          `1. ${task.name} — stuck ${durationStr}`,
-          `   PIC: ${pic?.name || "-"}`,
-          `   ${constraint}`,
+          `Ada tugas yang lagi butuh bantuan nih:`,
+          `• Tugas: *${taskTitle}* (stuck ${durationStr})`,
+          `• PIC: ${picDisplay}`,
+          `• ${constraint}`,
           ``,
-          `Aksi cepat koordinator:`,
-          `- Tanya PIC langsung`,
-          `- Bantu carikan solusi atau alihkan tugas jika berat`
+          `Tolong dibantu cek yaa koor, biar bisa jalan bareng-bareng lagi! 🙌`,
+          `👉 https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
         ].join("\n");
-        
+
         try {
-          const taskOrgId = task.org_id || task.orgId || task.organization_id;
-          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group", org_id: taskOrgId });
+          const taskOrgId =
+            task.org_id || task.orgId || task.organization_id;
+          const result = await sendWhatsAppMessage({
+            target: targetGroupId,
+            message: msg,
+            type: "group",
+            org_id: taskOrgId,
+          });
           if (result.skipped) {
             await logWhatsAppDispatch({
               task,
@@ -1183,7 +1294,9 @@ export async function processSmartFollowupReminders(
               recipientType: "group",
               messageContent: msg,
               status: "skipped",
-              errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              errorMessage:
+                result.error ||
+                "Gateway WhatsApp ormawa belum dikonfigurasi.",
               provider: result.provider,
             });
             continue;
@@ -1195,9 +1308,16 @@ export async function processSmartFollowupReminders(
             messageContent: msg,
             status: "sent",
             wablasResponse: result.responseText,
-            provider: result.provider
+            provider: result.provider,
           });
-          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg, whatsappLogId });
+          await createTaskReminderLog({
+            task,
+            reminderType: type,
+            channel: "group",
+            recipient: targetGroupId,
+            messageContent: msg,
+            whatsappLogId,
+          });
           sent++;
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -1211,31 +1331,45 @@ export async function processSmartFollowupReminders(
             messageContent: msg,
             status: "failed",
             errorMessage: errMsg,
-            provider: process.env.WHATSAPP_PROVIDER || "wablas"
+            provider: process.env.WHATSAPP_PROVIDER || "wablas",
           });
         }
       }
     }
-    
+
     // Rule 4: Menunggu materi > 24 hours -> Group alert
-    if (task.status === "menunggu_materi" && hoursSinceUpdate >= 24 && targetGroupId) {
+    if (
+      task.status === "menunggu_materi" &&
+      hoursSinceUpdate >= 24 &&
+      targetGroupId
+    ) {
       const type = "waiting_material_24h";
-      const alreadySent = await hasReminderBeenSent(task.id, type, "group", targetGroupId);
+      const alreadySent = await hasReminderBeenSent(
+        task.id,
+        type,
+        "group",
+        targetGroupId,
+      );
       if (!alreadySent) {
         const msg = [
-          `[*JobdexIn* Koor Alert]`,
+          `📥 *Halo Koor & Panitia!*`,
           ``,
-          `Ada tugas butuh perhatian:`,
-          `1. ${task.name} — menunggu materi 1 hari`,
-          `   PIC: ${pic?.name || "-"}`,
-          `   Catatan kendala: ${task.stuck_notes || "-"}`,
+          `Tugas *${taskTitle}* (PIC: ${picDisplay}) udah menunggu materi lebih dari 1 hari nih.`,
+          `Catatan: ${task.stuck_notes || "Materi belum lengkap"}`,
           ``,
-          `Harap koordinator atau pembuat task segera mengirimkan materi agar tugas dapat mulai dikerjakan.`
+          `Yuk yang pegang materi/redaksi bisa segera dikirimkan ke PIC agar desain bisa segera digarap! ✨`,
+          `👉 https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
         ].join("\n");
-        
+
         try {
-          const taskOrgId = task.org_id || task.orgId || task.organization_id;
-          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group", org_id: taskOrgId });
+          const taskOrgId =
+            task.org_id || task.orgId || task.organization_id;
+          const result = await sendWhatsAppMessage({
+            target: targetGroupId,
+            message: msg,
+            type: "group",
+            org_id: taskOrgId,
+          });
           if (result.skipped) {
             await logWhatsAppDispatch({
               task,
@@ -1243,7 +1377,9 @@ export async function processSmartFollowupReminders(
               recipientType: "group",
               messageContent: msg,
               status: "skipped",
-              errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              errorMessage:
+                result.error ||
+                "Gateway WhatsApp ormawa belum dikonfigurasi.",
               provider: result.provider,
             });
             continue;
@@ -1255,9 +1391,16 @@ export async function processSmartFollowupReminders(
             messageContent: msg,
             status: "sent",
             wablasResponse: result.responseText,
-            provider: result.provider
+            provider: result.provider,
           });
-          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg, whatsappLogId });
+          await createTaskReminderLog({
+            task,
+            reminderType: type,
+            channel: "group",
+            recipient: targetGroupId,
+            messageContent: msg,
+            whatsappLogId,
+          });
           sent++;
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -1271,32 +1414,46 @@ export async function processSmartFollowupReminders(
             messageContent: msg,
             status: "failed",
             errorMessage: errMsg,
-            provider: process.env.WHATSAPP_PROVIDER || "wablas"
+            provider: process.env.WHATSAPP_PROVIDER || "wablas",
           });
         }
       }
     }
-    
+
     // Rule 5: Menunggu approval > 24 hours -> Group alert to coordinators
-    if (task.status === "menunggu_approval" && hoursSinceUpdate >= 24 && targetGroupId) {
+    if (
+      task.status === "menunggu_approval" &&
+      hoursSinceUpdate >= 24 &&
+      targetGroupId
+    ) {
       const type = "waiting_approval_24h";
-      const alreadySent = await hasReminderBeenSent(task.id, type, "group", targetGroupId);
+      const alreadySent = await hasReminderBeenSent(
+        task.id,
+        type,
+        "group",
+        targetGroupId,
+      );
       if (!alreadySent) {
         const msg = [
-          `[*JobdexIn* Koor Alert]`,
+          `👀 *Halo Koordinator!*`,
           ``,
-          `Ada tugas butuh perhatian:`,
-          `1. ${task.name} — menunggu approval 1 hari`,
-          `   PIC: ${pic?.name || "-"}`,
+          `Draf tugas *${taskTitle}* garapan *${picDisplay}* udah menunggu approval lebih dari 1 hari nih.`,
           ``,
-          `Koordinator harap segera mengecek hasil dan memberikan persetujuan (approve) atau revisi:`,
-          `- !jobdex acc ${task.name}`,
-          `- !jobdex revisi ${task.name}, catatan: [catatan]`
+          `Tolong dicek ya koor, biar bisa segera di-approve atau dikasih masukan kalau butuh revisi:`,
+          `• Approve: \`!jobdex acc ${taskTitle}\``,
+          `• Revisi: \`!jobdex revisi ${taskTitle}, catatan: [masukan]\``,
+          `👉 https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
         ].join("\n");
-        
+
         try {
-          const taskOrgId = task.org_id || task.orgId || task.organization_id;
-          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group", org_id: taskOrgId });
+          const taskOrgId =
+            task.org_id || task.orgId || task.organization_id;
+          const result = await sendWhatsAppMessage({
+            target: targetGroupId,
+            message: msg,
+            type: "group",
+            org_id: taskOrgId,
+          });
           if (result.skipped) {
             await logWhatsAppDispatch({
               task,
@@ -1304,7 +1461,9 @@ export async function processSmartFollowupReminders(
               recipientType: "group",
               messageContent: msg,
               status: "skipped",
-              errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              errorMessage:
+                result.error ||
+                "Gateway WhatsApp ormawa belum dikonfigurasi.",
               provider: result.provider,
             });
             continue;
@@ -1316,9 +1475,16 @@ export async function processSmartFollowupReminders(
             messageContent: msg,
             status: "sent",
             wablasResponse: result.responseText,
-            provider: result.provider
+            provider: result.provider,
           });
-          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg, whatsappLogId });
+          await createTaskReminderLog({
+            task,
+            reminderType: type,
+            channel: "group",
+            recipient: targetGroupId,
+            messageContent: msg,
+            whatsappLogId,
+          });
           sent++;
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -1332,7 +1498,7 @@ export async function processSmartFollowupReminders(
             messageContent: msg,
             status: "failed",
             errorMessage: errMsg,
-            provider: process.env.WHATSAPP_PROVIDER || "wablas"
+            provider: process.env.WHATSAPP_PROVIDER || "wablas",
           });
         }
       }

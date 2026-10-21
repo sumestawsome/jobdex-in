@@ -279,63 +279,64 @@ function EventsManagement() {
   const showCreateBtn = canCreateEvent(userProfile);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-16">
       {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 px-4 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/70 dark:bg-sky-950/30">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-sky-600 text-white font-black text-xs shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-[#e1e2e3] bg-white shadow-2xs">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="flex size-9 items-center justify-center rounded-lg bg-[#242424] text-white font-bold text-xs shrink-0 shadow-xs">
             {activeWorkspace.campus_code}
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+              <span className="font-bold text-sm text-[#242424] truncate">
                 {activeOrmawa.name}
               </span>
-              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                Terisolasi
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#e8f7f0] border border-[#a3e6cd] px-2 py-0.5 text-[10px] font-semibold text-[#19a874]">
+                <span className="size-1.5 rounded-full bg-[#19a874] animate-pulse" />
+                Aktif
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+            <p className="text-xs text-[#898989] truncate mt-0.5">
               {activeCampus.name} • Menampilkan acara terfilter untuk ruang kerja ini
             </p>
           </div>
         </div>
         <Link
           href="/dashboard/workspace"
-          className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline inline-flex items-center gap-1 shrink-0"
+          className="text-xs font-semibold text-[#242424] hover:underline inline-flex items-center gap-1 shrink-0"
         >
           <span>Ganti Ruang Kerja</span>
           <ArrowRight className="size-3" />
         </Link>
       </div>
 
-      <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+      {/* ── Header Section ──────────────────────────────────────────────────── */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#e1e2e3]">
         <div>
-          <Badge variant="info">Manajemen Acara</Badge>
-          <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">
-            Manajemen Acara
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#242424]">
+            Acara & Kepanitiaan
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-            Buat, edit, ubah status, dan kelola anggota yang terlibat dalam
-            acara organisasi.
+          <p className="mt-1 text-xs sm:text-sm text-[#898989]">
+            Kelola agenda kegiatan, timeline kepanitiaan, dan anggota pelaksana organisasi.
           </p>
         </div>
         {showCreateBtn && (
-          <Button
+          <button
             type="button"
-            size="sm"
             onClick={() => {
               setSelectedEvent(null);
               setSelectedEventMembers([]);
               setFormOpen(true);
             }}
+            className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-lg bg-[#242424] hover:bg-[#141414] text-white shadow-2xs transition-all active:scale-[0.98] cursor-pointer shrink-0"
           >
-            <Plus className="h-4 w-4" />
-            Tambah Acara
-          </Button>
+            <Plus className="size-3.5" />
+            <span>+ Tambah Acara</span>
+          </button>
         )}
-      </section>
+      </header>
 
+      {/* ── Filter Bar ──────────────────────────────────────────────────────── */}
       <EventFilters
         search={search}
         status={statusFilter}

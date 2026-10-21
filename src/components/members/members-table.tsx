@@ -1,20 +1,19 @@
 "use client";
 
 import { Eye, Pencil, UserCheck, UserX } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { RoleBadge } from "@/components/ui/role-badge";
 import { MemberStatusBadge } from "@/components/members/member-status-badge";
 import { WorkspaceBadge } from "@/components/workspace/workspace-badge";
 import type { UserProfile } from "@/types";
 
 type MembersTableProps = {
   members: UserProfile[];
+  eventRolesByUser?: Record<string, string>;
   onView: (member: UserProfile) => void;
   onEdit: (member: UserProfile) => void;
   onToggleStatus: (member: UserProfile) => void;
 };
 
-function formatDate(value: unknown) {
+function formatDate(value: unknown): string {
   if (!value || typeof value !== "object" || !("toDate" in value)) {
     return "-";
   }
@@ -24,198 +23,261 @@ function formatDate(value: unknown) {
   }).format((value as { toDate: () => Date }).toDate());
 }
 
+function getDivisionRoleLabel(role?: string): string {
+  switch (role) {
+    case "super_admin":
+      return "Super Admin";
+    case "koordinator_divisi":
+      return "Koordinator Divisi";
+    case "koordinator_acara":
+      return "Koordinator Acara";
+    default:
+      return "Anggota";
+  }
+}
+
+function getInitials(name?: string | null): string {
+  if (!name) return "U";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "U";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
 export function MembersTable({
   members,
+  eventRolesByUser = {},
   onView,
   onEdit,
   onToggleStatus,
 }: MembersTableProps) {
   return (
     <>
-      {/* Desktop Table View */}
-      <div className="hidden md:block overflow-hidden jd-neo-table">
+      {/* ── Desktop Table View ──────────────────────────────────────────────── */}
+      <div className="hidden md:block overflow-hidden rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-none">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[960px] border-collapse text-left text-xs">
             <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Nama</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Ruang Kerja</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Email</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">WhatsApp</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Role</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Divisi</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Bergabung</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Aksi</th>
+              <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
+                <th className="px-4 py-3 font-semibold text-zinc-500 uppercase tracking-wider text-[11px]">Nama</th>
+                <th className="px-4 py-3 font-semibold text-zinc-500 uppercase tracking-wider text-[11px]">Ruang Kerja</th>
+                <th className="px-4 py-3 font-semibold text-zinc-500 uppercase tracking-wider text-[11px]">Email</th>
+                <th className="px-4 py-3 font-semibold text-zinc-500 uppercase tracking-wider text-[11px]">WhatsApp</th>
+                <th className="px-4 py-3 font-semibold text-zinc-500 uppercase tracking-wider text-[11px]">Peran (Dual Role)</th>
+                <th className="px-4 py-3 font-semibold text-zinc-500 uppercase tracking-wider text-[11px]">Divisi</th>
+                <th className="px-4 py-3 font-semibold text-zinc-500 uppercase tracking-wider text-[11px]">Status</th>
+                <th className="px-4 py-3 font-semibold text-zinc-500 uppercase tracking-wider text-[11px]">Bergabung</th>
+                <th className="px-4 py-3 font-semibold text-zinc-500 uppercase tracking-wider text-[11px]">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
-              {members.map((member) => (
-                <tr key={member.id} className="align-middle hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40">
-                  <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-50">
-                    <div className="flex items-center gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || "User")}&background=e0f2fe&color=0369a1&bold=true&rounded=true`}
-                        alt={member.name || "User"}
-                        className="size-8 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm shrink-0"
-                      />
-                      <span>{member.name || "-"}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <WorkspaceBadge
-                      campusId={member.campus_id || member.univ_id}
-                      orgId={member.org_id || member.organization_id}
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{member.email || "-"}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                    {member.whatsapp_number || "-"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <RoleBadge role={member.role} />
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                    {member.division_id || "-"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <MemberStatusBadge isActive={member.is_active} />
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                    {formatDate(member.created_at)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="info"
-                        onClick={() => onView(member)}
-                      >
-                        <Eye className="size-3.5" />
-                        <span>Detail</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="warning"
-                        onClick={() => onEdit(member)}
-                      >
-                        <Pencil className="size-3.5" />
-                        <span>Edit</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={member.is_active ? "destructive" : "success"}
-                        onClick={() => onToggleStatus(member)}
-                      >
-                        {member.is_active ? (
-                          <>
-                            <UserX className="size-3.5" />
-                            <span>Nonaktifkan</span>
-                          </>
+            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              {members.map((member) => {
+                const eventRole = eventRolesByUser[member.id];
+
+                return (
+                  <tr key={member.id} className="align-middle hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">
+                      <div className="flex items-center gap-2.5">
+                        {member.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={member.avatar_url}
+                            alt={member.name || "User"}
+                            className="size-7 rounded-none border border-zinc-200 dark:border-zinc-700 object-cover shrink-0"
+                          />
                         ) : (
-                          <>
-                            <UserCheck className="size-3.5" />
-                            <span>Aktifkan</span>
-                          </>
+                          <div className="size-7 rounded-none border border-zinc-200 dark:border-zinc-700 bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">
+                            {getInitials(member.name)}
+                          </div>
                         )}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        <span>{member.name || "-"}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <WorkspaceBadge
+                        campusId={member.campus_id || member.univ_id}
+                        orgId={member.org_id || member.organization_id}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{member.email || "-"}</td>
+                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
+                      {member.whatsapp_number || "-"}
+                    </td>
+
+                    {/* Dual-Role Badges Column */}
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1.5 items-start">
+                        {/* Badge 1 (Divisi Permanen) */}
+                        <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-none bg-primary/10 text-primary border border-primary/20 whitespace-nowrap shadow-none">
+                          {getDivisionRoleLabel(member.role)}
+                        </span>
+                        {/* Badge 2 (Kepanitiaan Acara Aktif) */}
+                        {eventRole && (
+                          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-none bg-secondary/10 text-secondary border border-secondary/20 whitespace-nowrap shadow-none">
+                            {eventRole}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                      {member.division_id || "Humas & Media"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <MemberStatusBadge isActive={member.is_active} />
+                    </td>
+                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
+                      {formatDate(member.created_at)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onView(member)}
+                          className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-[11px] font-semibold transition-colors shadow-none cursor-pointer"
+                        >
+                          <Eye className="size-3 text-zinc-500" />
+                          <span>Detail</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onEdit(member)}
+                          className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-[11px] font-semibold transition-colors shadow-none cursor-pointer"
+                        >
+                          <Pencil className="size-3 text-zinc-500" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onToggleStatus(member)}
+                          className={`inline-flex items-center gap-1 h-7 px-2.5 rounded-none border text-[11px] font-semibold transition-colors shadow-none cursor-pointer ${
+                            member.is_active
+                              ? "border-red-200 dark:border-red-900 bg-white dark:bg-zinc-900 text-danger hover:bg-red-50 dark:hover:bg-red-950/40"
+                              : "border-emerald-200 dark:border-emerald-900 bg-white dark:bg-zinc-900 text-success hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                          }`}
+                        >
+                          {member.is_active ? (
+                            <>
+                              <UserX className="size-3" />
+                              <span>Nonaktif</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserCheck className="size-3" />
+                              <span>Aktifkan</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Mobile Card List View */}
-      <div className="block md:hidden space-y-3">
-        {members.map((member) => (
-          <div key={member.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm space-y-3 m-1">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || "User")}&background=e0f2fe&color=0369a1&bold=true&rounded=true`}
-                  alt={member.name || "User"}
-                  className="size-10 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm shrink-0"
-                />
-                <div>
-                  <p className="font-semibold text-base text-slate-900 dark:text-white">
-                    {member.name || "-"}
-                  </p>
-                  <p className="text-xs opacity-70 truncate max-w-[180px] font-normal">{member.email || "-"}</p>
+      {/* ── Mobile Card View ─────────────────────────────────────────────────── */}
+      <div className="grid gap-3.5 md:hidden">
+        {members.map((member) => {
+          const eventRole = eventRolesByUser[member.id];
+
+          return (
+            <div
+              key={member.id}
+              className="rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-none space-y-3"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {member.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={member.avatar_url}
+                      alt={member.name || "User"}
+                      className="size-8 rounded-none border border-zinc-200 dark:border-zinc-700 object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="size-8 rounded-none border border-zinc-200 dark:border-zinc-700 bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                      {getInitials(member.name)}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs leading-tight truncate">
+                      {member.name || "-"}
+                    </h3>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">{member.email || "-"}</p>
+                  </div>
+                </div>
+                <MemberStatusBadge isActive={member.is_active} />
+              </div>
+
+              <div className="text-xs space-y-2 border-t border-zinc-200 dark:border-zinc-800 pt-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-500">Ruang Kerja:</span>
+                  <WorkspaceBadge
+                    campusId={member.campus_id || member.univ_id}
+                    orgId={member.org_id || member.organization_id}
+                  />
+                </div>
+
+                {/* Mobile Dual Role */}
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-zinc-500 text-xs">Peran:</span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-none bg-primary/10 text-primary border border-primary/20 whitespace-nowrap shadow-none">
+                      {getDivisionRoleLabel(member.role)}
+                    </span>
+                    {eventRole && (
+                      <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-none bg-secondary/10 text-secondary border border-secondary/20 whitespace-nowrap shadow-none">
+                        {eventRole}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-500">Divisi:</span>
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">{member.division_id || "Humas & Media"}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-500">WhatsApp:</span>
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">{member.whatsapp_number || "-"}</span>
                 </div>
               </div>
-              <MemberStatusBadge isActive={member.is_active} />
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2 border-t border-dashed border-neutral-300 dark:border-neutral-700 text-xs">
-              <RoleBadge role={member.role} />
-              <WorkspaceBadge
-                campusId={member.campus_id || member.univ_id}
-                orgId={member.org_id || member.organization_id}
-              />
-              <span className="mx-0.5 opacity-30">|</span>
-              <span className="opacity-60">Divisi:</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100 capitalize">
-                {member.division_id?.replace(/_/g, " ") || "-"}
-              </span>
-            </div>
-            
-            <div className="pt-3 border-t border-dashed border-neutral-300 dark:border-neutral-700 space-y-3">
-              <p className="text-xs opacity-80 font-normal">
-                WhatsApp: <span className="font-semibold">{member.whatsapp_number || "-"}</span>
-              </p>
-              
-              <div className="flex flex-wrap gap-2">
-                <Button
+
+              <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 flex items-center gap-1.5">
+                <button
                   type="button"
-                  size="sm"
-                  variant="info"
-                  className="flex-1 min-w-[70px]"
                   onClick={() => onView(member)}
+                  className="flex-1 inline-flex items-center justify-center gap-1 h-8 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-semibold shadow-none cursor-pointer transition-colors"
                 >
-                  <Eye className="size-3.5" />
+                  <Eye className="size-3 text-zinc-500" />
                   <span>Detail</span>
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  size="sm"
-                  variant="warning"
-                  className="flex-1 min-w-[70px]"
                   onClick={() => onEdit(member)}
+                  className="flex-1 inline-flex items-center justify-center gap-1 h-8 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-semibold shadow-none cursor-pointer transition-colors"
                 >
-                  <Pencil className="size-3.5" />
+                  <Pencil className="size-3 text-zinc-500" />
                   <span>Edit</span>
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  size="sm"
-                  variant={member.is_active ? "destructive" : "success"}
-                  className="w-full sm:w-auto"
                   onClick={() => onToggleStatus(member)}
+                  className={`flex-1 inline-flex items-center justify-center gap-1 h-8 rounded-none border text-xs font-semibold shadow-none cursor-pointer transition-colors ${
+                    member.is_active
+                      ? "border-red-200 dark:border-red-900 bg-white dark:bg-zinc-900 text-danger hover:bg-red-50 dark:hover:bg-red-950/40"
+                      : "border-emerald-200 dark:border-emerald-900 bg-white dark:bg-zinc-900 text-success hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                  }`}
                 >
-                  {member.is_active ? (
-                    <>
-                      <UserX className="size-3.5" />
-                      <span>Nonaktifkan</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserCheck className="size-3.5" />
-                      <span>Aktifkan</span>
-                    </>
-                  )}
-                </Button>
+                  {member.is_active ? "Nonaktif" : "Aktifkan"}
+                </button>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );

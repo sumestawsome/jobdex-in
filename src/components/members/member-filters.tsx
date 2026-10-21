@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { USER_ROLE_OPTIONS } from "@/lib/roles";
 import type { UserRole } from "@/types";
+import { Search } from "lucide-react";
 
 export type MemberStatusFilter = "all" | "active" | "inactive";
 
@@ -17,7 +18,7 @@ type MemberFiltersProps = {
 };
 
 const selectClassName =
-  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
+  "h-9 w-full rounded-lg border border-[#e1e2e3] bg-white px-3 text-xs font-medium text-[#242424] outline-none transition-colors focus:border-[#242424] focus:ring-1 focus:ring-[#242424]/10 shadow-2xs cursor-pointer";
 
 export function MemberFilters({
   search,
@@ -31,19 +32,23 @@ export function MemberFilters({
   onDivisionChange,
 }: MemberFiltersProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
-      <Input
-        placeholder="Cari nama atau email..."
-        value={search}
-        onChange={(event) => onSearchChange(event.target.value)}
-      />
+    <div className="grid gap-2.5 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#898989]" />
+        <Input
+          placeholder="Cari nama atau email..."
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          className="pl-8 h-9 text-xs rounded-lg border-[#e1e2e3] bg-white text-[#242424] placeholder:text-[#898989] focus:ring-1 focus:ring-[#242424] shadow-2xs"
+        />
+      </div>
 
       <select
         className={selectClassName}
         value={role}
         onChange={(event) => onRoleChange(event.target.value as "all" | UserRole)}
       >
-        <option value="all">Semua role</option>
+        <option value="all">Semua Role</option>
         {USER_ROLE_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -58,7 +63,7 @@ export function MemberFilters({
           onStatusChange(event.target.value as MemberStatusFilter)
         }
       >
-        <option value="all">Semua status</option>
+        <option value="all">Semua Status</option>
         <option value="active">Aktif</option>
         <option value="inactive">Nonaktif</option>
       </select>
@@ -68,7 +73,7 @@ export function MemberFilters({
         value={division}
         onChange={(event) => onDivisionChange(event.target.value)}
       >
-        <option value="all">Semua divisi</option>
+        <option value="all">Semua Divisi</option>
         {divisions.map((item) => (
           <option key={item} value={item}>
             {item}

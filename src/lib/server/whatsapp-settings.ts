@@ -20,17 +20,32 @@ export async function getWhatsAppSystemSettings(forceRefresh = false): Promise<W
 
     if (docSnap.exists) {
       const data = docSnap.data() || {};
+      const isTestMode = Boolean(
+        data.isTestMode ?? data.sandbox_mode ?? (process.env.WHATSAPP_SANDBOX_MODE === "true" || process.env.SANDBOX_MODE === "true")
+      );
+      const testGroupId = (
+        data.testGroupId ||
+        data.sandbox_group_id ||
+        data.sandbox_target ||
+        DEFAULT_SANDBOX_TEST_GROUP_ID
+      ).trim();
+
       cachedSettings = {
-        isTestMode: Boolean(data.isTestMode),
-        testGroupId: data.testGroupId || DEFAULT_SANDBOX_TEST_GROUP_ID,
+        isTestMode,
+        sandbox_mode: isTestMode,
+        testGroupId,
+        sandbox_group_id: testGroupId,
         updatedAt: data.updatedAt,
         updatedBy: data.updatedBy,
         updatedByName: data.updatedByName,
       };
     } else {
+      const isTestMode = process.env.WHATSAPP_SANDBOX_MODE === "true" || process.env.SANDBOX_MODE === "true";
       cachedSettings = {
-        isTestMode: false,
+        isTestMode,
+        sandbox_mode: isTestMode,
         testGroupId: DEFAULT_SANDBOX_TEST_GROUP_ID,
+        sandbox_group_id: DEFAULT_SANDBOX_TEST_GROUP_ID,
       };
     }
 
@@ -41,7 +56,9 @@ export async function getWhatsAppSystemSettings(forceRefresh = false): Promise<W
     return (
       cachedSettings || {
         isTestMode: false,
+        sandbox_mode: false,
         testGroupId: DEFAULT_SANDBOX_TEST_GROUP_ID,
+        sandbox_group_id: DEFAULT_SANDBOX_TEST_GROUP_ID,
       }
     );
   }

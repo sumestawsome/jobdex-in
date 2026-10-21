@@ -42,7 +42,7 @@ function MiniSparkline({ color }: { color: string }) {
 }
 
 export function DashboardSummaryCards({ data }: Props) {
-  const cards: CardConfig[] = [
+  const cards = [
     {
       label: "Acara Aktif",
       value: data.activeEvents,
@@ -50,40 +50,39 @@ export function DashboardSummaryCards({ data }: Props) {
         ? "Tidak ada acara berlangsung"
         : `${data.activeEvents} acara sedang berjalan`,
       icon: CalendarDays,
-      gradient: "from-sky-50 to-sky-100/60 dark:from-sky-950/40 dark:to-sky-900/20",
-      iconBg: "bg-sky-100 dark:bg-sky-900/60",
-      iconColor: "text-sky-600 dark:text-sky-400",
-      sparkColor: "#38bdf8",
+      tag: "Aktif",
+      tagClass: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+      iconBg: "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200",
+      sparkColor: "#64748b",
     },
     {
       label: "Job Desk Aktif",
       value: data.activeJobs,
       insight: data.activeJobs === 0
         ? "Semua tugas selesai"
-        : `${data.activeJobs} tugas sedang berjalan`,
+        : `${data.activeJobs} tugas berjalan`,
       icon: ClipboardList,
-      gradient: "from-indigo-50 to-indigo-100/60 dark:from-indigo-950/40 dark:to-indigo-900/20",
-      iconBg: "bg-indigo-100 dark:bg-indigo-900/60",
-      iconColor: "text-indigo-600 dark:text-indigo-400",
-      sparkColor: "#818cf8",
+      tag: "Progres",
+      tagClass: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60",
+      iconBg: "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400",
+      sparkColor: "#6349ea",
     },
     {
       label: "Butuh Perhatian",
       value: data.needsAttention,
       insight: data.needsAttention === 0
-        ? "Semua tugas aman"
-        : `${data.needsAttention} tugas kritis / stuck / overdue`,
+        ? "Semua tugas aman terkendali"
+        : `${data.needsAttention} tugas butuh tindakan / overdue`,
       icon: AlertCircle,
-      gradient: data.needsAttention > 0
-        ? "from-red-50 to-rose-100/60 dark:from-red-950/40 dark:to-red-900/20"
-        : "from-emerald-50 to-emerald-100/60 dark:from-emerald-950/40 dark:to-emerald-900/20",
+      tag: data.needsAttention > 0 ? "Perhatian" : "Aman",
+      tagClass: data.needsAttention > 0
+        ? "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/60"
+        : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60",
       iconBg: data.needsAttention > 0
-        ? "bg-red-100 dark:bg-red-900/60"
-        : "bg-emerald-100 dark:bg-emerald-900/60",
-      iconColor: data.needsAttention > 0
-        ? "text-red-600 dark:text-red-400"
-        : "text-emerald-600 dark:text-emerald-400",
-      sparkColor: data.needsAttention > 0 ? "#f87171" : "#34d399",
+        ? "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+        : "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400",
+      sparkColor: data.needsAttention > 0 ? "#e94235" : "#19a874",
+      valueColor: data.needsAttention > 0 ? "text-rose-600 dark:text-rose-400" : undefined,
     },
     {
       label: "Selesai Minggu Ini",
@@ -92,47 +91,47 @@ export function DashboardSummaryCards({ data }: Props) {
         ? "Belum ada yang selesai minggu ini"
         : `${data.completedThisWeek} tugas selesai minggu ini`,
       icon: CheckCheck,
-      gradient: "from-emerald-50 to-teal-100/60 dark:from-emerald-950/40 dark:to-teal-900/20",
-      iconBg: "bg-emerald-100 dark:bg-emerald-900/60",
-      iconColor: "text-emerald-600 dark:text-emerald-400",
-      sparkColor: "#34d399",
+      tag: "Minggu Ini",
+      tagClass: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60",
+      iconBg: "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400",
+      sparkColor: "#19a874",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3.5 xl:grid-cols-4">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
           <div
             key={card.label}
-            className={`
-              relative overflow-hidden rounded-xl border border-slate-200/70 dark:border-slate-700/50
-              bg-gradient-to-br ${card.gradient}
-              p-4 flex flex-col justify-between gap-3
-              shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5
-            `}
+            className="relative overflow-hidden rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-4 sm:p-5 flex flex-col justify-between gap-3 shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-150"
           >
-            {/* Top row: icon + sparkline */}
-            <div className="flex items-start justify-between">
-              <div className={`flex items-center justify-center rounded-lg w-9 h-9 ${card.iconBg}`}>
-                <Icon className={`size-4.5 ${card.iconColor}`} />
+            {/* Top row: icon + tag & sparkline */}
+            <div className="flex items-center justify-between">
+              <div className={`flex items-center justify-center rounded-lg w-8 h-8 sm:w-9 sm:h-9 ${card.iconBg}`}>
+                <Icon className="size-4 sm:size-4.5" />
               </div>
-              <MiniSparkline color={card.sparkColor} />
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${card.tagClass}`}>
+                  {card.tag}
+                </span>
+                <MiniSparkline color={card.sparkColor} />
+              </div>
             </div>
 
             {/* Value */}
             <div>
-              <p className="text-3xl font-bold text-slate-900 dark:text-slate-50 leading-none tabular-nums">
+              <p className={`text-2xl sm:text-3xl font-bold leading-none tabular-nums tracking-tight ${card.valueColor || "text-slate-900 dark:text-slate-50"}`}>
                 {card.value}
               </p>
-              <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+              <p className="mt-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
                 {card.label}
               </p>
             </div>
 
             {/* Insight subtag */}
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug border-t border-slate-200/60 dark:border-slate-700/40 pt-2">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug border-t border-slate-100 dark:border-slate-800/80 pt-2.5 truncate">
               {card.insight}
             </p>
           </div>

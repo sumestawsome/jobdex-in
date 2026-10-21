@@ -55,6 +55,25 @@ export async function getDesignReferencesForProfile(
     ? references
     : references.filter((reference) => !reference.is_archived);
 
+  const isMatchingOrg = (docOrg: unknown, target: unknown) => {
+    if (!target) return true;
+    const docStr = String(docOrg || "main_org").trim();
+    const targetStr = String(target).trim();
+    if (docStr === targetStr) return true;
+    const isForkom = (x: string) => x === "main_org" || x === "org-undiksha-forkom-kip";
+    return isForkom(docStr) && isForkom(targetStr);
+  };
+
+  const isMatchingCampus = (docCampus: unknown, target: unknown) => {
+    if (!target) return true;
+    const docStr = docCampus ? String(docCampus).trim() : "";
+    if (!docStr || docStr === "ui") return true;
+    const targetStr = String(target).trim();
+    if (docStr === targetStr) return true;
+    const isUndiksha = (x: string) => x === "univ-undiksha" || x === "undiksha";
+    return isUndiksha(docStr) && isUndiksha(targetStr);
+  };
+
   if (targetOrgId) {
     filtered = filtered.filter((r) => {
       const rOrg =
@@ -62,7 +81,7 @@ export async function getDesignReferencesForProfile(
         r.org_id ||
         (r as unknown as Record<string, unknown>).orgId ||
         "main_org";
-      return rOrg === targetOrgId;
+      return isMatchingOrg(rOrg, targetOrgId);
     });
   }
 
@@ -72,9 +91,8 @@ export async function getDesignReferencesForProfile(
         r.campus_id ||
         (r as unknown as Record<string, unknown>).campusId ||
         r.univ_id ||
-        (r as unknown as Record<string, unknown>).univId ||
-        "ui";
-      return rCampus === targetCampusId;
+        (r as unknown as Record<string, unknown>).univId;
+      return isMatchingCampus(rCampus, targetCampusId);
     });
   }
 

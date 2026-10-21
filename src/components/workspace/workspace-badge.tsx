@@ -17,6 +17,12 @@ export function WorkspaceBadge({
   size = "xs",
   showIcon = true,
 }: WorkspaceBadgeProps) {
+  const isMainOrg =
+    !orgId ||
+    orgId === "main_org" ||
+    orgId === "org-undiksha-forkom-kip" ||
+    orgId.toLowerCase().includes("forkom");
+
   // Find campus and ormawa from dummy or fallback
   const campus = DUMMY_CAMPUSES.find(
     (c) => c.id === campusId || c.code.toLowerCase() === campusId?.toLowerCase()
@@ -28,8 +34,16 @@ export function WorkspaceBadge({
       o.name.toLowerCase() === orgId?.toLowerCase()
   );
 
-  const campusText = campus?.code || (campusId ? campusId.toUpperCase() : "UI");
-  const ormawaText = ormawa?.short_name || ormawa?.name || (orgId ? orgId.toUpperCase() : "BEM");
+  let campusText: string;
+  let ormawaText: string;
+
+  if (isMainOrg) {
+    campusText = "UNDIKSHA";
+    ormawaText = "FORKOM KIP";
+  } else {
+    campusText = campus?.code || (campusId ? campusId.toUpperCase() : "UNDIKSHA");
+    ormawaText = ormawa?.short_name || ormawa?.name || (orgId ? orgId.toUpperCase() : "FORKOM KIP");
+  }
 
   const sizeClasses = {
     xs: "text-[10px] px-1.5 py-0.5 gap-1",
@@ -39,13 +53,14 @@ export function WorkspaceBadge({
 
   return (
     <span
-      className={`inline-flex items-center font-semibold rounded-md border border-sky-200 dark:border-sky-800/70 bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 shadow-2xs ${sizeClasses} ${className}`}
+      className={`inline-flex items-center font-semibold rounded-none border border-zinc-200 bg-zinc-50 text-zinc-900 shadow-none ${sizeClasses} ${className}`}
       title={`Kampus: ${campus?.name || campusText} • Ormawa: ${ormawa?.name || ormawaText}`}
     >
-      {showIcon && <Building2 className="size-3 shrink-0 text-sky-600 dark:text-sky-400" />}
-      <span className="font-extrabold uppercase tracking-tight">{campusText}</span>
-      <span className="text-sky-300 dark:text-sky-600 font-normal">/</span>
-      <span className="truncate max-w-[120px]">{ormawaText}</span>
+      {showIcon && <Building2 className="size-3 shrink-0 text-zinc-700" />}
+      <span className="font-bold uppercase tracking-tight">{campusText}</span>
+      <span className="text-zinc-400 font-normal">/</span>
+      <span className="truncate max-w-[120px] font-medium">{ormawaText}</span>
     </span>
   );
 }
+

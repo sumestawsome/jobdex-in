@@ -4,22 +4,34 @@ import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 
 let configured = false;
 
-function getRequiredEnv(name: string) {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`${name} belum dikonfigurasi.`);
+export function validateCloudinaryConfig(): { valid: boolean; error?: string } {
+  if (!process.env.CLOUDINARY_CLOUD_NAME) {
+    return { valid: false, error: "CLOUDINARY_CLOUD_NAME belum dikonfigurasi di environment." };
   }
+  if (!process.env.CLOUDINARY_API_KEY) {
+    return { valid: false, error: "CLOUDINARY_API_KEY belum dikonfigurasi di environment." };
+  }
+  if (!process.env.CLOUDINARY_API_SECRET) {
+    return { valid: false, error: "CLOUDINARY_API_SECRET belum dikonfigurasi di environment." };
+  }
+  return { valid: true };
+}
 
-  return value;
+export function isCloudinaryConfigured(): boolean {
+  return validateCloudinaryConfig().valid;
 }
 
 function getCloudinary() {
+  const check = validateCloudinaryConfig();
+  if (!check.valid) {
+    throw new Error(check.error || "Konfigurasi Cloudinary tidak lengkap.");
+  }
+
   if (!configured) {
     cloudinary.config({
-      cloud_name: getRequiredEnv("CLOUDINARY_CLOUD_NAME"),
-      api_key: getRequiredEnv("CLOUDINARY_API_KEY"),
-      api_secret: getRequiredEnv("CLOUDINARY_API_SECRET"),
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
       secure: true,
     });
     configured = true;
@@ -32,32 +44,55 @@ export async function uploadImageBuffer({
   buffer,
   folder,
   fileName,
+  mimeType,
 }: {
   buffer: Buffer;
   folder: string;
   fileName: string;
-}) {
-  return new Promise<UploadApiResponse>((resolve, reject) => {
-    const stream = getCloudinary().uploader.upload_stream(
-      {
-        folder,
-        resource_type: "auto",
-        use_filename: true,
-        filename_override: fileName,
-        unique_filename: true,
-      },
-      (error, result) => {
-        if (error || !result) {
-          reject(error ?? new Error("Upload Cloudinary gagal."));
-          return;
+  mimeType?: string;
+}): Promise<UploadApiResponse> {
+  const cld = getCloudinary();
+
+  // Mode 1: Data URI upload (sangat stabil untuk serverless Node.js, menghindari stream timeout)
+  const mime = mimeType || "image/png";
+  const dataUri = `data:${mime};base64,${buffer.toString("base64")}`;
+
+  try {
+    const result = await cld.uploader.upload(dataUri, {
+      folder,
+      resource_type: "auto",
+      use_filename: true,
+      filename_override: fileName,
+      unique_filename: true,
+    });
+    return result;
+  } catch (dataUriError) {
+    // Mode 2 Fallback: upload_stream jika payload Data URI melebihi limit tertentu
+    return new Promise<UploadApiResponse>((resolve, reject) => {
+      const stream = cld.uploader.upload_stream(
+        {
+          folder,
+          resource_type: "auto",
+          use_filename: true,
+          filename_override: fileName,
+          unique_filename: true,
+        },
+        (error, result) => {
+          if (error || !result) {
+            reject(error ?? dataUriError ?? new Error("Upload Cloudinary gagal."));
+            return;
+          }
+          resolve(result);
         }
+      );
 
-        resolve(result);
-      },
-    );
+      stream.on("error", (err) => {
+        reject(err);
+      });
 
-    stream.end(buffer);
-  });
+      stream.end(buffer);
+    });
+  }
 }
 
 export function buildCloudinaryThumbnail(publicId: string) {

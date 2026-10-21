@@ -36,8 +36,8 @@ export function AIInput({
   }
 
   return (
-    <form className="sticky bottom-0 bg-[var(--jd-neo-bg)]/90 backdrop-blur py-2 jd-sticky-bottom-safe" onSubmit={handleSubmit}>
-      <div className="flex items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-[var(--secondary-background)] px-4 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500 transition-all">
+    <form className="sticky bottom-0 bg-white/95 backdrop-blur-xs py-1" onSubmit={handleSubmit}>
+      <div className="flex items-center gap-2.5 rounded-xl border border-[#e1e2e3] bg-white px-3.5 py-2 shadow-2xs focus-within:border-[#242424] focus-within:ring-1 focus-within:ring-[#242424]/10 transition-all">
         <textarea
           id="ai-question"
           rows={1}
@@ -46,15 +46,15 @@ export function AIInput({
           onChange={(event) => setQuestion(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="flex-1 max-h-32 min-h-[24px] resize-none bg-transparent py-1 text-sm text-[var(--foreground)] outline-none disabled:cursor-not-allowed placeholder:text-slate-400 dark:placeholder:text-slate-500 overflow-y-auto"
+          className="flex-1 max-h-32 min-h-[24px] resize-none bg-transparent py-1 text-xs sm:text-sm text-[#242424] outline-none disabled:cursor-not-allowed placeholder:text-[#898989] overflow-y-auto"
         />
         <button
           type="submit"
           disabled={disabled || !question.trim()}
-          className="flex h-9 w-9 items-center justify-center rounded-md bg-sky-600 hover:bg-sky-700 text-white shadow-sm transition-colors shrink-0 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-          title="Kirim pesan"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#242424] hover:bg-[#141414] text-white shadow-2xs transition-all active:scale-[0.98] shrink-0 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+          title="Kirim pertanyaan"
         >
-          <Send className="h-4 w-4" />
+          <Send className="h-3.5 w-3.5" />
         </button>
       </div>
     </form>

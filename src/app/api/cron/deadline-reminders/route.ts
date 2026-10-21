@@ -41,20 +41,26 @@ export async function POST(request: Request) {
 async function handleCron(request: Request) {
   const startTime = Date.now();
   const { searchParams } = new URL(request.url);
-  const secretQuery = searchParams.get("secret");
-  const authHeader = request.headers.get("authorization");
-  const secretHeader = authHeader?.startsWith("Bearer ")
-    ? authHeader.substring(7)
-    : null;
-  const expectedSecret = process.env.CRON_SECRET;
+  const secretQuery = searchParams.get("secret")?.trim() || searchParams.get("key")?.trim();
+  const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
+  const secretHeader = authHeader && authHeader.toLowerCase().startsWith("bearer ")
+    ? authHeader.slice(7).trim()
+    : authHeader?.trim() || null;
+  const expectedSecret = process.env.CRON_SECRET?.trim();
 
-  // Authorization check
-  if (
-    !expectedSecret ||
-    (secretQuery !== expectedSecret && secretHeader !== expectedSecret)
-  ) {
+  // Authorization check: support Authorization: Bearer <secret> OR ?secret=<secret>
+  const isAuthorized = Boolean(
+    expectedSecret &&
+    (secretQuery === expectedSecret || secretHeader === expectedSecret)
+  );
+
+  if (!isAuthorized) {
     return NextResponse.json(
-      { ok: false, error: "Unauthorized: Invalid or missing secret." },
+      {
+        ok: false,
+        error: "Unauthorized: Invalid or missing secret.",
+        details: "Expected Vercel Cron header 'Authorization: Bearer <CRON_SECRET>' or query parameter '?secret=<CRON_SECRET>'",
+      },
       { status: 401 }
     );
   }

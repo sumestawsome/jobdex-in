@@ -1,4 +1,4 @@
-import type { Campus, CampusInput, Ormawa, OrmawaInput, OrmawaType, DivisionInput, CoreDivision } from "@/types/workspace";
+import type { Campus, CampusInput, Ormawa, OrmawaInput, OrmawaType, DivisionInput } from "@/types/workspace";
 import type { Division } from "@/types";
 
 export const ORMAWA_TYPES: readonly OrmawaType[] = [
@@ -186,7 +186,7 @@ export function buildOrmawaDoc(
   input: OrmawaInput,
   id: string
 ): Omit<Ormawa, "created_at" | "updated_at"> {
-  const campusId = input.campus_id || input.univ_id || (input as any).campusId || (input as any).univId || "";
+  const campusId = input.campus_id || input.univ_id || input.campusId || input.univId || "";
   return {
     id,
     campus_id: campusId,

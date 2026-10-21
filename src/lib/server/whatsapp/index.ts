@@ -77,13 +77,14 @@ export async function sendWhatsAppMessage(payload: WhatsAppSendPayload): Promise
   let effectivePayload = payload;
   try {
     const settings = await getWhatsAppSystemSettings();
-    if (settings.isTestMode) {
-      const originalTarget = payload.target || "Grup/Nomor Default";
-      const sandboxTarget = settings.testGroupId || "120363406824082148@g.us";
+    const isSandboxActive = Boolean(settings.isTestMode || settings.sandbox_mode);
+
+    if (isSandboxActive) {
+      const originalTarget = payload.target || "Grup/Nomor Personal";
+      const sandboxTarget = (settings.testGroupId || settings.sandbox_group_id || "120363406824082148@g.us").trim();
 
       const sandboxBanner = [
-        "🧪 *[TEST / SANDBOX MODE]*",
-        `_(Aslinya ditujukan ke: ${originalTarget})_`,
+        `🧪 *[SIMULASI SANDBOX]* (Dialihkan dari: ${originalTarget})`,
         "",
         payload.message,
       ].join("\n");
@@ -106,32 +107,37 @@ export async function sendWhatsAppMessage(payload: WhatsAppSendPayload): Promise
   if (orgId) {
     const ormawaGateway = await getOrmawaGatewayConfig(orgId);
     if (!ormawaGateway || !ormawaGateway.api_token || !ormawaGateway.is_active) {
-      console.warn(
-        `[WhatsApp Multi-Tenant] Gateway ormawa ${orgId} belum diatur atau dinonaktifkan. Pengiriman dibatalkan demi mencegah kebocoran antar-ormawa.`
-      );
-      return {
-        ok: false,
-        provider: (ormawaGateway?.provider || "fonnte") as WhatsAppProviderName,
-        target: effectivePayload.target,
-        error: `Gateway WhatsApp ormawa (${orgId}) belum diatur. Pengiriman dibatalkan agar tidak menggunakan nomor ormawa lain.`,
-        skipped: true,
-        notConfigured: true,
-      };
-    }
+      // Jika orgId adalah "main_org" atau ormawa default, fallback ke gateway global di .env
+      if (orgId === "main_org" || orgId === "org-undiksha-forkom-kip" || !ormawaGateway) {
+        console.info(`[WhatsApp Multi-Tenant] Ormawa ${orgId} menggunakan gateway global sistem dari .env.`);
+      } else {
+        console.warn(
+          `[WhatsApp Multi-Tenant] Gateway ormawa ${orgId} belum diatur atau dinonaktifkan. Pengiriman dibatalkan demi mencegah kebocoran antar-ormawa.`
+        );
+        return {
+          ok: false,
+          provider: (ormawaGateway?.provider || "fonnte") as WhatsAppProviderName,
+          target: effectivePayload.target,
+          error: `Gateway WhatsApp ormawa (${orgId}) belum diatur. Pengiriman dibatalkan agar tidak menggunakan nomor ormawa lain.`,
+          skipped: true,
+          notConfigured: true,
+        };
+      }
+    } else {
+      // Gunakan gateway milik ormawa pemilik data
+      if (ormawaGateway.provider === "fonnte") {
+        return sendViaFonnte(effectivePayload, {
+          token: ormawaGateway.api_token,
+          apiUrl: ormawaGateway.server_url,
+        });
+      }
 
-    // Gunakan gateway milik ormawa pemilik data
-    if (ormawaGateway.provider === "fonnte") {
-      return sendViaFonnte(effectivePayload, {
-        token: ormawaGateway.api_token,
-        apiUrl: ormawaGateway.server_url,
-      });
-    }
-
-    if (ormawaGateway.provider === "wablas") {
-      return sendViaWablas(effectivePayload, {
-        token: ormawaGateway.api_token,
-        apiUrl: ormawaGateway.server_url,
-      });
+      if (ormawaGateway.provider === "wablas") {
+        return sendViaWablas(effectivePayload, {
+          token: ormawaGateway.api_token,
+          apiUrl: ormawaGateway.server_url,
+        });
+      }
     }
   }
 

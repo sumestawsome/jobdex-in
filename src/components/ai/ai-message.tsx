@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Copy, MessageCircle } from "lucide-react";
+import { Copy, MessageCircle, Bot, User } from "lucide-react";
 
 type AIMessageProps = {
   role: "user" | "assistant";
@@ -24,64 +23,63 @@ export function AIMessage({
   const isAssistant = role === "assistant";
 
   return (
-    <div className={cn("flex my-2", isAssistant ? "justify-start" : "justify-end")}>
+    <div className={cn("flex my-2.5", isAssistant ? "justify-start" : "justify-end")}>
       <article
         className={cn(
-          "max-w-[85%] md:max-w-[70%] rounded-2xl p-3.5 shadow-xs transition-all",
+          "max-w-[88%] md:max-w-[75%] rounded-xl p-4 shadow-2xs transition-all border",
           isAssistant
-            ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-            : "bg-sky-100 dark:bg-sky-950/40 text-slate-900 dark:text-slate-100",
+            ? "bg-white border-[#e1e2e3] text-[#242424]"
+            : "bg-[#f7f7f8] border-[#e1e2e3] text-[#242424]",
         )}
       >
-        <div className="flex items-center justify-between gap-3">
-          <p
-            className={cn(
-              "text-[10px] font-bold uppercase tracking-wider",
-              isAssistant ? "text-slate-500 dark:text-slate-400" : "text-sky-600 dark:text-sky-400",
+        <div className="flex items-center justify-between gap-3 pb-2 border-b border-[#e1e2e3]/60 mb-2">
+          <div className="flex items-center gap-1.5">
+            {isAssistant ? (
+              <span className="flex size-5 items-center justify-center rounded-md bg-[#242424] text-white text-[10px] font-bold">
+                AI
+              </span>
+            ) : (
+              <span className="flex size-5 items-center justify-center rounded-md bg-[#e1e2e3] text-[#242424] text-[10px] font-bold">
+                <User className="size-3 text-[#242424]" />
+              </span>
             )}
-          >
-            {authorName ?? (isAssistant ? "AI Assistant" : "Anda")}
-          </p>
+            <p className="text-[11px] font-semibold text-[#898989]">
+              {authorName ?? (isAssistant ? "Gemini AI Assistant" : "Anda")}
+            </p>
+          </div>
           {time ? (
-            <span
-              className={cn(
-                "text-[10px] font-medium",
-                isAssistant ? "text-slate-400 dark:text-slate-500" : "text-sky-500/80 dark:text-sky-400/80"
-              )}
-            >
+            <span className="text-[10px] font-medium text-[#898989]">
               {time}
             </span>
           ) : null}
         </div>
+
         <div
           style={{ overflowWrap: "anywhere" }}
-          className="mt-2 whitespace-pre-wrap text-sm leading-6 break-words font-normal"
+          className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed break-words font-normal text-[#242424]"
         >
           {content}
         </div>
+
         {isAssistant ? (
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200 dark:border-slate-700 pt-2.5">
-            <Button
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[#e1e2e3] pt-2.5">
+            <button
               type="button"
-              variant="secondary"
-              size="sm"
               onClick={() => onCopy?.(content)}
-              className="h-7 px-2 text-[10px] font-bold"
+              className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-[11px] font-semibold transition-all shadow-2xs cursor-pointer"
             >
-              <Copy className="size-3" />
-              <span>Salin</span>
-            </Button>
-            <Button
+              <Copy className="size-3 text-[#898989]" />
+              <span>Salin Jawaban</span>
+            </button>
+            <button
               type="button"
-              variant="secondary"
-              size="sm"
               onClick={() => onSendWhatsApp?.(content)}
               disabled={sendingWhatsApp}
-              className="h-7 px-2 text-[10px] font-bold"
+              className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-[11px] font-semibold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
             >
-              <MessageCircle className="size-3" />
+              <MessageCircle className="size-3 text-[#19a874]" />
               <span>{sendingWhatsApp ? "Mengirim..." : "Kirim ke WA"}</span>
-            </Button>
+            </button>
           </div>
         ) : null}
       </article>

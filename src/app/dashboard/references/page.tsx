@@ -36,6 +36,8 @@ import type {
   ReferenceListItem,
 } from "@/types";
 
+const ITEMS_PER_PAGE = 18;
+
 export default function ReferencesPage() {
   const { userProfile } = useAuth();
   const { activeWorkspace, activeCampus, activeOrmawa } = useWorkspace();
@@ -58,6 +60,7 @@ export default function ReferencesPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(ITEMS_PER_PAGE);
 
   const loadReferences = useCallback(async () => {
     if (!userProfile) {
@@ -193,6 +196,25 @@ export default function ReferencesPage() {
     selectedEventId,
   ]);
 
+  // Reset pagination limit when any filter changes
+  useEffect(() => {
+    setVisibleLimit(ITEMS_PER_PAGE);
+  }, [
+    designType,
+    eventName,
+    search,
+    showArchived,
+    year,
+    scopeFilter,
+    sourceTypeFilter,
+    selectedDivisionId,
+    selectedEventId,
+  ]);
+
+  const displayedReferences = useMemo(() => {
+    return filteredReferences.slice(0, visibleLimit);
+  }, [filteredReferences, visibleLimit]);
+
   async function handleSave(input: DesignReferenceInput, referenceId?: string) {
     if (!userProfile) {
       return;
@@ -275,7 +297,7 @@ export default function ReferencesPage() {
         title="Arsip referensi gagal dimuat"
         description={error}
         action={
-          <Button onClick={() => void loadReferences()} className="jd-neo-button">
+          <Button onClick={() => void loadReferences()} className="jd-neo-button rounded-none shadow-none">
             Muat ulang
           </Button>
         }
@@ -290,28 +312,28 @@ export default function ReferencesPage() {
   return (
     <div className="space-y-6">
       {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 px-4 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/70 dark:bg-sky-950/30">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 px-4 rounded-none border border-border bg-card shadow-none">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-sky-600 text-white font-black text-xs shrink-0">
+          <span className="flex size-7 items-center justify-center rounded-none bg-primary text-primary-foreground font-bold text-xs shrink-0 shadow-none">
             {activeWorkspace.campus_code}
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+              <span className="font-semibold text-xs text-foreground truncate">
                 {activeOrmawa.name}
               </span>
-              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+              <span className="rounded-none bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary">
                 Terisolasi
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+            <p className="text-[11px] text-muted-foreground truncate">
               {activeCampus.name} • Menampilkan referensi desain terfilter untuk ruang kerja ini
             </p>
           </div>
         </div>
         <Link
           href="/dashboard/workspace"
-          className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline inline-flex items-center gap-1 shrink-0"
+          className="text-xs font-semibold text-foreground hover:underline inline-flex items-center gap-1 shrink-0"
         >
           <span>Ganti Ruang Kerja</span>
           <ArrowRight className="size-3" />
@@ -320,24 +342,24 @@ export default function ReferencesPage() {
 
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
-          <h1 className="text-3xl font-bold text-slate-950 dark:text-slate-50">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Arsip Referensi Desain
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
             Catat desain lama, link Drive/Canva ganda, style visual, supergrafis, dan color
             palette agar anggota baru punya sumber inspirasi yang rapi.
           </p>
-          <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            {filteredReferences.length} dari {references.length} referensi tampil
+          <p className="mt-3 text-sm font-semibold text-muted-foreground font-mono">
+            Menampilkan {displayedReferences.length} dari {filteredReferences.length} referensi {filteredReferences.length !== references.length ? `(total ${references.length} dalam arsip)` : ""}
           </p>
         </div>
         {canCreate ? (
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setBulkImportOpen(true)}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setBulkImportOpen(true)} className="rounded-none shadow-none">
               <Upload className="h-4 w-4" />
               Import Banyak
             </Button>
-            <Button type="button" size="sm" onClick={openCreateForm}>
+            <Button type="button" size="sm" onClick={openCreateForm} className="rounded-none shadow-none">
               <Plus className="h-4 w-4" />
               Tambah Referensi
             </Button>
@@ -372,13 +394,37 @@ export default function ReferencesPage() {
       />
 
       {filteredReferences.length ? (
-        <ReferencesGrid
-          references={filteredReferences}
-          canEditReference={(reference) => reference.source_type !== "approved_task" && canEditDesignReference(userProfile, reference as unknown as DesignReference)}
-          onView={setSelectedReference}
-          onEdit={(reference) => openEditForm(reference as unknown as DesignReference)}
-          onArchive={(reference) => handleArchive(reference as unknown as DesignReference)}
-        />
+        <div className="space-y-6">
+          <ReferencesGrid
+            references={displayedReferences}
+            canEditReference={(reference) => reference.source_type !== "approved_task" && canEditDesignReference(userProfile, reference as unknown as DesignReference)}
+            onView={setSelectedReference}
+            onEdit={(reference) => openEditForm(reference as unknown as DesignReference)}
+            onArchive={(reference) => handleArchive(reference as unknown as DesignReference)}
+          />
+
+          {filteredReferences.length > visibleLimit ? (
+            <div className="flex flex-col items-center justify-center gap-2.5 pt-4 pb-2">
+              <p className="text-xs text-muted-foreground font-mono">
+                Menampilkan {displayedReferences.length} dari {filteredReferences.length} referensi
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setVisibleLimit((prev) => prev + ITEMS_PER_PAGE)}
+                className="rounded-none shadow-none border-border px-8 py-2 font-semibold text-sm hover:bg-muted"
+              >
+                Muat Lebih Banyak ({Math.min(ITEMS_PER_PAGE, filteredReferences.length - visibleLimit)} lagi)
+              </Button>
+            </div>
+          ) : filteredReferences.length > ITEMS_PER_PAGE ? (
+            <div className="text-center pt-4 pb-2">
+              <p className="text-xs text-muted-foreground font-mono">
+                Semua {filteredReferences.length} referensi telah ditampilkan.
+              </p>
+            </div>
+          ) : null}
+        </div>
       ) : (
         <EmptyState
           title={`Belum ada referensi di ${activeOrmawa.short_name}`}
@@ -387,18 +433,18 @@ export default function ReferencesPage() {
             <div className="flex flex-wrap gap-2 justify-center">
               {canCreate ? (
                 <>
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setBulkImportOpen(true)}>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setBulkImportOpen(true)} className="rounded-none shadow-none">
                     <Upload className="h-4 w-4" />
                     Import Banyak
                   </Button>
-                  <Button type="button" size="sm" onClick={openCreateForm}>
+                  <Button type="button" size="sm" onClick={openCreateForm} className="rounded-none shadow-none">
                     <Plus className="h-4 w-4" />
                     Tambah Referensi di {activeOrmawa.short_name}
                   </Button>
                 </>
               ) : null}
               <Link href="/dashboard/workspace">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="rounded-none shadow-none">
                   Ganti Ruang Kerja
                 </Button>
               </Link>

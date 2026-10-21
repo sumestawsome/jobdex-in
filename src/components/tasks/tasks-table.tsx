@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { TaskPriorityBadge } from "@/components/tasks/task-priority-badge";
 import { TaskStatusBadge } from "@/components/tasks/task-status-badge";
 import { formatTaskDate } from "@/lib/firebase/tasks";
@@ -35,24 +34,24 @@ export function TasksTable({
   const [refDialogOpen, setRefDialogOpen] = useState(false);
 
   return (
-    <div className="overflow-hidden jd-neo-table">
+    <div className="overflow-hidden rounded-xl border border-[#e1e2e3] bg-white shadow-2xs">
       <div className="overflow-x-auto">
-        <table className="w-full table-auto border-collapse text-left text-sm">
+        <table className="w-full table-auto border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Nama Tugas</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Ruang Kerja</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">PIC</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Acara / Divisi</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Deadline</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Prioritas</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Risiko</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Referensi</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Aksi</th>
+            <tr className="border-b border-[#e1e2e3] bg-[#f7f7f8]">
+              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Nama Tugas</th>
+              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Ruang Kerja</th>
+              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">PIC</th>
+              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Acara / Divisi</th>
+              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Deadline</th>
+              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Prioritas</th>
+              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Status</th>
+              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Risiko</th>
+              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Referensi</th>
+              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Aksi</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-[#e1e2e3]">
             {tasks.map((task) => {
               const eventName =
                 task.type === "acara"
@@ -71,19 +70,19 @@ export function TasksTable({
                   : "neutral";
 
               return (
-                <tr key={task.id} className="align-middle hover:bg-neutral-105/50 dark:hover:bg-neutral-800/40">
-                  <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">{task.name}</td>
+                <tr key={task.id} className="align-middle hover:bg-[#f7f7f8] transition-colors">
+                  <td className="px-4 py-3 font-semibold text-[#242424]">{task.name}</td>
                   <td className="px-4 py-3">
                     <WorkspaceBadge
                       campusId={task.campus_id || task.univ_id}
                       orgId={task.org_id || task.organization_id}
                     />
                   </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                  <td className="px-4 py-3 text-[#6b7280]">
                     {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
                   </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{eventName}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatTaskDate(task.deadline)}</td>
+                  <td className="px-4 py-3 text-[#6b7280]">{eventName}</td>
+                  <td className="px-4 py-3 text-[#6b7280]">{formatTaskDate(task.deadline)}</td>
                   <td className="px-4 py-3">
                     <TaskPriorityBadge priority={task.priority} />
                   </td>
@@ -96,39 +95,48 @@ export function TasksTable({
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <Button
+                    <button
                       type="button"
-                      size="sm"
-                      variant="secondary"
                       onClick={() => {
                         setSelectedTask(task);
                         setRefDialogOpen(true);
                       }}
+                      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-[11px] font-semibold transition-all shadow-2xs cursor-pointer"
                     >
-                      <Sparkles className="size-3.5" />
-                      <span>Referensi</span>
-                    </Button>
+                      <Sparkles className="size-3 text-[#6349ea]" />
+                      <span>Lihat Solusi</span>
+                    </button>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Button asChild size="sm" variant="info">
-                        <Link href={`/dashboard/tasks/${task.id}?returnTo=/dashboard/tasks`} className="flex items-center gap-1.5">
-                          <Eye className="size-3.5" />
-                          <span>Detail</span>
-                        </Link>
-                      </Button>
-                      {canEdit(task) ? (
+                    <div className="flex items-center gap-1.5">
+                      <Link
+                        href={`/dashboard/tasks/${task.id}`}
+                        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-[11px] font-semibold transition-all shadow-2xs"
+                      >
+                        <Eye className="size-3 text-[#898989]" />
+                        <span>Detail</span>
+                      </Link>
+
+                      {canEdit(task) && (
                         <>
-                          <Button type="button" size="sm" variant="warning" onClick={() => onEdit(task)}>
-                            <Pencil className="size-3.5" />
+                          <button
+                            type="button"
+                            onClick={() => onEdit(task)}
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-[11px] font-semibold transition-all shadow-2xs cursor-pointer"
+                          >
+                            <Pencil className="size-3 text-[#898989]" />
                             <span>Edit</span>
-                          </Button>
-                          <Button type="button" size="sm" variant="destructive" onClick={() => onArchive(task)}>
-                            <Archive className="size-3.5" />
-                            <span>Archive</span>
-                          </Button>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onArchive(task)}
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#e94235] hover:bg-[#feebe8] text-[11px] font-semibold transition-all shadow-2xs cursor-pointer"
+                          >
+                            <Archive className="size-3 text-[#e94235]" />
+                            <span>Arsip</span>
+                          </button>
                         </>
-                      ) : null}
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -141,16 +149,16 @@ export function TasksTable({
       {selectedTask && (
         <SuggestedReferencesDialog
           open={refDialogOpen}
-          task={selectedTask}
-          eventName={
-            selectedTask.type === "acara"
-              ? eventsById.get(selectedTask.event_id || "")?.name ?? ""
-              : selectedTask.division_id || "Humas & Media Kreatif"
-          }
           onClose={() => {
             setRefDialogOpen(false);
             setSelectedTask(null);
           }}
+          task={selectedTask}
+          eventName={
+            selectedTask.type === "acara"
+              ? eventsById.get(selectedTask.event_id || "")?.name ?? "Acara"
+              : selectedTask.division_id || "Divisi"
+          }
         />
       )}
     </div>

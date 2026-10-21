@@ -20,7 +20,6 @@ import {
   Pencil,
   Settings,
   MessageSquare,
-  ShieldAlert,
   Send,
   CheckCircle2,
   AlertTriangle,
@@ -50,10 +49,10 @@ import { OrmawaWhatsAppGatewaySettings } from "@/components/settings/ormawa-what
 import type { Division, UserProfile } from "@/types";
 
 const selectClassName =
-  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-500 dark:disabled:text-slate-400";
+  "h-9 w-full rounded-lg border border-[#e1e2e3] bg-white px-3 text-xs font-medium text-[#242424] outline-none transition-colors focus:border-[#242424] focus:ring-1 focus:ring-[#242424]/10 shadow-2xs disabled:bg-[#f7f7f8] disabled:text-[#898989] cursor-pointer";
 
 const textareaClassName =
-  "min-h-20 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
+  "min-h-20 w-full rounded-lg border border-[#e1e2e3] bg-white px-3 py-2 text-xs font-normal text-[#242424] outline-none transition-colors placeholder:text-[#898989] focus:border-[#242424] focus:ring-1 focus:ring-[#242424]/10 shadow-2xs";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -63,7 +62,21 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
 
   // Navigation Tabs state
-  const [activeTab, setActiveTab] = useState<"preferences" | "design-kit" | "divisions" | "whatsapp">("preferences");
+  const [activeTab, setActiveTab] = useState<"preferences" | "design-kit" | "divisions" | "whatsapp">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (
+        tabParam === "whatsapp" ||
+        tabParam === "design-kit" ||
+        tabParam === "divisions" ||
+        tabParam === "preferences"
+      ) {
+        return tabParam;
+      }
+    }
+    return "preferences";
+  });
 
   // WhatsApp Sandbox states
   const [waIsTestMode, setWaIsTestMode] = useState(false);
@@ -128,21 +141,7 @@ export default function SettingsPage() {
     return userProfile?.role === "super_admin";
   }, [userProfile]);
 
-  // Check URL query param for default tab
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (
-        tabParam === "whatsapp" ||
-        tabParam === "design-kit" ||
-        tabParam === "divisions" ||
-        tabParam === "preferences"
-      ) {
-        setActiveTab(tabParam);
-      }
-    }
-  }, []);
+
 
   // Load WhatsApp Sandbox settings
   const loadWhatsAppSettings = useCallback(async () => {
@@ -400,25 +399,26 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <section>
-        <div className="flex items-center gap-2">
-          <Badge variant="default">Konfigurasi Workspace</Badge>
-        </div>
-        <h1 className="mt-3 text-3xl font-black text-slate-950 dark:text-slate-50">Pengaturan</h1>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Atur tampilan UX, Design Kit, dan manajemen divisi JobDex.in dalam satu tempat.
+    <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full pb-16">
+      {/* ── Header Section ──────────────────────────────────────────────────── */}
+      <header className="pb-3 border-b border-[#e1e2e3]">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#242424]">
+          Pengaturan & Konfigurasi
+        </h1>
+        <p className="mt-1 text-xs sm:text-sm text-[#898989]">
+          Kelola preferensi antarmuka, aset visual Design Kit divisi, struktur divisi, dan integrasi WhatsApp.
         </p>
-      </section>
+      </header>
 
-      {/* Tabs Selector */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-1">
+      {/* ── Cal.com Settings Navigation Tabs ─────────────────────────────────── */}
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-[#f7f7f8] border border-[#e1e2e3] w-full sm:w-fit overflow-x-auto shadow-2xs">
         <button
+          type="button"
           onClick={() => setActiveTab("preferences")}
-          className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+          className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shrink-0 ${
             activeTab === "preferences"
-              ? "border-sky-600 text-sky-600 dark:border-sky-400 dark:text-sky-400"
-              : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-350"
+              ? "bg-white text-[#242424] shadow-2xs font-bold"
+              : "text-[#898989] hover:text-[#242424]"
           }`}
         >
           Preferensi UX
@@ -426,11 +426,12 @@ export default function SettingsPage() {
 
         {canManageDivisionKit && (
           <button
+            type="button"
             onClick={() => setActiveTab("design-kit")}
-            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shrink-0 ${
               activeTab === "design-kit"
-                ? "border-sky-600 text-sky-600 dark:border-sky-400 dark:text-sky-400"
-                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-350"
+                ? "bg-white text-[#242424] shadow-2xs font-bold"
+                : "text-[#898989] hover:text-[#242424]"
             }`}
           >
             Design Kit Divisi
@@ -439,11 +440,12 @@ export default function SettingsPage() {
 
         {isSuperAdmin && (
           <button
+            type="button"
             onClick={() => setActiveTab("divisions")}
-            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shrink-0 ${
               activeTab === "divisions"
-                ? "border-sky-600 text-sky-600 dark:border-sky-400 dark:text-sky-400"
-                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-350"
+                ? "bg-white text-[#242424] shadow-2xs font-bold"
+                : "text-[#898989] hover:text-[#242424]"
             }`}
           >
             Manajemen Divisi
@@ -452,15 +454,16 @@ export default function SettingsPage() {
 
         {(isSuperAdmin || canManageDivisionKit) && (
           <button
+            type="button"
             onClick={() => setActiveTab("whatsapp")}
-            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
               activeTab === "whatsapp"
-                ? "border-sky-600 text-sky-700 dark:border-sky-400 dark:text-sky-400"
-                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-350"
+                ? "bg-white text-[#242424] shadow-2xs font-bold"
+                : "text-[#898989] hover:text-[#242424]"
             }`}
           >
-            <MessageSquare className="size-4" />
-            <span>WhatsApp & Gateway</span>
+            <MessageSquare className="size-3.5" />
+            <span>WhatsApp Gateway</span>
           </button>
         )}
       </div>
@@ -473,9 +476,9 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="text-lg font-bold flex items-center gap-2 text-neutral-900 dark:text-white">
                 {theme === "dark" ? (
-                  <Moon className="size-5 text-sky-600 dark:text-sky-400" />
+                  <Moon className="size-5 text-[#242424] dark:text-white" />
                 ) : (
-                  <Sun className="size-5 text-sky-600 dark:text-sky-400" />
+                  <Sun className="size-5 text-[#242424] dark:text-white" />
                 )}
                 Tampilan Tema
               </CardTitle>
@@ -488,10 +491,10 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setTheme("light")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border font-semibold text-sm transition-all duration-150 cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border font-semibold text-sm transition-all duration-150 cursor-pointer shadow-2xs ${
                     theme === "light"
-                      ? "bg-sky-600 text-white border-sky-600 shadow-sm"
-                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      ? "bg-[#242424] text-white border-[#242424] dark:bg-white dark:text-[#242424]"
+                      : "bg-white dark:bg-slate-900 border-[#e1e2e3] dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   }`}
                 >
                   <Sun className="size-4" />
@@ -500,10 +503,10 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setTheme("dark")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border font-semibold text-sm transition-all duration-150 cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border font-semibold text-sm transition-all duration-150 cursor-pointer shadow-2xs ${
                     theme === "dark"
-                      ? "bg-sky-600 text-white border-sky-600 shadow-sm"
-                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      ? "bg-[#242424] text-white border-[#242424] dark:bg-white dark:text-[#242424]"
+                      : "bg-white dark:bg-slate-900 border-[#e1e2e3] dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   }`}
                 >
                   <Moon className="size-4" />
@@ -518,9 +521,9 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="text-lg font-bold flex items-center gap-2 text-neutral-900 dark:text-white">
                 {isCollapsed ? (
-                  <Columns className="size-5 text-sky-600 dark:text-sky-400" />
+                  <Columns className="size-5 text-[#242424] dark:text-white" />
                 ) : (
-                  <Layout className="size-5 text-sky-600 dark:text-sky-400" />
+                  <Layout className="size-5 text-[#242424] dark:text-white" />
                 )}
                 Menu Sidebar
               </CardTitle>
@@ -533,10 +536,10 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => handleSidebarToggle(false)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border font-semibold text-sm transition-all duration-150 cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border font-semibold text-sm transition-all duration-150 cursor-pointer shadow-2xs ${
                     !isCollapsed
-                      ? "bg-sky-600 text-white border-sky-600 shadow-sm"
-                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      ? "bg-[#242424] text-white border-[#242424] dark:bg-white dark:text-[#242424]"
+                      : "bg-white dark:bg-slate-900 border-[#e1e2e3] dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   }`}
                 >
                   <Layout className="size-4" />
@@ -545,10 +548,10 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => handleSidebarToggle(true)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border font-semibold text-sm transition-all duration-150 cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border font-semibold text-sm transition-all duration-150 cursor-pointer shadow-2xs ${
                     isCollapsed
-                      ? "bg-sky-600 text-white border-sky-600 shadow-sm"
-                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      ? "bg-[#242424] text-white border-[#242424] dark:bg-white dark:text-[#242424]"
+                      : "bg-white dark:bg-slate-900 border-[#e1e2e3] dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   }`}
                 >
                   <Columns className="size-4" />

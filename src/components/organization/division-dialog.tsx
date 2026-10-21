@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { X, Layers, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,14 +32,19 @@ export function DivisionDialog({
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [prevOpen, setPrevOpen] = useState(open);
+  const [prevDivisionId, setPrevDivisionId] = useState(division?.id);
 
-  useEffect(() => {
+  // Sync state during render when dialog opens or editing division changes
+  if (open !== prevOpen || division?.id !== prevDivisionId) {
+    setPrevOpen(open);
+    setPrevDivisionId(division?.id);
     if (open) {
       setName(division?.name ?? "");
       setDescription(division?.description ?? "");
       setError("");
     }
-  }, [open, division]);
+  }
 
   if (!open) return null;
 
@@ -81,27 +86,27 @@ export function DivisionDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="relative w-full max-w-md rounded-2xl border border-[#e1e2e3] bg-white shadow-2xl p-6">
         {/* Close button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-[#898989] hover:bg-[#f7f7f8] hover:text-[#242424] transition-colors"
         >
           <X className="size-4" />
         </button>
 
         {/* Dialog Header */}
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-[#f7f7f8] border border-[#e1e2e3] text-[#242424]">
             <Layers className="size-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            <h2 className="text-lg font-bold text-[#242424]">
               {isEdit ? "Ubah Divisi Pokok" : "Tambah Divisi Pokok"}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-[#898989]">
               {ormawaName}
             </p>
           </div>
@@ -110,13 +115,13 @@ export function DivisionDialog({
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/40 p-3 text-xs font-semibold text-red-700 dark:text-red-300">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[#242424] mb-1">
               Nama Divisi Pokok <span className="text-red-500">*</span>
             </label>
             <Input
@@ -126,11 +131,12 @@ export function DivisionDialog({
               onChange={(e) => setName(e.target.value)}
               required
               autoFocus
+              className="border-[#e1e2e3] focus:border-[#242424] focus:ring-1 focus:ring-[#242424]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[#242424] mb-1">
               Deskripsi Fungsi / Cakupan Kerja
             </label>
             <textarea
@@ -138,17 +144,18 @@ export function DivisionDialog({
               placeholder="Tuliskan cakupan tugas dan tanggung jawab pokok divisi..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+              className="w-full rounded-xl border border-[#e1e2e3] bg-white p-2.5 text-xs text-[#242424] placeholder:text-[#898989] focus:outline-hidden focus:border-[#242424] focus:ring-1 focus:ring-[#242424]"
             />
           </div>
 
-          <div className="mt-6 flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="mt-6 flex items-center justify-end gap-2 pt-3 border-t border-[#e1e2e3]">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
               disabled={isSubmitting}
+              className="border-[#e1e2e3] hover:bg-[#f7f7f8] text-[#242424]"
             >
               Batal
             </Button>
@@ -156,10 +163,10 @@ export function DivisionDialog({
               type="submit"
               size="sm"
               disabled={isSubmitting}
-              className="bg-sky-600 hover:bg-sky-500 text-white"
+              className="bg-[#242424] hover:bg-[#141414] text-white shadow-xs"
             >
               <Save className="size-3.5 mr-1.5" />
-              <span>{isEdit ? "Simpan Perubahan" : "Simpan Divisi"}</span>
+              <span>{isEdit ? "Simpan Perubahan" : "Tambahkan Divisi"}</span>
             </Button>
           </div>
         </form>

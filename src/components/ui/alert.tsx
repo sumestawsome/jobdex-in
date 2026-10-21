@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 type AlertVariant = "default" | "destructive" | "warning" | "success";
 
 const variantClasses: Record<AlertVariant, string> = {
-  default: "border border-sky-200 dark:border-sky-800 bg-sky-50/40 dark:bg-sky-950/10 text-sky-800 dark:text-sky-300",
+  default: "border border-[#e1e2e3] dark:border-[#2e2e32] bg-[#f7f7f8] dark:bg-[#1a1a1d] text-[#242424] dark:text-[#ededed] shadow-2xs",
   destructive: "border border-red-200 dark:border-red-900 bg-red-50/40 dark:bg-red-950/10 text-red-800 dark:text-red-300",
   warning: "border border-amber-200 dark:border-amber-900 bg-amber-50/40 dark:bg-amber-950/10 text-amber-800 dark:text-amber-300",
   success: "border border-emerald-200 dark:border-emerald-900 bg-emerald-50/40 dark:bg-emerald-950/10 text-emerald-805 dark:text-emerald-300",

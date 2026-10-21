@@ -29,4 +29,14 @@ wowdash-next/
 Wowdash-template/
 neobrutalism-components/
 neobrutalism-reference/
-environment-variable-di-vercel.txt
+environment-variable-di-vercel.txt
+
+# AI tools & logs
+.claude/
+.codex/
+.agent/
+*.log
+.ngodingpakeai.com
+.playwright-mcp/
+/*.png
+

@@ -2,77 +2,138 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --border-radius: 8px;
+  --border-radius: 0px;
   --box-shadow-x: 0px;
   --box-shadow-y: 0px;
   --reverse-box-shadow-x: 0px;
   --reverse-box-shadow-y: 0px;
 
-  --heading-font-weight: 600;
+  --heading-font-weight: 700;
   --base-font-weight: 400;
 
-  /* Brand Colors (SaaS Style) */
-  --primary: oklch(0.68 0.16 230);        /* Sky Blue Dominan */
-  --primary-foreground: oklch(1 0 0);     /* Putih */
+  /* Brand Colors: Primary Indigo-600, Secondary/Accent Lime-600 */
+  --primary: #4f46e5;                     /* Indigo-600 */
+  --primary-hover: #4338ca;               /* Indigo-700 */
+  --primary-foreground: #ffffff;          /* White */
 
-  /* Light Mode Base */
-  --background: oklch(0.98 0.005 240);    /* Clean SaaS background */
-  --secondary-background: oklch(1 0 0);   /* Card / Surface */
-  --foreground: oklch(0.15 0.01 240);     /* Text */
-  --main-foreground: oklch(1 0 0);        /* Button text on sky blue */
+  --secondary: #65a30d;                   /* Lime-600 */
+  --secondary-hover: #4d7c0f;             /* Lime-700 */
+  --secondary-foreground: #ffffff;
 
-  --main: oklch(0.68 0.16 230);           /* Primary Sky Blue */
-  --border: oklch(0.90 0.005 240);        /* Slate-200 border */
-  --ring: oklch(0.68 0.16 230 / 0.5);     /* Focus outline */
-  --overlay: oklch(0% 0 0 / 0.6);
+  /* Bright/Clean White Theme (Cerah Keputihan) */
+  --background: #ffffff;                 /* Pure White */
+  --secondary-background: #ffffff;       /* Surface Card */
+  --foreground: #18181b;                 /* Zinc-900 */
+  --main-foreground: #ffffff;            /* White */
 
-  /* Shadow Design */
-  --shadow-subtle: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
-  --shadow-medium: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
-  --shadow-dark: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+  --main: #4f46e5;                       /* Primary Indigo */
+  --border: #e4e4e7;                     /* Solid clean 1px border (Zinc-200) */
+  --ring: #4f46e5;                       /* Indigo Focus Ring */
+  --overlay: rgba(0, 0, 0, 0.4);
+  --muted: #f4f4f5;                      /* Light Zinc-100 */
+  --muted-foreground: #71717a;           /* Zinc-500 */
 
-  --shadow: var(--shadow-subtle);
-  --shadow-nav: var(--shadow-subtle);
+  /* Semantic status colors */
+  --color-positive: #059669;             /* Emerald-600 */
+  --color-warning: #d97706;              /* Amber-600 */
+  --color-danger: #dc2626;               /* Red-600 */
+  --color-accent: #65a30d;               /* Lime-600 */
 
-  /* Legacy JobDex layout compatibility mapping */
+  /* ZERO SHADOW across all layers */
+  --shadow-subtle: none;
+  --shadow-medium: none;
+  --shadow-dark: none;
+
+  --shadow: none;
+  --shadow-nav: none;
+
+  /* Legacy & Helper tokens */
   --jd-bg: var(--background);
   --jd-fg: var(--foreground);
-  --jd-muted: oklch(0.55 0.01 240);
+  --jd-muted: var(--muted-foreground);
   --jd-card: var(--secondary-background);
-  --jd-card-2: oklch(0.96 0.005 240);
+  --jd-card-2: #f4f4f5;
   --jd-border: var(--border);
-  --jd-primary: var(--main);
-  --jd-primary-hover: oklch(0.60 0.16 230);
-  --jd-primary-fg: var(--main-foreground);
-  --jd-accent: oklch(0.70 0.08 140);
-  --jd-accent-2: oklch(0.75 0.12 230);
+  --jd-primary: var(--primary);
+  --jd-primary-hover: var(--primary-hover);
+  --jd-primary-fg: var(--primary-foreground);
+  --jd-accent: var(--secondary);
+  --jd-accent-2: #84cc16;
+
+  --jd-neo-bg: var(--background);
+  --jd-neo-surface: var(--secondary-background);
+  --jd-neo-sidebar: var(--secondary-background);
+  --jd-neo-text: var(--foreground);
+  --jd-neo-muted: var(--muted-foreground);
+  --jd-neo-border: var(--border);
+  --jd-neo-shadow: transparent;
+  --jd-neo-red: #dc2626;
+  --jd-neo-orange: #ea580c;
+  --jd-neo-yellow: #d97706;
+  --jd-neo-green: #059669;
+  --jd-neo-blue: #4f46e5;
+  --jd-neo-cyan: #0891b2;
+  --jd-neo-purple: #7c3aed;
+  --jd-neo-gray: #e4e4e7;
 }
 
 .dark {
-  /* Dark Mode Base */
-  --background: oklch(0.14 0.005 240);    /* Charcoal/Slate gelap */
-  --secondary-background: oklch(0.18 0.005 240); /* Card / Surface */
-  --foreground: oklch(0.98 0.005 240);    /* Text */
-  --main-foreground: oklch(1 0 0);
+  --border-radius: 0px;
+  --background: #09090b;
+  --secondary-background: #18181b;
+  --foreground: #fafafa;
+  --main-foreground: #ffffff;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-foreground: #ffffff;
+  --secondary: #84cc16;
+  --secondary-hover: #65a30d;
+  --secondary-foreground: #000000;
+  --main: #6366f1;
 
-  --border: oklch(0.25 0.005 240);        /* Border tipis gelap */
-  --ring: oklch(0.68 0.16 230 / 0.6);
+  --border: #27272a;
+  --ring: #6366f1;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
 
-  --shadow: var(--shadow-dark);
-  --shadow-nav: var(--shadow-dark);
+  --color-positive: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-accent: #84cc16;
 
-  /* Legacy JobDex layout compatibility mapping - dark mode */
+  --shadow-subtle: none;
+  --shadow-medium: none;
+  --shadow-dark: none;
+  --shadow: none;
+  --shadow-nav: none;
+
   --jd-bg: var(--background);
   --jd-fg: var(--foreground);
-  --jd-muted: oklch(0.65 0.005 240);
+  --jd-muted: var(--muted-foreground);
   --jd-card: var(--secondary-background);
-  --jd-card-2: oklch(0.22 0.005 240);
+  --jd-card-2: #27272a;
   --jd-border: var(--border);
-  --jd-primary: var(--main);
-  --jd-primary-hover: oklch(0.60 0.16 230);
-  --jd-primary-fg: var(--main-foreground);
-  --jd-accent: oklch(0.50 0.06 140);
-  --jd-accent-2: oklch(0.55 0.10 230);
+  --jd-primary: var(--primary);
+  --jd-primary-hover: var(--primary-hover);
+  --jd-primary-fg: var(--primary-foreground);
+  --jd-accent: var(--secondary);
+  --jd-accent-2: #a3e635;
+
+  --jd-neo-bg: var(--background);
+  --jd-neo-surface: var(--secondary-background);
+  --jd-neo-sidebar: var(--secondary-background);
+  --jd-neo-text: var(--foreground);
+  --jd-neo-muted: var(--muted-foreground);
+  --jd-neo-border: var(--border);
+  --jd-neo-shadow: transparent;
+  --jd-neo-red: #ef4444;
+  --jd-neo-orange: #f97316;
+  --jd-neo-yellow: #f59e0b;
+  --jd-neo-green: #10b981;
+  --jd-neo-blue: #6366f1;
+  --jd-neo-cyan: #06b6d4;
+  --jd-neo-purple: #8b5cf6;
+  --jd-neo-gray: #27272a;
 }
 
 @theme inline {
@@ -80,6 +141,18 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-success: var(--color-positive);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
 
   --color-main: var(--main);
   --color-secondary-background: var(--secondary-background);
@@ -93,26 +166,37 @@
   --spacing-reverseBoxShadowX: var(--reverse-box-shadow-x);
   --spacing-reverseBoxShadowY: var(--reverse-box-shadow-y);
 
-  --radius-base: var(--border-radius);
+  --radius-base: 0px;
 
-  --shadow-shadow: var(--shadow);
-  --shadow-nav: var(--shadow-nav);
+  --shadow-shadow: none;
+  --shadow-nav: none;
 
   --font-weight-base: var(--base-font-weight);
   --font-weight-heading: var(--heading-font-weight);
 }
 
+@layer base {
+  *, ::before, ::after {
+    border-radius: 0px !important;
+    box-shadow: none !important;
+  }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
-  font-weight: var(--base-font-weight);
-  overscroll-behavior-y: none;
-}
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+    font-weight: var(--base-font-weight);
+    overscroll-behavior-y: none;
+  }
 
-h1, h2, h3, h4, h5, h6 {
-  font-weight: var(--heading-font-weight);
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: var(--heading-font-weight);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 html {
@@ -123,17 +207,9 @@ html.dark {
   color-scheme: dark;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
 /* ========================================================
    JobDex.in - Global CSS Components (Prefix: jd-)
+   Zero-Rounded & Zero-Shadow Flat Sharp Design
    ======================================================== */
 
 /* 1. BUTTON SYSTEM */
@@ -142,17 +218,14 @@ a {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 8px;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   font-weight: 700;
-  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
   border: 1px solid transparent;
   text-decoration: none !important;
   white-space: nowrap;
   cursor: pointer;
-}
-
-.jd-btn:hover {
-  transform: translateY(-1px);
 }
 
 .jd-btn:disabled {
@@ -179,73 +252,43 @@ a {
 }
 
 .jd-btn-dark {
-  background-color: #020617 !important;
+  background-color: var(--primary) !important;
   color: #ffffff !important;
-  border-color: #020617 !important;
+  border-color: var(--primary) !important;
 }
 
 .jd-btn-dark:hover {
-  background-color: #1e293b !important;
-  color: #ffffff !important;
-  border-color: #1e293b !important;
-}
-
-.dark .jd-btn-dark {
-  background-color: #f8fafc !important;
-  color: #020617 !important;
-  border-color: #f8fafc !important;
-}
-
-.dark .jd-btn-dark:hover {
-  background-color: #e2e8f0 !important;
-  color: #020617 !important;
-  border-color: #e2e8f0 !important;
+  background-color: var(--primary-hover) !important;
 }
 
 .jd-btn-light {
   background-color: #ffffff !important;
-  color: #020617 !important;
-  border-color: #ffffff !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
 }
 
 .jd-btn-light:hover {
-  background-color: #e2e8f0 !important;
-  color: #020617 !important;
-  border-color: #e2e8f0 !important;
+  background-color: var(--muted) !important;
 }
 
 .jd-btn-outline {
   background-color: transparent !important;
-  color: var(--jd-fg) !important;
-  border-color: var(--jd-border) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
 }
 
 .jd-btn-outline:hover {
-  background-color: var(--jd-card-2) !important;
-  color: var(--jd-fg) !important;
-}
-
-.jd-btn-hero-outline {
-  background-color: transparent !important;
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.28) !important;
-}
-
-.jd-btn-hero-outline:hover {
-  background-color: rgba(255, 255, 255, 0.12) !important;
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.45) !important;
+  background-color: var(--muted) !important;
 }
 
 .jd-btn-ghost {
   background-color: transparent !important;
-  color: var(--jd-fg) !important;
+  color: var(--foreground) !important;
   border-color: transparent !important;
 }
 
 .jd-btn-ghost:hover {
-  background-color: var(--jd-card-2) !important;
-  color: var(--jd-fg) !important;
+  background-color: var(--muted) !important;
 }
 
 .jd-btn-danger {
@@ -256,8 +299,6 @@ a {
 
 .jd-btn-danger:hover {
   background-color: #b91c1c !important;
-  color: #ffffff !important;
-  border-color: #b91c1c !important;
 }
 
 .jd-btn-success {
@@ -268,19 +309,6 @@ a {
 
 .jd-btn-success:hover {
   background-color: #047857 !important;
-  color: #ffffff !important;
-  border-color: #047857 !important;
-}
-
-.jd-btn *,
-.jd-btn-dark *,
-.jd-btn-light *,
-.jd-btn-outline *,
-.jd-btn-hero-outline *,
-.jd-btn-ghost *,
-.jd-btn-danger *,
-.jd-btn-success * {
-  color: inherit !important;
 }
 
 /* 2. SIDEBAR SYSTEM */
@@ -291,55 +319,40 @@ a {
 }
 
 .jd-sidebar-item {
-  color: #334155 !important;
-  border-radius: 8px;
-  transition: background-color 160ms ease, color 160ms ease;
+  color: #52525b !important;
+  border-radius: 0 !important;
+  transition: background-color 140ms ease, color 140ms ease;
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
 .jd-sidebar-item:hover {
-  background-color: #f1f5f9 !important;
-  color: #020617 !important;
+  background-color: #f4f4f5 !important;
+  color: #18181b !important;
 }
 
 .dark .jd-sidebar-item {
-  color: #cbd5e1 !important;
+  color: #a1a1aa !important;
 }
 
 .dark .jd-sidebar-item:hover {
-  background-color: #1e293b !important;
+  background-color: #27272a !important;
   color: #ffffff !important;
 }
 
 .jd-sidebar-active {
-  background-color: #020617 !important;
+  background-color: var(--primary) !important;
   color: #ffffff !important;
-  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.12);
+  border-radius: 0 !important;
+  box-shadow: none !important;
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
 .jd-sidebar-active:hover {
-  background-color: #1e293b !important;
-  color: #ffffff !important;
-}
-
-.dark .jd-sidebar-active {
-  background-color: #1e293b !important;
-  color: #ffffff !important;
-}
-
-.dark .jd-sidebar-active:hover {
-  background-color: #334155 !important;
-  color: #ffffff !important;
-}
-
-.jd-sidebar-active *,
-.jd-sidebar-item * {
-  color: inherit !important;
+  background-color: var(--primary-hover) !important;
 }
 
 /* 3. VISUAL CONTAINERS & CONTROLS */
@@ -347,51 +360,37 @@ a {
   background-color: var(--jd-card) !important;
   color: var(--jd-fg) !important;
   border: 1px solid var(--jd-border) !important;
-  border-radius: 14px;
-  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.05);
-}
-
-.dark .jd-surface {
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 .jd-muted-surface {
   background-color: var(--jd-card-2) !important;
   color: var(--jd-fg) !important;
   border: 1px solid var(--jd-border) !important;
-  border-radius: 12px;
+  border-radius: 0 !important;
 }
 
 .jd-input {
   background-color: var(--jd-card) !important;
   color: var(--jd-fg) !important;
   border: 1px solid var(--jd-border) !important;
-  border-radius: 10px;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   outline: none !important;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition: border-color 140ms ease;
 }
 
 .jd-input:focus {
-  border-color: #94a3b8 !important;
-}
-
-.dark .jd-input:focus {
-  border-color: #475569 !important;
-}
-
-.jd-input::placeholder {
-  color: #94a3b8 !important;
-}
-
-.dark .jd-input::placeholder {
-  color: #64748b !important;
+  border-color: var(--primary) !important;
 }
 
 .jd-table {
   background-color: var(--jd-card) !important;
   color: var(--jd-fg) !important;
   border: 1px solid var(--jd-border) !important;
-  border-radius: 10px;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   overflow: hidden;
 }
 
@@ -404,40 +403,20 @@ a {
   border-color: var(--jd-border) !important;
 }
 
-/* 4. LANDING PAGE PREMIUM LAYOUTS */
+/* 4. LANDING PAGE FLAT SHARP HERO & SECTIONS */
 .jd-hero {
-  background:
-    radial-gradient(circle at top left, rgba(20, 184, 166, 0.18), transparent 32%),
-    radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), transparent 28%),
-    linear-gradient(135deg, #020617 0%, #061527 52%, #020617 100%) !important;
-  color: #ffffff !important;
+  background: #ffffff !important;
+  color: #18181b !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 .jd-glass {
-  background: rgba(15, 23, 42, 0.72) !important;
-  border: 1px solid rgba(148, 163, 184, 0.18) !important;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(18px);
+  background: #ffffff !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: none !important;
 }
 
-.jd-soft-glow {
-  position: relative !important;
-}
-
-.jd-soft-glow::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(52, 211, 153, 0.16), transparent);
-  opacity: 0.6;
-  pointer-events: none;
-  z-index: -1;
-}
-
-/* ========================================================
-   5. MOBILE RESPONSIVE LAYOUTS & SAFE AREAS
-   ======================================================== */
+/* 5. MOBILE BOTTOM NAVIGATION */
 .jd-bottom-nav {
   position: fixed;
   left: 0;
@@ -449,6 +428,8 @@ a {
   gap: 0.25rem;
   background: var(--jd-card);
   border-top: 1px solid var(--jd-border);
+  border-radius: 0 !important;
+  box-shadow: none !important;
   padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
 }
 
@@ -457,7 +438,7 @@ a {
   flex-direction: column;
   align-items: center;
   gap: 0.15rem;
-  border-radius: 12px;
+  border-radius: 0 !important;
   padding: 0.45rem 0.25rem;
   color: var(--jd-muted);
   font-size: 0.7rem;
@@ -472,17 +453,9 @@ a {
 }
 
 .jd-bottom-nav-active {
-  background: #020617 !important;
+  background: var(--primary) !important;
   color: #ffffff !important;
-}
-
-.dark .jd-bottom-nav-active {
-  background: #1e293b !important;
-  color: #ffffff !important;
-}
-
-.jd-bottom-nav-active * {
-  color: inherit !important;
+  border-radius: 0 !important;
 }
 
 @media (min-width: 768px) {
@@ -501,73 +474,32 @@ a {
   }
 }
 
-@media (max-width: 767px) {
-  /* Offset the sticky input from the fixed bottom navigation bar on mobile screen sizes */
-  .jd-sticky-bottom-safe {
-    bottom: calc(4.75rem + env(safe-area-inset-bottom)) !important;
-  }
-}
-
 /* ========================================================
-   Boron-Inspired Soft Neo-Brutalism UI System (Prefix: jd-neo-)
+   Neo Component Aliases - Flat Sharp Zero-Rounded Zero-Shadow
    ======================================================== */
-
-:root {
-  --jd-neo-bg: var(--background);
-  --jd-neo-surface: var(--secondary-background);
-  --jd-neo-sidebar: var(--background);
-  --jd-neo-text: var(--foreground);
-  --jd-neo-muted: #5e6470;
-  --jd-neo-border: var(--border);
-  --jd-neo-shadow: var(--border);
-  --jd-neo-red: oklch(67.28% 0.2147 24.22);
-  --jd-neo-orange: oklch(72.27% 0.1894 50.19);
-  --jd-neo-yellow: oklch(84.08% 0.1725 84.2);
-  --jd-neo-green: oklch(79.76% 0.2044 153.08);
-  --jd-neo-blue: oklch(66.9% 0.18368 248.81);
-  --jd-neo-cyan: oklch(76.89% 0.13916 219.13);
-  --jd-neo-purple: oklch(71.5% 0.197 354.23);
-  --jd-neo-gray: oklch(90% 0 0);
-}
-
-.dark {
-  --jd-neo-bg: var(--background);
-  --jd-neo-surface: var(--secondary-background);
-  --jd-neo-sidebar: oklch(21% 0.04 270.86);
-  --jd-neo-text: var(--foreground);
-  --jd-neo-muted: #9ca3af;
-  --jd-neo-border: var(--border);
-  --jd-neo-shadow: var(--border);
-  --jd-neo-red: oklch(70.49% 0.1869 22.23);
-  --jd-neo-orange: oklch(67.56% 0.1796 49.61);
-  --jd-neo-yellow: oklch(77.7% 0.15938 84.38);
-  --jd-neo-green: oklch(73.03% 0.1865 153.23);
-  --jd-neo-blue: oklch(61.9% 0.16907 248.60);
-  --jd-neo-cyan: oklch(64.37% 0.1162 218.75);
-  --jd-neo-purple: oklch(67.58% 0.2135 18.63);
-  --jd-neo-gray: oklch(33% 0 0);
-}
 
 .jd-neo-shell {
   display: flex;
   min-height: 100vh;
-  background-color: var(--jd-neo-bg);
-  color: var(--jd-neo-text);
-  font-family: 'Outfit', 'Inter', sans-serif;
-  font-weight: 400;
-  transition: background-color 200ms ease, color 200ms ease;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), sans-serif;
 }
 
 .jd-neo-sidebar {
   background-color: var(--secondary-background) !important;
   border-right: 1px solid var(--border) !important;
   color: var(--foreground) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 .jd-neo-topbar {
   background-color: var(--secondary-background) !important;
   border-bottom: 1px solid var(--border) !important;
   color: var(--foreground) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 .jd-neo-border {
@@ -575,27 +507,28 @@ a {
 }
 
 .jd-neo-shadow {
-  box-shadow: var(--shadow-subtle) !important;
+  box-shadow: none !important;
 }
 
 .jd-neo-card {
   background-color: var(--secondary-background) !important;
   color: var(--foreground) !important;
   border: 1px solid var(--border) !important;
-  border-radius: var(--border-radius) !important;
-  box-shadow: var(--shadow-subtle) !important;
-  transition: all 150ms ease !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transition: border-color 140ms ease !important;
 }
 
 .jd-neo-card:hover {
-  box-shadow: var(--shadow-medium) !important;
+  border-color: var(--primary) !important;
+  box-shadow: none !important;
 }
 
 .jd-neo-card-soft {
-  background-color: var(--secondary-background) !important;
+  background-color: var(--muted) !important;
   color: var(--foreground) !important;
   border: 1px dashed var(--border) !important;
-  border-radius: var(--border-radius) !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
 }
 
@@ -607,120 +540,49 @@ a {
   padding: 0.625rem 1.25rem;
   font-weight: 600;
   border: 1px solid var(--border) !important;
-  border-radius: var(--border-radius) !important;
+  border-radius: 0 !important;
   background-color: var(--secondary-background);
   color: var(--foreground) !important;
-  box-shadow: var(--shadow-subtle) !important;
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: none !important;
+  transition: all 140ms ease !important;
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none !important;
 }
 
 .jd-neo-button:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: var(--shadow-medium) !important;
-}
-
-.jd-neo-button:active {
-  transform: translateY(0px) !important;
-  box-shadow: var(--shadow-subtle) !important;
-}
-
-/* Button colors */
-.jd-neo-btn-blue {
-  background-color: oklch(0.60 0.16 230) !important;
-  color: #ffffff !important;
-  border-color: oklch(0.55 0.16 230) !important;
-}
-.jd-neo-btn-yellow {
-  background-color: oklch(0.85 0.15 90) !important;
-  color: #020617 !important;
-  border-color: oklch(0.75 0.15 90) !important;
-}
-.jd-neo-btn-red {
-  background-color: oklch(0.60 0.18 25) !important;
-  color: #ffffff !important;
-  border-color: oklch(0.55 0.18 25) !important;
-}
-.jd-neo-btn-green {
-  background-color: oklch(0.62 0.15 145) !important;
-  color: #ffffff !important;
-  border-color: oklch(0.55 0.15 145) !important;
-}
-.jd-neo-btn-purple {
-  background-color: oklch(0.62 0.17 310) !important;
-  color: #ffffff !important;
-  border-color: oklch(0.55 0.17 310) !important;
-}
-.jd-neo-btn-cyan {
-  background-color: oklch(0.62 0.12 200) !important;
-  color: #ffffff !important;
-  border-color: oklch(0.55 0.12 200) !important;
-}
-.jd-neo-btn-gray {
+  border-color: var(--primary) !important;
   background-color: var(--muted) !important;
-  color: var(--muted-foreground) !important;
-  border-color: var(--border) !important;
-}
-
-.dark .jd-neo-btn-blue {
-  background-color: oklch(0.60 0.16 230) !important;
-  color: #ffffff !important;
-  border-color: oklch(0.55 0.16 230) !important;
-}
-.dark .jd-neo-btn-yellow {
-  background-color: oklch(0.85 0.15 90) !important;
-  color: #020617 !important;
-  border-color: oklch(0.75 0.15 90) !important;
-}
-.dark .jd-neo-btn-red {
-  background-color: oklch(0.60 0.18 25) !important;
-  color: #ffffff !important;
-  border-color: oklch(0.55 0.18 25) !important;
-}
-.dark .jd-neo-btn-green {
-  background-color: oklch(0.62 0.15 145) !important;
-  color: #ffffff !important;
-  border-color: oklch(0.55 0.15 145) !important;
-}
-.dark .jd-neo-btn-purple {
-  background-color: oklch(0.62 0.17 310) !important;
-  color: #ffffff !important;
-  border-color: oklch(0.55 0.17 310) !important;
-}
-.dark .jd-neo-btn-cyan {
-  background-color: oklch(0.62 0.12 200) !important;
-  color: #ffffff !important;
-  border-color: oklch(0.55 0.12 200) !important;
+  box-shadow: none !important;
 }
 
 .jd-neo-button-primary {
   background-color: var(--primary) !important;
-  color: var(--primary-foreground) !important;
+  color: #ffffff !important;
   border-color: var(--primary) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
-.jd-neo-button-muted {
-  background-color: var(--muted) !important;
-  color: var(--muted-foreground) !important;
-  border-color: var(--border) !important;
+.jd-neo-button-primary:hover {
+  background-color: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
 }
 
 .jd-neo-input {
   background-color: var(--secondary-background) !important;
   color: var(--foreground) !important;
   border: 1px solid var(--border) !important;
-  border-radius: var(--border-radius) !important;
+  border-radius: 0 !important;
   padding: 0.625rem 0.875rem !important;
   outline: none !important;
   box-shadow: none !important;
-  transition: border-color 150ms ease, box-shadow 150ms ease !important;
+  transition: border-color 140ms ease !important;
 }
 
 .jd-neo-input:focus {
   border-color: var(--primary) !important;
-  box-shadow: 0 0 0 2px var(--ring) !important;
+  box-shadow: none !important;
   outline: none !important;
 }
 
@@ -729,9 +591,9 @@ a {
   border-collapse: collapse;
   background-color: var(--secondary-background);
   border: 1px solid var(--border) !important;
-  border-radius: var(--border-radius) !important;
+  border-radius: 0 !important;
   overflow: hidden;
-  box-shadow: var(--shadow-subtle);
+  box-shadow: none !important;
 }
 
 .jd-neo-table th {
@@ -747,174 +609,6 @@ a {
   padding: 0.75rem 1rem;
 }
 
-
-/* Theme Overrides for data-neo-color */
-/* Theme Overrides for data-neo-color - Clean SaaS Mode */
-html[data-neo-color], :root[data-neo-color] {
-  --background: oklch(0.98 0.005 240);
-}
-html[data-neo-color].dark, :root[data-neo-color].dark {
-  --background: oklch(0.14 0.005 240);
-}
-
-html[data-neo-color="default"], :root[data-neo-color="default"] {
-  --main: oklch(0.68 0.16 230); /* Sky Blue */
-}
-html[data-neo-color="default"].dark, :root[data-neo-color="default"].dark {
-  --main: oklch(0.68 0.16 230);
-}
-
-html[data-neo-color="red"], :root[data-neo-color="red"] {
-  --main: oklch(0.65 0.18 25);
-}
-html[data-neo-color="red"].dark, :root[data-neo-color="red"].dark {
-  --main: oklch(0.65 0.18 25);
-}
-
-html[data-neo-color="orange"], :root[data-neo-color="orange"] {
-  --main: oklch(0.65 0.17 55);
-}
-html[data-neo-color="orange"].dark, :root[data-neo-color="orange"].dark {
-  --main: oklch(0.65 0.17 55);
-}
-
-html[data-neo-color="amber"], :root[data-neo-color="amber"] {
-  --main: oklch(0.72 0.14 85);
-}
-html[data-neo-color="amber"].dark, :root[data-neo-color="amber"].dark {
-  --main: oklch(0.72 0.14 85);
-}
-
-html[data-neo-color="yellow"], :root[data-neo-color="yellow"] {
-  --main: oklch(0.75 0.15 95);
-}
-html[data-neo-color="yellow"].dark, :root[data-neo-color="yellow"].dark {
-  --main: oklch(0.75 0.15 95);
-}
-
-html[data-neo-color="lime"], :root[data-neo-color="lime"] {
-  --main: oklch(0.68 0.18 125);
-}
-html[data-neo-color="lime"].dark, :root[data-neo-color="lime"].dark {
-  --main: oklch(0.68 0.18 125);
-}
-
-html[data-neo-color="green"], :root[data-neo-color="green"] {
-  --main: oklch(0.62 0.15 145);
-}
-html[data-neo-color="green"].dark, :root[data-neo-color="green"].dark {
-  --main: oklch(0.62 0.15 145);
-}
-
-html[data-neo-color="emerald"], :root[data-neo-color="emerald"] {
-  --main: oklch(0.62 0.15 145);
-}
-html[data-neo-color="emerald"].dark, :root[data-neo-color="emerald"].dark {
-  --main: oklch(0.62 0.15 145);
-}
-
-html[data-neo-color="teal"], :root[data-neo-color="teal"] {
-  --main: oklch(0.60 0.12 180);
-}
-html[data-neo-color="teal"].dark, :root[data-neo-color="teal"].dark {
-  --main: oklch(0.60 0.12 180);
-}
-
-html[data-neo-color="cyan"], :root[data-neo-color="cyan"] {
-  --main: oklch(0.62 0.12 200);
-}
-html[data-neo-color="cyan"].dark, :root[data-neo-color="cyan"].dark {
-  --main: oklch(0.62 0.12 200);
-}
-
-html[data-neo-color="sky"], :root[data-neo-color="sky"] {
-  --main: oklch(0.68 0.16 230);
-}
-html[data-neo-color="sky"].dark, :root[data-neo-color="sky"].dark {
-  --main: oklch(0.68 0.16 230);
-}
-
-html[data-neo-color="blue"], :root[data-neo-color="blue"] {
-  --main: oklch(0.68 0.16 230);
-}
-html[data-neo-color="blue"].dark, :root[data-neo-color="blue"].dark {
-  --main: oklch(0.68 0.16 230);
-}
-
-html[data-neo-color="indigo"], :root[data-neo-color="indigo"] {
-  --main: oklch(0.62 0.15 275);
-}
-html[data-neo-color="indigo"].dark, :root[data-neo-color="indigo"].dark {
-  --main: oklch(0.62 0.15 275);
-}
-
-html[data-neo-color="violet"], :root[data-neo-color="violet"] {
-  --main: oklch(0.62 0.17 300);
-}
-html[data-neo-color="violet"].dark, :root[data-neo-color="violet"].dark {
-  --main: oklch(0.62 0.17 300);
-}
-
-html[data-neo-color="purple"], :root[data-neo-color="purple"] {
-  --main: oklch(0.62 0.17 310);
-}
-html[data-neo-color="purple"].dark, :root[data-neo-color="purple"].dark {
-  --main: oklch(0.62 0.17 310);
-}
-
-html[data-neo-color="fuchsia"], :root[data-neo-color="fuchsia"] {
-  --main: oklch(0.65 0.19 320);
-}
-html[data-neo-color="fuchsia"].dark, :root[data-neo-color="fuchsia"].dark {
-  --main: oklch(0.65 0.19 320);
-}
-
-html[data-neo-color="pink"], :root[data-neo-color="pink"] {
-  --main: oklch(0.65 0.17 350);
-}
-html[data-neo-color="pink"].dark, :root[data-neo-color="pink"].dark {
-  --main: oklch(0.65 0.17 350);
-}
-
-html[data-neo-color="rose"], :root[data-neo-color="rose"] {
-  --main: oklch(0.65 0.18 15);
-}
-html[data-neo-color="rose"].dark, :root[data-neo-color="rose"].dark {
-  --main: oklch(0.65 0.18 15);
-}
-
-html[data-neo-color="purple"].dark, :root[data-neo-color="purple"].dark {
-  --background: oklch(29.68% 0.0791 315.62);
-  --main: oklch(67.34% 0.2314 309.13);
-}
-
-html[data-neo-color="fuchsia"], :root[data-neo-color="fuchsia"] {
-  --background: oklch(94.79% 0.0407 320.6);
-  --main: oklch(73.43% 0.2332 321.41);
-}
-html[data-neo-color="fuchsia"].dark, :root[data-neo-color="fuchsia"].dark {
-  --background: oklch(26.29% 0.0683 327.3);
-  --main: oklch(60.62% 0.2915 319.64);
-}
-
-html[data-neo-color="pink"], :root[data-neo-color="pink"] {
-  --background: oklch(95.16% 0.0242 343.23);
-  --main: oklch(71.5% 0.197 354.23);
-}
-html[data-neo-color="pink"].dark, :root[data-neo-color="pink"].dark {
-  --background: oklch(26.3% 0.054 358.23);
-  --main: oklch(65.98% 0.2407 358.64);
-}
-
-html[data-neo-color="rose"], :root[data-neo-color="rose"] {
-  --background: oklch(93.37% 0.0339 12.05);
-  --main: oklch(70.79% 0.1862 16.25);
-}
-html[data-neo-color="rose"].dark, :root[data-neo-color="rose"].dark {
-  --background: oklch(25.15% 0.0495 7.54);
-  --main: oklch(67.58% 0.2135 18.63);
-}
-
 .jd-neo-badge {
   display: inline-flex;
   align-items: center;
@@ -923,113 +617,56 @@ html[data-neo-color="rose"].dark, :root[data-neo-color="rose"].dark {
   font-size: 0.75rem;
   font-weight: 600;
   border: 1px solid var(--border) !important;
-  border-radius: 6px !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
 }
 
-/* Badge colors - Soft SaaS style */
+/* Badge Color Classes */
 .jd-neo-badge-green {
-  background-color: oklch(0.95 0.04 140) !important;
-  color: oklch(0.32 0.09 140) !important;
-  border-color: oklch(0.88 0.06 140) !important;
-}
-.dark .jd-neo-badge-green {
-  background-color: oklch(0.20 0.05 140) !important;
-  color: oklch(0.85 0.04 140) !important;
-  border-color: oklch(0.28 0.04 140) !important;
+  background-color: #ecfdf5 !important;
+  color: #065f46 !important;
+  border-color: #a7f3d0 !important;
 }
 
 .jd-neo-badge-red {
-  background-color: oklch(0.96 0.03 25) !important;
-  color: oklch(0.35 0.12 25) !important;
-  border-color: oklch(0.90 0.05 25) !important;
-}
-.dark .jd-neo-badge-red {
-  background-color: oklch(0.20 0.05 25) !important;
-  color: oklch(0.90 0.04 25) !important;
-  border-color: oklch(0.28 0.04 25) !important;
+  background-color: #fef2f2 !important;
+  color: #991b1b !important;
+  border-color: #fecaca !important;
 }
 
 .jd-neo-badge-blue {
-  background-color: oklch(0.94 0.04 230) !important;
-  color: oklch(0.30 0.10 230) !important;
-  border-color: oklch(0.88 0.05 230) !important;
-}
-.dark .jd-neo-badge-blue {
-  background-color: oklch(0.20 0.04 230) !important;
-  color: oklch(0.85 0.04 230) !important;
-  border-color: oklch(0.28 0.04 230) !important;
+  background-color: #eef2ff !important;
+  color: #3730a3 !important;
+  border-color: #c7d2fe !important;
 }
 
 .jd-neo-badge-yellow {
-  background-color: oklch(0.97 0.04 90) !important;
-  color: oklch(0.32 0.08 90) !important;
-  border-color: oklch(0.92 0.06 90) !important;
-}
-.dark .jd-neo-badge-yellow {
-  background-color: oklch(0.22 0.04 90) !important;
-  color: oklch(0.85 0.04 90) !important;
-  border-color: oklch(0.30 0.04 90) !important;
+  background-color: #fffbeb !important;
+  color: #92400e !important;
+  border-color: #fde68a !important;
 }
 
 .jd-neo-badge-purple {
-  background-color: oklch(0.95 0.03 290) !important;
-  color: oklch(0.30 0.08 290) !important;
-  border-color: oklch(0.89 0.05 290) !important;
-}
-.dark .jd-neo-badge-purple {
-  background-color: oklch(0.20 0.04 290) !important;
-  color: oklch(0.85 0.04 290) !important;
-  border-color: oklch(0.28 0.04 290) !important;
+  background-color: #f5f3ff !important;
+  color: #5b21b6 !important;
+  border-color: #ddd6fe !important;
 }
 
-.jd-neo-badge-orange {
-  background-color: oklch(0.95 0.04 55) !important;
-  color: oklch(0.30 0.09 55) !important;
-  border-color: oklch(0.89 0.05 55) !important;
-}
-.dark .jd-neo-badge-orange {
-  background-color: oklch(0.20 0.04 55) !important;
-  color: oklch(0.85 0.04 55) !important;
-  border-color: oklch(0.28 0.04 55) !important;
-}
-
-.jd-neo-badge-cyan {
-  background-color: oklch(0.94 0.04 200) !important;
-  color: oklch(0.30 0.08 200) !important;
-  border-color: oklch(0.88 0.05 200) !important;
-}
-.dark .jd-neo-badge-cyan {
-  background-color: oklch(0.18 0.04 200) !important;
-  color: oklch(0.85 0.04 200) !important;
-  border-color: oklch(0.25 0.04 200) !important;
+.jd-neo-badge-lime {
+  background-color: #f7fee7 !important;
+  color: #3f6212 !important;
+  border-color: #d9f99d !important;
 }
 
 .jd-neo-badge-gray {
-  background-color: var(--muted) !important;
-  color: var(--muted-foreground) !important;
-  border-color: var(--border) !important;
-}
-.dark .jd-neo-badge-gray {
-  background-color: var(--muted) !important;
-  color: var(--muted-foreground) !important;
-  border-color: var(--border) !important;
+  background-color: #f4f4f5 !important;
+  color: #3f3f46 !important;
+  border-color: #e4e4e7 !important;
 }
 
-/* 6. SAFE TEXT WRAPPING FOR RESPONSIBILITY */
 .jd-safe-text {
   overflow-wrap: anywhere;
   word-break: break-word;
   min-width: 0;
   max-width: 100%;
 }
-
-/* Typewriter Cursor Blink */
-@keyframes typewriter-blink {
-  50% { opacity: 0; }
-}
-.animate-typewriter-blink {
-  animation: typewriter-blink 1s step-end infinite;
-}
-
-

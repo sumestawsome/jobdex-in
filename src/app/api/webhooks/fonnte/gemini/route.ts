@@ -154,20 +154,40 @@ export async function POST(request: NextRequest) {
     console.error("Deduplication error:", error);
   }
 
-  // Forward to shared command execution engine
-  const response = await executeWhatsAppWebhook(incoming, payload);
-
-  try {
-    await docRef.update({
-      status: response.ok ? "processed" : "failed",
-      processed_at: FieldValue.serverTimestamp(),
-      reply_provider: incoming.provider,
-      reply_target: incoming.groupId || incoming.sender,
-      error: response.ok ? null : `Status ${response.status}`,
+  // Forward to shared command execution engine asynchronously in background
+  // Respon HTTP 200 OK segera dikembalikan ke server Fonnte agar koneksi tidak timeout
+  executeWhatsAppWebhook(incoming, payload)
+    .then(async (response) => {
+      try {
+        await docRef.update({
+          status: response.ok ? "processed" : "failed",
+          processed_at: FieldValue.serverTimestamp(),
+          reply_provider: incoming.provider,
+          reply_target: incoming.groupId || incoming.sender,
+          error: response.ok ? null : `Status ${response.status}`,
+        });
+      } catch (updateErr) {
+        console.error("[fonnte webhook] Failed to update dedupe log status:", updateErr);
+      }
+    })
+    .catch(async (err: unknown) => {
+      console.error("[fonnte webhook] Error executing command in background:", err);
+      try {
+        await docRef.update({
+          status: "failed",
+          processed_at: FieldValue.serverTimestamp(),
+          reply_provider: incoming.provider,
+          reply_target: incoming.groupId || incoming.sender,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      } catch {
+        // ignore update error
+      }
     });
-  } catch (updateErr) {
-    console.error("Failed to update dedupe log status:", updateErr);
-  }
 
-  return response;
+  return NextResponse.json({
+    ok: true,
+    status: "processing",
+    message: "Webhook Fonnte berhasil diterima dan sedang diproses.",
+  });
 }

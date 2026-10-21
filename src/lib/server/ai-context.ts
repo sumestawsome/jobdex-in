@@ -30,8 +30,9 @@ function formatDate(value: unknown) {
 }
 
 function formatTaskLine(task: Task, usersById: UserNameMap, eventsById: EventNameMap) {
+  const taskTitle = task.name || (task as { title?: string }).title || "Tugas Tanpa Judul";
   return [
-    `- ${task.name}`,
+    `- ${taskTitle}`,
     `PIC: ${usersById.get(task.pic_id) ?? "User tidak ditemukan"}`,
     `Koordinator: ${usersById.get(task.coordinator_id) ?? "User tidak ditemukan"}`,
     `Status: ${TASK_STATUS_LABELS[task.status] ?? task.status}`,

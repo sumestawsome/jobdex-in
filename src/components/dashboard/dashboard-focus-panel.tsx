@@ -86,24 +86,21 @@ export function DashboardFocusPanel({ items }: Props) {
           <Link
             key={item.id}
             href={`/dashboard/tasks/${item.taskId}`}
-            className={`
-              flex items-center gap-3 px-3 py-2.5 rounded-lg border
-              transition-all duration-150 group
-              ${cfg.bg} ${cfg.border}
-              hover:shadow-sm hover:-translate-y-px
-            `}
+            className="flex items-center gap-3 px-3.5 py-3 rounded-lg border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/90 hover:bg-slate-50/80 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-150 group shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
           >
-            <Icon className={`size-4 shrink-0 ${cfg.text}`} />
+            <div className={`flex items-center justify-center rounded-md p-1.5 ${cfg.bg}`}>
+              <Icon className={`size-3.5 shrink-0 ${cfg.text}`} />
+            </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">
+              <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate group-hover:text-slate-700 dark:group-hover:text-slate-200">
                 {item.taskName}
               </p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                 {item.picName} · {item.eventOrDivision}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-none">
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cfg.badge}`}>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${cfg.badge}`}>
                 {deadlineLabel(item)}
               </span>
               <ArrowRight className="size-3 text-slate-400 group-hover:translate-x-0.5 transition-transform" />

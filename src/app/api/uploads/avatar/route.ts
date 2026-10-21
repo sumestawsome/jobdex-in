@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getServerAuthContext } from "@/lib/server/auth";
 import { getAdminDb } from "@/lib/server/firebase-admin";
-import { uploadImageBuffer } from "@/lib/server/cloudinary";
+import { uploadImageBuffer, validateCloudinaryConfig } from "@/lib/server/cloudinary";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,17 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function POST(request: NextRequest) {
-  // 1. Validasi Autentikasi
+  // 1. Validasi Kredensial Cloudinary di awal (mencegah silent crash)
+  const cldConfig = validateCloudinaryConfig();
+  if (!cldConfig.valid) {
+    console.error("[api/uploads/avatar] Kredensial Cloudinary belum lengkap:", cldConfig.error);
+    return NextResponse.json(
+      { error: cldConfig.error || "Layanan penyimpanan Cloudinary belum dikonfigurasi di server." },
+      { status: 500 }
+    );
+  }
+
+  // 2. Validasi Autentikasi
   let profile;
   try {
     const authContext = await getServerAuthContext(request);
@@ -22,15 +32,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 2. Validasi Content-Type multipart
-  const contentType = request.headers.get("content-type") || "";
-  if (!contentType.toLowerCase().includes("multipart/form-data")) {
-    return NextResponse.json(
-      { error: "Content-Type harus multipart/form-data." },
-      { status: 400 }
-    );
-  }
-
   // 3. Parsing Form-Data
   let formData: FormData;
   try {
@@ -38,45 +39,46 @@ export async function POST(request: NextRequest) {
   } catch (formError) {
     console.warn("[api/uploads/avatar] Gagal parse form-data:", formError);
     return NextResponse.json(
-      { error: "Gagal memproses multipart form data." },
+      { error: "Gagal memproses form-data. Pastikan request dikirim sebagai multipart/form-data yang valid." },
       { status: 400 }
     );
   }
 
-  const file = formData.get("file");
-  if (!file || typeof file === "string") {
+  const fileEntry = formData.get("file");
+  if (!fileEntry || typeof fileEntry === "string") {
     return NextResponse.json(
-      { error: "File avatar tidak ditemukan dalam form data." },
+      { error: "File avatar tidak ditemukan dalam form data (field 'file' wajib diisi)." },
       { status: 400 }
     );
   }
 
-  const blob = file as File;
+  const file = fileEntry as File;
 
   // 4. Validasi Format & Ukuran Berkas
-  if (!ALLOWED_TYPES.includes(blob.type)) {
+  if (!ALLOWED_TYPES.includes(file.type)) {
     return NextResponse.json(
-      { error: "Format file tidak didukung. Gunakan JPEG, PNG, atau WebP." },
+      { error: "Format file tidak didukung. Gunakan format JPEG, PNG, atau WebP." },
       { status: 400 }
     );
   }
 
-  if (blob.size > MAX_BYTES) {
+  if (file.size > MAX_BYTES) {
     return NextResponse.json(
       { error: "Ukuran file terlalu besar. Maksimal 5 MB." },
       { status: 400 }
     );
   }
 
-  // 5. Upload ke Cloudinary
+  // 5. Ubah File menjadi Buffer dan Upload ke Cloudinary
   try {
-    const arrayBuffer = await blob.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
     const uploadResult = await uploadImageBuffer({
       buffer,
       folder: "jobdex-avatars",
       fileName: `avatar_${profile.id}_${Date.now()}`,
+      mimeType: file.type,
     });
 
     const avatarUrl: string = uploadResult.secure_url;

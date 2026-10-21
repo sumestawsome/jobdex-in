@@ -1,5 +1,3 @@
-import { Button } from "@/components/ui/button";
-
 export type TaskViewMode = "table" | "card";
 
 type TaskViewToggleProps = {
@@ -9,23 +7,29 @@ type TaskViewToggleProps = {
 
 export function TaskViewToggle({ value, onChange }: TaskViewToggleProps) {
   return (
-    <div className="flex gap-2">
-      <Button
+    <div className="inline-flex items-center p-0.5 rounded-lg bg-[#f7f7f8] border border-[#e1e2e3]">
+      <button
         type="button"
-        size="sm"
-        variant={value === "table" ? "primary" : "secondary"}
         onClick={() => onChange("table")}
+        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+          value === "table"
+            ? "bg-white text-[#242424] shadow-2xs font-bold"
+            : "text-[#898989] hover:text-[#242424]"
+        }`}
       >
-        Table
-      </Button>
-      <Button
+        Tabel
+      </button>
+      <button
         type="button"
-        size="sm"
-        variant={value === "card" ? "primary" : "secondary"}
         onClick={() => onChange("card")}
+        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+          value === "card"
+            ? "bg-white text-[#242424] shadow-2xs font-bold"
+            : "text-[#898989] hover:text-[#242424]"
+        }`}
       >
-        Card
-      </Button>
+        Kartu
+      </button>
     </div>
   );
 }

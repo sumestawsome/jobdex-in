@@ -562,11 +562,14 @@ export async function executeWhatsAppWebhook(
   });
 
   const message = incoming.message || "";
-  if (!message.trim().toLowerCase().startsWith("!jobdex")) {
+  const isJobdexPrefixed = message.trim().toLowerCase().startsWith("!jobdex");
+
+  // Di grup WhatsApp, abaikan pesan yang bukan untuk bot (tidak berawalan !jobdex) agar tidak spam obrolan panitia
+  if (incoming.isGroup && !isJobdexPrefixed) {
     return NextResponse.json({
       ok: true,
       ignored: true,
-      reason: "non_jobdex_message",
+      reason: "non_jobdex_group_message",
     });
   }
 
@@ -623,7 +626,7 @@ export async function executeWhatsAppWebhook(
         );
         await createWhatsAppLog({
           message,
-          status: "skipped" as any,
+          status: "skipped",
           errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
           recipient: target,
           isGroup,
@@ -658,7 +661,7 @@ export async function executeWhatsAppWebhook(
 
   const createWhatsAppLog = async (args: {
     message: string;
-    status: "sent" | "failed";
+    status: "sent" | "failed" | "skipped";
     response?: string;
     errorMessage?: string;
     recipient?: string;
@@ -739,7 +742,7 @@ export async function executeWhatsAppWebhook(
         );
         await createWhatsAppLog({
           message: replyMessage,
-          status: "skipped" as any,
+          status: "skipped",
           errorMessage: sendResult.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
           recipient,
           isGroup,
@@ -784,20 +787,17 @@ export async function executeWhatsAppWebhook(
   const cleanQuery = message.replace(/^!jobdex/i, "").trim().toLowerCase();
 
   const helpMenuReply = [
-    "[*JobDex.in Bot*]",
+    "✨ *Halo rekan-rekan Forkom KIP!*",
+    "JobDex siap bantu pantau tugas & koordinasi kepanitiaan.",
     "",
-    "Halo! Saya siap bantu cek informasi JobDex.in.",
+    "Perintah yang sering dipakai:",
+    "• `!jobdex tugas saya` → Cek job desk yang kamu pegang",
+    "• `!jobdex jobdesk` → Rekap tugas acara / divisi",
+    "• `!jobdex progress` → Ringkasan progres kerjaan",
+    "• `!jobdex bantuan` → Daftar perintah lengkap panitia",
     "",
-    "Contoh perintah:",
-    "• !jobdex progress",
-    "• !jobdex jobdesk",
-    "• !jobdex tugas saya",
-    "• !jobdex acara",
-    "• !jobdex anggota",
-    "• !jobdex referensi nametag",
-    "• !jobdex bantuan",
-    "",
-    "Untuk grup acara, saya akan memakai konteks acara ini jika grup sudah terhubung ke event."
+    "Mau tanya bebas seputar kepanitiaan atau draf tugas? Tulis aja langsung yaa, AI siap bantu! 🙌",
+    "👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
   ].join("\n");
 
   if (cleanQuery === "" || cleanQuery === "help" || cleanQuery === "menu" || cleanQuery === "bantuan") {
@@ -1310,7 +1310,7 @@ export async function executeWhatsAppWebhook(
     const isRefSearch = isReferenceSearchQuestion(question);
 
     const updateDebugIntent = async (
-      routedTo: "task_command" | "task_help" | "reference_search" | "gemini_fallback",
+      routedTo: "task_command" | "task_help" | "reference_search" | "gemini_fallback" | "deepseek_fallback",
       parsedTaskIntent: string | null,
       refQuery: string | null = null
     ) => {
@@ -1393,12 +1393,13 @@ export async function executeWhatsAppWebhook(
 
     if (requiresAuth && !isSenderMatched) {
       const replyMessage = [
-        WA_LABEL.auth,
+        "👋 *Halo rekan!*",
         "",
         `Nomor WhatsApp kamu terdeteksi: ${resolvedSenderNumber || incoming.sender}`,
         "",
-        "Namun nomor ini belum terhubung dengan akun JobdexIn.",
-        "Silakan hubungi admin untuk menambahkan nomor WhatsApp ke profil akun."
+        "Nomor ini belum terdaftar di akun panitia JobDex.in.",
+        "Silakan hubungi koordinator atau admin untuk menambahkan nomor WhatsApp ke profil akun kamu yaa! 🙌",
+        "👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
       ].join("\n");
 
       await updateDebugIntent("task_help", intent || "unauthorized");
@@ -2763,69 +2764,176 @@ export async function executeWhatsAppWebhook(
       return NextResponse.json({ ok: true });
     }
 
-    // --- Fallback: Standard Gemini AI Assistant with RAG Context ---
+    // --- Fallback: DeepSeek AI Assistant with Live Project Context & Daily Rate Limiting ---
     const rawQuestion = sanitizePinFromMessage(
       question || incoming.message.replace(/^!jobdex/i, "").trim() || incoming.message
     );
     console.log("[WhatsApp AI Assistant] Processing natural question with live context:", rawQuestion);
 
+    // 1. Identifikasi nomor pengirim (normalisasi format: e.g. 6285119459703)
+    const effectiveSenderPhone = (
+      resolvedSenderNumber ||
+      (incoming.sender ? incoming.sender.replace(/[^\d]/g, "").replace(/^0/, "62") : "")
+    ).replace(/[^\d]/g, "").replace(/^0/, "62");
+
+    // 2. Pengecekan Kuota (Super Admin: 6285119459703 atau role super_admin bypass kuota)
+    const isSuperAdminPhone =
+      effectiveSenderPhone === "6285119459703" ||
+      effectiveSenderPhone === "085119459703" ||
+      effectiveSenderPhone.endsWith("85119459703");
+    const isSuperAdmin =
+      isSuperAdminPhone ||
+      senderUserProfile?.role === "super_admin";
+
+    const tz = process.env.APP_TIMEZONE || "Asia/Jakarta";
+    let currentDate = new Date().toISOString().slice(0, 10);
+    try {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date());
+      const v = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+      currentDate = `${v.year}-${v.month}-${v.day}`;
+    } catch {
+      // fallback
+    }
+
+    if (!isSuperAdmin && effectiveSenderPhone) {
+      const usageDocRef = db
+        .collection("ai_daily_usage")
+        .doc(`${effectiveSenderPhone}_${currentDate}`);
+      const usageDoc = await usageDocRef.get();
+      const currentUsage = usageDoc.exists ? Number(usageDoc.data()?.count || 0) : 0;
+
+      if (currentUsage >= 5) {
+        const quotaExceededMessage = [
+          "Waduh, jatah 5 tanya-jawab AI kamu buat hari ini udah abis nih! 😅",
+          "",
+          "Istirahat dulu yaa, kita lanjut ngobrol lagi besok. Tapi kalau mau cek tugas atau update kerjaan lewat perintah biasa (`!jobdex tugas saya`), tetep bisa dipakai kapan aja kok! ✌️",
+        ].join("\n");
+
+        const sendResult = await sendWhatsAppMessage(quotaExceededMessage);
+        await createWhatsAppLog({
+          message: quotaExceededMessage,
+          status: "sent",
+          response: sendResult.responseText,
+        });
+
+        console.log("[whatsapp command] handled", {
+          commandType: "ai_rate_limited",
+          phone: effectiveSenderPhone,
+          handled: true,
+          stopFurtherProcessing: true,
+        });
+        return NextResponse.json({ ok: true, rateLimited: true });
+      }
+
+      // Tambahkan counter pemakaian di Firestore (+1)
+      await usageDocRef.set(
+        {
+          phone: effectiveSenderPhone,
+          date: currentDate,
+          count: FieldValue.increment(1),
+          last_used: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    // 3. Ambil konteks acara aktif dan tugas saat ini
     const { contextSummary } = await buildAIContext({
       profile: getBotProfile(),
     });
 
-    const prompt = [
-      "CONTEXT JOBDEXIN:",
+    const deepseekSystemPrompt =
+      "Kamu adalah asisten bot WhatsApp internal untuk ormawa Forkom KIP Undiksha. " +
+      "Gaya bicaramu ramah, santai, solutif, khas mahasiswa aktif, tidak kaku, dan langsung ke inti. " +
+      "Jika anggota ingin membuat tugas tapi infonya kurang (misal belum ada deadline atau PIC), tanyakan kekurangannya dengan santai.";
+
+    const deepseekUserPrompt = [
+      "RINGKASAN KONTEKS ACARA & TUGAS AKTIF SAAT INI (JOBDEX.IN):",
       contextSummary,
       "",
-      "PERTANYAAN DARI WHATSAPP:",
+      "PESAN/PERTANYAAN ANGGOTA:",
       rawQuestion,
-      "",
-      "Instruksi jawaban: jawab ringkas, siap dibaca di WhatsApp group, dan jangan memakai data di luar context.",
     ].join("\n");
 
     let answer = "";
-    let modelUsed = "gemini-1.5-flash";
+    let modelUsed = "deepseek-chat";
 
-    try {
-      const aiResult = await generateText({
-        systemPrompt: AI_SYSTEM_PROMPT,
-        prompt,
-        feature: "whatsapp_assistant",
-        modelTier: "fast",
-      });
-      answer = aiResult.text;
-      modelUsed = aiResult.model;
-    } catch (aiErr) {
-      console.error("[WhatsApp AI Assistant] Error generating response:", aiErr);
-      const errMsg = aiErr instanceof Error ? aiErr.message : String(aiErr);
-      answer = `Maaf, terjadi kendala saat memproses jawaban AI (${errMsg}). Silakan coba beberapa saat lagi.`;
+    // 4. Panggil DeepSeek API (endpoint: https://api.deepseek.com/chat/completions)
+    const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim();
+    const deepseekBaseUrl = (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
+
+    if (deepseekApiKey) {
+      try {
+        console.info(`[WhatsApp DeepSeek] Calling DeepSeek API at ${deepseekBaseUrl}/chat/completions...`);
+        const dsRes = await fetch(`${deepseekBaseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${deepseekApiKey}`,
+          },
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [
+              { role: "system", content: deepseekSystemPrompt },
+              { role: "user", content: deepseekUserPrompt },
+            ],
+            max_tokens: 800,
+            temperature: 0.6,
+          }),
+        });
+
+        if (dsRes.ok) {
+          const dsData = await dsRes.json();
+          answer = dsData.choices?.[0]?.message?.content?.trim() || "";
+        } else {
+          const errText = await dsRes.text();
+          console.warn(`[WhatsApp DeepSeek] API error status ${dsRes.status}:`, errText);
+        }
+      } catch (dsErr) {
+        console.error("[WhatsApp DeepSeek] API fetch error:", dsErr);
+      }
+    }
+
+    // Fallback gracefully jika DeepSeek gagal atau kunci belum terisi
+    if (!answer) {
+      try {
+        console.info("[WhatsApp DeepSeek Fallback] Falling back to generateText...");
+        const aiResult = await generateText({
+          systemPrompt: deepseekSystemPrompt,
+          prompt: deepseekUserPrompt,
+          feature: "whatsapp_deepseek_fallback",
+          modelTier: "fast",
+        });
+        answer = aiResult.text;
+        modelUsed = aiResult.model;
+      } catch (aiErr) {
+        console.error("[WhatsApp AI Assistant] Error generating fallback response:", aiErr);
+        answer = "Halo! Maaf yaa, asisten AI lagi ada kendala jaringan nih. Coba tanya lagi beberapa saat lagi atau cek langsung tugasmu lewat perintah `!jobdex tugas saya` yaa! 🙌";
+      }
     }
 
     const aiLogRef = getAdminDb().collection("ai_logs").doc();
-
     await aiLogRef.set({
       id: aiLogRef.id,
-      organization_id: "main_org",
+      organization_id: detectedOrgId || "main_org",
       asked_by: "whatsapp_bot",
+      sender_phone: effectiveSenderPhone || "unknown",
       question: rawQuestion,
       context_summary: contextSummary.slice(0, 12000),
       answer,
       model_used: modelUsed,
       source: "whatsapp",
       whatsapp_sender: senderLabel,
-      whatsapp_group_id: incoming.groupId || process.env.WABLAS_GROUP_ID || "",
+      whatsapp_group_id: incoming.groupId || "",
       created_at: FieldValue.serverTimestamp(),
     });
 
-    const replyMessage = [
-      WA_LABEL.ai,
-      "",
-      "Pertanyaan:",
-      rawQuestion,
-      "",
-      "Jawaban:",
-      answer,
-    ].join("\n");
+    const replyMessage = answer;
     const sendResult = await sendWhatsAppMessage(replyMessage);
     await createWhatsAppLog({
       message: replyMessage,
@@ -2833,9 +2941,10 @@ export async function executeWhatsAppWebhook(
       response: sendResult.responseText,
     });
 
-    await updateDebugIntent("gemini_fallback", null);
+    await updateDebugIntent("deepseek_fallback", null);
     console.log("[whatsapp command] handled", {
-      commandType: "ai_fallback",
+      commandType: "deepseek_ai_fallback",
+      model: modelUsed,
       handled: true,
       stopFurtherProcessing: true,
     });

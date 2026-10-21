@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskPriorityBadge } from "@/components/tasks/task-priority-badge";
 import { TaskStatusBadge } from "@/components/tasks/task-status-badge";
 import { formatTaskDate } from "@/lib/firebase/tasks";
@@ -51,89 +49,103 @@ export function TaskCard({
       : "neutral";
 
   return (
-    <Card className="flex flex-col justify-between m-1">
+    <div className="flex flex-col justify-between rounded-xl border border-[#e1e2e3] bg-white p-5 shadow-2xs transition-all hover:border-[#b0b2b5] gap-4">
       <div>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <TaskStatusBadge status={task.status} />
-            <TaskPriorityBadge priority={task.priority} />
-            <WorkspaceBadge
-              campusId={task.campus_id || task.univ_id}
-              orgId={task.org_id || task.organization_id}
-            />
+        {/* Badges Bar */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <TaskStatusBadge status={task.status} />
+          <TaskPriorityBadge priority={task.priority} />
+          <WorkspaceBadge
+            campusId={task.campus_id || task.univ_id}
+            orgId={task.org_id || task.organization_id}
+          />
+        </div>
+
+        {/* Task Title */}
+        <h3 className="mt-3 text-base font-bold text-[#242424] leading-snug">
+          {task.name}
+        </h3>
+
+        {/* Task Meta List */}
+        <dl className="mt-3 space-y-2 text-xs border-t border-[#e1e2e3] pt-3">
+          <div className="flex justify-between gap-2">
+            <dt className="text-[#898989]">PIC</dt>
+            <dd className="font-semibold text-[#242424]">
+              {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
+            </dd>
           </div>
-          <CardTitle className="mt-3 text-lg font-bold text-slate-900 dark:text-white">{task.name}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="space-y-2 text-sm border-t border-dashed border-neutral-200 dark:border-neutral-800 pt-3">
-            <div className="flex justify-between gap-3">
-              <dt className="text-slate-500 dark:text-slate-400 font-medium">PIC</dt>
-              <dd className="font-semibold text-slate-800 dark:text-slate-200">
-                {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-slate-500 dark:text-slate-400 font-medium">Deadline</dt>
-              <dd className="font-semibold text-slate-800 dark:text-slate-200">
-                {formatTaskDate(task.deadline)}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-slate-500 dark:text-slate-400 font-medium">Acara/Divisi</dt>
-              <dd className="text-right font-semibold text-slate-800 dark:text-slate-200">
-                {eventName}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3 items-center">
-              <dt className="text-slate-500 dark:text-slate-400 font-medium">Risiko</dt>
-              <dd className="font-semibold">
-                <Badge variant={riskVariant} className="text-[10px] font-medium">
-                  {riskLabel}
-                </Badge>
-              </dd>
-            </div>
-          </dl>
-        </CardContent>
+          <div className="flex justify-between gap-2">
+            <dt className="text-[#898989]">Deadline</dt>
+            <dd className="font-semibold text-[#242424]">
+              {formatTaskDate(task.deadline)}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt className="text-[#898989]">Acara/Divisi</dt>
+            <dd className="text-right font-semibold text-[#242424]">
+              {eventName}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2 items-center">
+            <dt className="text-[#898989]">Risiko</dt>
+            <dd>
+              <Badge variant={riskVariant} className="text-[10px] font-medium">
+                {riskLabel}
+              </Badge>
+            </dd>
+          </div>
+        </dl>
       </div>
 
-      <CardContent className="pt-0">
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="info">
-            <Link href={`/dashboard/tasks/${task.id}?returnTo=/dashboard/tasks`} className="flex items-center gap-1.5">
-              <Eye className="size-3.5" />
-              <span>Detail</span>
-            </Link>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={() => setRefDialogOpen(true)}
-          >
-            <Sparkles className="size-3.5" />
-            <span>Referensi</span>
-          </Button>
-          {canEdit ? (
-            <>
-              <Button type="button" size="sm" variant="warning" onClick={() => onEdit(task)}>
-                <Pencil className="size-3.5" />
-                <span>Edit</span>
-              </Button>
-              <Button type="button" size="sm" variant="destructive" onClick={() => onArchive(task)}>
-                <Archive className="size-3.5" />
-                <span>Archive</span>
-              </Button>
-            </>
-          ) : null}
-        </div>
-      </CardContent>
+      {/* Action Buttons */}
+      <div className="pt-3 border-t border-[#e1e2e3] flex flex-wrap items-center gap-1.5">
+        <Link
+          href={`/dashboard/tasks/${task.id}`}
+          className="inline-flex items-center gap-1 h-7.5 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold shadow-2xs transition-all"
+        >
+          <Eye className="size-3 text-[#898989]" />
+          <span>Detail</span>
+        </Link>
 
-      <SuggestedReferencesDialog
-        open={refDialogOpen}
-        task={task}
-        eventName={eventName}
-        onClose={() => setRefDialogOpen(false)}
-      />
-    </Card>
+        <button
+          type="button"
+          onClick={() => setRefDialogOpen(true)}
+          className="inline-flex items-center gap-1 h-7.5 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+        >
+          <Sparkles className="size-3 text-[#6349ea]" />
+          <span>Solusi</span>
+        </button>
+
+        {canEdit && (
+          <>
+            <button
+              type="button"
+              onClick={() => onEdit(task)}
+              className="inline-flex items-center gap-1 h-7.5 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+            >
+              <Pencil className="size-3 text-[#898989]" />
+              <span>Edit</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onArchive(task)}
+              className="inline-flex items-center gap-1 h-7.5 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#e94235] hover:bg-[#feebe8] text-xs font-semibold shadow-2xs transition-all cursor-pointer ml-auto"
+            >
+              <Archive className="size-3" />
+              <span>Arsip</span>
+            </button>
+          </>
+        )}
+      </div>
+
+      {refDialogOpen && (
+        <SuggestedReferencesDialog
+          open={refDialogOpen}
+          onClose={() => setRefDialogOpen(false)}
+          task={task}
+          eventName={eventName}
+        />
+      )}
+    </div>
   );
 }

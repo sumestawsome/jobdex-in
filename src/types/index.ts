@@ -632,7 +632,9 @@ export type NormalizedIncomingWhatsAppMessage = {
 
 export interface WhatsAppSystemSettings {
   isTestMode: boolean;
+  sandbox_mode?: boolean;
   testGroupId: string;
+  sandbox_group_id?: string;
   updatedAt?: unknown;
   updatedBy?: string;
   updatedByName?: string;
