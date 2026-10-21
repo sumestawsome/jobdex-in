@@ -1,0 +1,2140 @@
+[
+    {
+        "id": "faq-001-apa-itu-jobdex",
+        "category": "umum",
+        "canonical_question": "Apa itu JobDex.in dan buat apa dipakai?",
+        "patterns": [
+            "apa itu jobdex",
+            "jobdexin itu apa",
+            "fungsi jobdex",
+            "buat apa aplikasi jobdex",
+            "apasih ini jobdexin"
+        ],
+        "keywords": [
+            "apa",
+            "jobdex",
+            "jobdexin",
+            "fungsi",
+            "kegunaan"
+        ],
+        "answer": "*JobDex.in* itu tempat kerja digital khusus buat ngatur tugas-tugas kepanitiaan dan pengurus Forkom KIP Undiksha! 🙌\n\nDi sini semua tugas desain, publikasi, siapa yang ngerjain (PIC), batas waktu, sampai revisi dicatat rapi biar nggak ada lagi kerjaan yang kelupaan.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-002-kenapa-gak-spreadsheet",
+        "category": "umum",
+        "canonical_question": "Kenapa kita nggak pakai spreadsheet atau catatan biasa aja?",
+        "patterns": [
+            "kenapa gak excel aja",
+            "kenapa gak pakai spreadsheet",
+            "mending catatan wa aja",
+            "ribet pakai web"
+        ],
+        "keywords": [
+            "spreadsheet",
+            "excel",
+            "catatan",
+            "biasa",
+            "kenapa"
+        ],
+        "answer": "Kalau pakai spreadsheet atau catatan di chat WA, kita harus buka-tutup file manual dan sering ketumpuk chat lain. 😅\n\nDi *JobDex.in*, tugas kamu otomatis diingetin sama bot ke WhatsApp, link bahan desain langsung nempel di tugasnya, dan status revisinya jelas.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-003-beda-trello-notion",
+        "category": "umum",
+        "canonical_question": "Apa bedanya JobDex.in sama Trello atau Notion?",
+        "patterns": [
+            "beda jobdex sama trello",
+            "kenapa gak pakai notion",
+            "kelebihan jobdex dibanding trello",
+            "bedanya sama aplikasi jadwal lain"
+        ],
+        "keywords": [
+            "beda",
+            "trello",
+            "notion",
+            "kelebihan",
+            "aplikasi"
+        ],
+        "answer": "Trello atau Notion itu aplikasi umum, jadi kita harus capek ngatur tabelnya dari nol. \n\nKalau *JobDex.in* memang dirancang khusus buat anak kepanitiaan kampus: udah ada pembagian Divisi vs Acara, gudang referensi desain tahun lalu, alur acc koordinator, plus nyambung langsung ke bot grup WA kita! 🚀",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-004-apakah-gratis",
+        "category": "umum",
+        "canonical_question": "Apakah JobDex.in gratis buat seluruh panitia?",
+        "patterns": [
+            "apakah jobdex bayar",
+            "jobdex gratis gak",
+            "harus langganan gak",
+            "biaya pakai jobdex"
+        ],
+        "keywords": [
+            "gratis",
+            "bayar",
+            "biaya",
+            "langganan",
+            "panitia"
+        ],
+        "answer": "*100% Gratis!* Seluruh pengurus dan panitia aktif Forkom KIP Undiksha tinggal pakai aja tanpa dipungut biaya sepeser pun. 🙌",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-005-siapa-bisa-akses",
+        "category": "umum",
+        "canonical_question": "Siapa saja yang bisa mengakses sistem ini?",
+        "patterns": [
+            "siapa yang boleh masuk",
+            "yang bisa login siapa aja",
+            "anak luar boleh akses gak",
+            "akses sistem siapa"
+        ],
+        "keywords": [
+            "siapa",
+            "akses",
+            "masuk",
+            "anggota",
+            "pengurus"
+        ],
+        "answer": "Sistem ini khusus buat keluarga besar pengurus dan panitia aktif *Forkom KIP-Kuliah Undiksha* yang akunnya udah didaftarkan di ruang kerja kita.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-006-kenapa-khusus-humas-pubdok",
+        "category": "umum",
+        "canonical_question": "Kenapa sistem ini fokus buat divisi Humas, Pubdok, dan Media Kreatif?",
+        "patterns": [
+            "kenapa cuma humas pubdok",
+            "kok buat media kreatif aja",
+            "divisi lain bisa pakai gak"
+        ],
+        "keywords": [
+            "humas",
+            "pubdok",
+            "media",
+            "kreatif",
+            "divisi",
+            "fokus"
+        ],
+        "answer": "Soalnya divisi Humas, Pubdok, dan Media punya alur kerja yang paling padat: mulai dari nunggu teks redaksi, cari referensi visual, bikin draf, revisi desain, sampai jadwal upload sosmed. Makanya JobDex hadir biar alur kreatif ini nggak berantakan! 🎨",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-007-arti-warna-badge",
+        "category": "umum",
+        "canonical_question": "Apa arti status warna badge di dashboard?",
+        "patterns": [
+            "arti warna status",
+            "warna badge di web artinya apa",
+            "merah kuning hijau di tugas artinya apa"
+        ],
+        "keywords": [
+            "arti",
+            "warna",
+            "badge",
+            "status",
+            "dashboard"
+        ],
+        "answer": "Warna itu penanda cepat kondisi tugas kamu:\n\n• *Abu-abu*: Belum dimulai\n• *Biru / Indigo*: Sedang dikerjakan\n• *Kuning / Oranye*: Menunggu approval atau perlu revisi\n• *Merah*: Stuck (ada kendala) atau lewat deadline (Overdue)\n• *Hijau*: Udah di-acc dan selesai! ✅",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-008-cara-login",
+        "category": "umum",
+        "canonical_question": "Bagaimana cara login ke JobDex.in?",
+        "patterns": [
+            "cara login jobdex",
+            "masuk ke web gimana",
+            "cara daftar akun jobdex"
+        ],
+        "keywords": [
+            "cara",
+            "login",
+            "masuk",
+            "akun",
+            "email"
+        ],
+        "answer": "Buka link *https://jobdexin.sumestawsome.xyz/login*, lalu masuk pakai email dan password yang udah kamu daftarkan. Kalau belum punya akun, klik menu *Register* ya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-009-aplikasi-playstore",
+        "category": "umum",
+        "canonical_question": "Apakah ada aplikasi mobile yang perlu di-download dari Play Store?",
+        "patterns": [
+            "download aplikasi di mana",
+            "ada di playstore gak",
+            "install apk jobdex",
+            "aplikasi hp jobdex"
+        ],
+        "keywords": [
+            "aplikasi",
+            "download",
+            "playstore",
+            "install",
+            "hp"
+        ],
+        "answer": "Nggak perlu download aplikasi tambahan biar memori HP kamu nggak penuh! 📱\n\nJobDex.in berbasis web yang udah *mobile-friendly*, jadi tinggal buka lewat Chrome atau Safari di HP rasanya udah kayak aplikasi beneran.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-010-link-resmi-web",
+        "category": "umum",
+        "canonical_question": "Di mana link resmi web JobDex.in?",
+        "patterns": [
+            "link web jobdex apa",
+            "alamat website jobdex",
+            "url jobdexin",
+            "minta link dashboard"
+        ],
+        "keywords": [
+            "link",
+            "url",
+            "alamat",
+            "web",
+            "website",
+            "dashboard"
+        ],
+        "answer": "Ini link resmi kita yaa:\n👉 *https://jobdexin.sumestawsome.xyz*\n\nSimpan atau bookmark di browser HP dan laptop kamu biar gampang dibuka kapan aja!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-011-keamanan-data",
+        "category": "umum",
+        "canonical_question": "Apakah data kepanitiaan di JobDex.in aman?",
+        "patterns": [
+            "data kita aman gak",
+            "file desain aman gak",
+            "privasi data ormawa"
+        ],
+        "keywords": [
+            "data",
+            "aman",
+            "keamanan",
+            "privasi",
+            "file"
+        ],
+        "answer": "Aman banget! Sistem kita pakai proteksi akses berlapis dari Firebase dan ruang kerja terisolasi khusus buat Forkom KIP Undiksha. Orang luar yang nggak punya akses nggak bakal bisa ngintip tugas atau file kita. 🔒",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-012-peran-bot-wa",
+        "category": "umum",
+        "canonical_question": "Apa peran bot WhatsApp dalam sistem ini?",
+        "patterns": [
+            "bot wa gunanya apa",
+            "fungsi bot whatsapp jobdex",
+            "kenapa ada bot di grup"
+        ],
+        "keywords": [
+            "peran",
+            "fungsi",
+            "bot",
+            "whatsapp",
+            "wa"
+        ],
+        "answer": "Bot WA itu asisten lapangan kita! Dia yang ngingetin deadline tiap siang, ngabarin kalau ada draf baru yang diupload, dan bantuin kamu cek atau update status tugas langsung dari chat WA tanpa perlu buka web.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-013-apakah-pakai-ai-terus",
+        "category": "umum",
+        "canonical_question": "Apakah bot WhatsApp ini pakai AI berbayar terus-menerus?",
+        "patterns": [
+            "ini bot ai terus ya",
+            "apakah semua perintah pakai ai",
+            "cara kerja bot wa"
+        ],
+        "keywords": [
+            "bot",
+            "ai",
+            "berbayar",
+            "sistem",
+            "command"
+        ],
+        "answer": "Nggak dong! Kalau kamu ngetik perintah resmi kayak `!jobdex tugas saya` atau `!jobdex acc`, itu dijalankan langsung sama mesin sistem kita secara gratis dan instan. \n\nAI pintar baru turun tangan kalau kamu nanya hal bebas di luar perintah biasa.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-014-jadwal-rekap-harian",
+        "category": "umum",
+        "canonical_question": "Kapan pesan pengingat harian dikirim ke grup?",
+        "patterns": [
+            "kapan pengingat dikirim",
+            "jam berapa rekap wa",
+            "jadwal bot kirim reminder"
+        ],
+        "keywords": [
+            "kapan",
+            "jam",
+            "pengingat",
+            "rekap",
+            "harian",
+            "reminder"
+        ],
+        "answer": "Rekap tugas harian dikirim otomatis setiap jam *12.00 WITA (siang)* pas jam istirahat. Jadi kita bisa pantau bareng tugas mana yang perlu dikebut hari itu! 🕛",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-015-siapa-pembuat-jobdex",
+        "category": "umum",
+        "canonical_question": "Siapa pembuat atau pengembang sistem JobDex.in?",
+        "patterns": [
+            "siapa yang bikin jobdex",
+            "developer jobdex siapa",
+            "pembuat web ini siapa"
+        ],
+        "keywords": [
+            "siapa",
+            "pembuat",
+            "bikin",
+            "developer",
+            "pengembang"
+        ],
+        "answer": "JobDex.in dikembangkan secara khusus oleh tim kreatif dan IT internal (*Sumestawsome*) untuk mempermudah koordinasi kerja kepanitiaan di lingkungan Universitas Pendidikan Ganesha. ✨",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-016-alur-lengkap-jobdesk",
+        "category": "tugas",
+        "canonical_question": "Bagaimana alur pengerjaan satu job desk dari awal sampai selesai?",
+        "patterns": [
+            "alur pengerjaan tugas",
+            "gimana urutan ngerjain jobdesk",
+            "tahapan kerja di jobdex"
+        ],
+        "keywords": [
+            "alur",
+            "urutan",
+            "langkah",
+            "jobdesk",
+            "selesai"
+        ],
+        "answer": "Urutannya gampang banget:\n1. *Tugas dibuat* koordinator & diarahkan ke PIC.\n2. PIC ubah status jadi *Sedang Dikerjakan*.\n3. Centang *Checklist* sambil nyicil draf.\n4. *Upload link hasil* desain (status otomatis jadi *Menunggu Approval*).\n5. Koordinator *cek & approve* (atau kasih catatan revisi kalau ada yang kurang).\n6. Selesai deh! 🎉",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-017-arti-belum-dimulai",
+        "category": "tugas",
+        "canonical_question": "Apa arti status Belum Dimulai?",
+        "patterns": [
+            "arti status belum dimulai",
+            "kenapa status masih belum dimulai"
+        ],
+        "keywords": [
+            "arti",
+            "status",
+            "belum",
+            "dimulai"
+        ],
+        "answer": "Artinya tugas itu baru aja dibuat dan diserahkan ke kamu, tapi kamu belum mulai menggarap atau belum mengupdate progresnya di sistem.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-018-kapan-sedang-dikerjakan",
+        "category": "tugas",
+        "canonical_question": "Kapan status harus diganti jadi Sedang Dikerjakan?",
+        "patterns": [
+            "kapan ganti status sedang dikerjakan",
+            "mulai garap tugas ganti status apa"
+        ],
+        "keywords": [
+            "kapan",
+            "ganti",
+            "sedang",
+            "dikerjakan",
+            "mulai"
+        ],
+        "answer": "Begitu kamu mulai buka aplikasi desain (Canva/Figma/Illustrator/After Effects) atau mulai nyusun bahannya, langsung ganti statusnya jadi *Sedang Dikerjakan* ya! Biar koordinator tenang karena tahu tugasnya udah jalan. 👍",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-019-arti-draft-selesai",
+        "category": "tugas",
+        "canonical_question": "Apa itu status Draft Selesai?",
+        "patterns": [
+            "status draft selesai artinya apa",
+            "beda draft selesai sama menunggu approval"
+        ],
+        "keywords": [
+            "arti",
+            "draft",
+            "selesai",
+            "status"
+        ],
+        "answer": "*Draft Selesai* artinya desain kasar atau konsep awalnya udah beres kamu buat dan siap masuk tahap pengecekan internal sebelum diunggah sebagai hasil akhir.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-020-arti-menunggu-approval",
+        "category": "tugas",
+        "canonical_question": "Apa maksud status Menunggu Approval?",
+        "patterns": [
+            "arti menunggu approval",
+            "kenapa status menunggu approval",
+            "habis upload kok menunggu approval"
+        ],
+        "keywords": [
+            "maksud",
+            "arti",
+            "menunggu",
+            "approval",
+            "acc"
+        ],
+        "answer": "Artinya kamu udah berhasil nyetor link hasil desain, dan sekarang bolanya ada di tangan *Koordinator* buat ngecek apakah desainnya udah siap rilis atau masih butuh polesan dikit. ⏳",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-021-kenapa-perlu-revisi",
+        "category": "tugas",
+        "canonical_question": "Mengapa tugas saya statusnya Perlu Revisi?",
+        "patterns": [
+            "kenapa status perlu revisi",
+            "tugas saya disuruh revisi",
+            "lihat catatan revisi di mana"
+        ],
+        "keywords": [
+            "kenapa",
+            "perlu",
+            "revisi",
+            "catatan",
+            "perbaikan"
+        ],
+        "answer": "Berarti koordinator udah ngecek draf kamu dan ada sedikit bagian yang perlu diperbaiki (misal ada typo teks, ukuran logo, atau warna). Cek bagian *Catatan Revisi* di detail tugasnya ya, semangat poles dikit lagi! 💪",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-022-kapan-resmi-selesai",
+        "category": "tugas",
+        "canonical_question": "Kapan suatu tugas dinyatakan resmi Selesai?",
+        "patterns": [
+            "kapan tugas dianggap selesai",
+            "syarat tugas selesai",
+            "biar tugas centang hijau gimana"
+        ],
+        "keywords": [
+            "kapan",
+            "resmi",
+            "selesai",
+            "approved",
+            "tuntas"
+        ],
+        "answer": "Tugas dinyatakan resmi *Selesai (Approved)* setelah kamu mengunggah link hasil desain dan *Koordinator* sudah menekan tombol setuju (acc). Setelah itu tugas otomatis masuk ke arsip referensi kita! 🎉",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-023-solusi-tugas-stuck",
+        "category": "tugas",
+        "canonical_question": "Apa yang harus dilakukan kalau status tugas Stuck?",
+        "patterns": [
+            "kalau tugas stuck gimana",
+            "cara lapor kendala tugas",
+            "mentok ngerjain tugas"
+        ],
+        "keywords": [
+            "stuck",
+            "kendala",
+            "mentok",
+            "masalah",
+            "bantuan"
+        ],
+        "answer": "Kalau kamu mentok (misal belum dikirimin foto pemateri atau laptop lagi ngelag parah), ubah statusnya ke *Stuck / Butuh Bantuan* dan tulis kendalanya apa.\n\nDengan begitu, koordinator langsung dapat notifikasi buat bantuin nyari solusi bareng!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-024-cara-centang-checklist",
+        "category": "tugas",
+        "canonical_question": "Bagaimana cara menandai 6 checklist tugas?",
+        "patterns": [
+            "cara centang checklist",
+            "update checklist gimana",
+            "isi checklist tugas"
+        ],
+        "keywords": [
+            "cara",
+            "menandai",
+            "centang",
+            "checklist",
+            "6"
+        ],
+        "answer": "Kamu bisa langsung klik kotak centang di halaman *Detail Tugas* lewat web dashboard, atau ketik lewat WA:\n\n`!jobdex checklist [nama tugas] [nama item] selesai`\nContoh: `!jobdex checklist Poster PDK draft selesai`",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-025-isi-6-checklist",
+        "category": "tugas",
+        "canonical_question": "Apa saja 6 tahapan checklist yang ada di detail tugas?",
+        "patterns": [
+            "6 checklist itu apa aja",
+            "daftar item checklist",
+            "tahapan checklist desain"
+        ],
+        "keywords": [
+            "apa",
+            "6",
+            "tahapan",
+            "item",
+            "checklist"
+        ],
+        "answer": "Ke-6 tahapan checklist standar kita yaitu:\n1. Redaksi/materi tersedia\n2. Referensi desain tersedia\n3. Draft awal\n4. Revisi internal\n5. Finalisasi desain\n6. Upload hasil ✅",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-026-anggota-buat-tugas",
+        "category": "tugas",
+        "canonical_question": "Apakah anggota biasa bisa membuat tugas sendiri?",
+        "patterns": [
+            "anggota bisa bikin tugas gak",
+            "kenapa saya gak bisa tambah jobdesk",
+            "siapa yang bisa buat tugas"
+        ],
+        "keywords": [
+            "anggota",
+            "buat",
+            "bikin",
+            "tambah",
+            "tugas",
+            "sendiri"
+        ],
+        "answer": "Untuk menjaga agar daftar tugas tetap terkontrol rapi, pembuatan tugas baru dilakukan oleh *Koordinator Divisi*, *Koordinator Acara*, atau *Super Admin*. Kalau ada ide tugas tambahan, colek koordinator kamu ya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-027-satu-tugas-banyak-orang",
+        "category": "tugas",
+        "canonical_question": "Bisakah satu tugas dikerjakan oleh lebih dari satu orang?",
+        "patterns": [
+            "satu tugas dua pic bisa gak",
+            "kerja bareng di satu tugas",
+            "kolaborasi tugas"
+        ],
+        "keywords": [
+            "satu",
+            "tugas",
+            "lebih",
+            "orang",
+            "bareng",
+            "tim"
+        ],
+        "answer": "Di sistem kita, setiap tugas punya *1 PIC Utama* biar jelas siapa pemegang komandonya. Kalau tugasnya besar (misal bikin dekorasi panggung atau aftermovie), rekan yang bantu bisa dicatat di bagian deskripsi/catatan, atau dipecah jadi dua sub-tugas terpisah.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-028-beda-pic-dan-anggota",
+        "category": "tugas",
+        "canonical_question": "Apa bedanya PIC utama dengan anggota pembantu?",
+        "patterns": [
+            "arti pic tugas",
+            "tanggung jawab pic apa",
+            "beda pic sama anggota biasa"
+        ],
+        "keywords": [
+            "beda",
+            "pic",
+            "utama",
+            "anggota",
+            "penanggung"
+        ],
+        "answer": "*PIC (Person In Charge)* adalah penanggung jawab utama yang namanya tercantum di tugas tersebut. PIC yang bertugas mengupdate status pengerjaan, menerima pengingat deadline, dan menyetor link hasil akhirnya ke koordinator.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-029-cara-tambah-catatan",
+        "category": "tugas",
+        "canonical_question": "Bagaimana cara menambahkan catatan progres di tugas?",
+        "patterns": [
+            "cara kasih catatan tugas",
+            "nulis komen di tugas gimana",
+            "tambah note progres"
+        ],
+        "keywords": [
+            "cara",
+            "tambah",
+            "catatan",
+            "note",
+            "progres"
+        ],
+        "answer": "Lewat web tinggal ketik di kolom catatan pada detail tugas. Kalau lewat WA, ketik aja:\n\n`!jobdex tambah catatan [nama tugas]`\n`catatan: [isi pesan kamu]`",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-030-kenapa-tugas-dialihkan",
+        "category": "tugas",
+        "canonical_question": "Mengapa tugas saya tiba-tiba dialihkan ke PIC lain?",
+        "patterns": [
+            "kok tugas saya pindah ke orang lain",
+            "kenapa pic diganti",
+            "tugas saya hilang diganti"
+        ],
+        "keywords": [
+            "dialihkan",
+            "pindah",
+            "ganti",
+            "pic",
+            "lain"
+        ],
+        "answer": "Biasanya koordinator mengalihkan PIC kalau beban tugas kamu lagi numpuk banget, deadlinenya super mepet, atau kamu lagi berhalangan. Tujuannya murni buat bagi rata beban kerja biar tim tetap jalan lancar! 🤝",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-031-format-file-upload",
+        "category": "desain",
+        "canonical_question": "Format file apa saja yang diterima saat upload hasil desain?",
+        "patterns": [
+            "format gambar yang bisa diupload",
+            "upload file format apa",
+            "bisa upload png atau pdf gak"
+        ],
+        "keywords": [
+            "format",
+            "file",
+            "upload",
+            "gambar",
+            "png",
+            "jpg"
+        ],
+        "answer": "Untuk gambar preview di web, kamu bisa upload format *JPG, PNG, atau WebP*. Sedangkan untuk file mentahan atau resolusi tinggi (seperti PDF cetak, MP4, atau folder aset), silakan taruh di Google Drive atau Canva lalu tempelkan link-nya di kolom URL hasil! 🎨",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-032-ukuran-maksimal-file",
+        "category": "desain",
+        "canonical_question": "Berapa ukuran maksimal file hasil yang bisa diunggah?",
+        "patterns": [
+            "maksimal ukuran upload gambar",
+            "batas size file upload",
+            "gagal upload file kegedean"
+        ],
+        "keywords": [
+            "ukuran",
+            "maksimal",
+            "size",
+            "batas",
+            "mb",
+            "file"
+        ],
+        "answer": "Untuk gambar preview yang diunggah langsung ke web, usahakan di bawah *5 MB* biar cepat dimuat di HP teman-teman. Kalau file aslinya berukuran besar (puluhan MB), wajib diunggah lewat link Google Drive ya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-033-lihat-referensi-tahun-lalu",
+        "category": "desain",
+        "canonical_question": "Di mana saya bisa melihat referensi desain tahun-tahun sebelumnya?",
+        "patterns": [
+            "cari contoh desain tahun lalu",
+            "lihat arsip desain lama",
+            "menu referensi di mana"
+        ],
+        "keywords": [
+            "referensi",
+            "desain",
+            "tahun",
+            "lalu",
+            "lama",
+            "arsip"
+        ],
+        "answer": "Langsung buka menu *Referensi* di sidebar kiri dashboard web, atau ketik `!jobdex cari [kata kunci]` di WA (contoh: `!jobdex cari sertifikat`). Semua karya kepanitiaan terdahulu udah tersimpan rapi di sana!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-034-belum-dapat-redaksi",
+        "category": "desain",
+        "canonical_question": "Apa yang harus saya lakukan kalau belum dapat teks redaksi/copywriting?",
+        "patterns": [
+            "belum dikasih teks redaksi",
+            "copywriting belum ada",
+            "materi tulisan belum dikirim"
+        ],
+        "keywords": [
+            "belum",
+            "redaksi",
+            "copywriting",
+            "teks",
+            "materi"
+        ],
+        "answer": "Cek dulu bagian *Detail Tugas* siapa tahu koordinator udah naruh link Google Docs redaksinya di sana. Kalau memang masih kosong, ubah status tugas ke *Menunggu Materi* atau *Stuck* dengan catatan: *'Menunggu teks redaksi'* biar koordinator langsung tahu! 📝",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-035-link-drive-bahan",
+        "category": "desain",
+        "canonical_question": "Di mana letak link Google Drive untuk bahan mentahan desain?",
+        "patterns": [
+            "link drive mentahan di mana",
+            "cari foto dokumentasi buat desain",
+            "folder drive bahan"
+        ],
+        "keywords": [
+            "link",
+            "drive",
+            "bahan",
+            "mentahan",
+            "aset",
+            "foto"
+        ],
+        "answer": "Link Google Drive bahan mentahan (seperti foto kegiatan, logo, atau elemen grafis) bisa kamu temukan langsung di dalam rincian *Detail Tugas* masing-masing atau di menu *Design Kit Divisi* pada halaman Pengaturan.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-036-siapa-berhak-acc",
+        "category": "desain",
+        "canonical_question": "Siapa yang berhak menyetujui (meng-acc) hasil desain?",
+        "patterns": [
+            "yang boleh approve siapa",
+            "siapa yang acc desain",
+            "apakah koor acara bisa acc"
+        ],
+        "keywords": [
+            "siapa",
+            "berhak",
+            "setuju",
+            "acc",
+            "approve",
+            "desain"
+        ],
+        "answer": "Yang berwenang memberikan ACC adalah *Koordinator Divisi*, *Koordinator Acara* terkait, atau *Super Admin*. Jadi setelah upload draf, tunggu mereka cek dulu sebelum dipublikasikan ke sosmed ya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-037-batas-maksimal-revisi",
+        "category": "desain",
+        "canonical_question": "Berapa kali maksimal revisi desain diperbolehkan?",
+        "patterns": [
+            "revisi maksimal berapa kali",
+            "batas revisi desain"
+        ],
+        "keywords": [
+            "berapa",
+            "kali",
+            "maksimal",
+            "batas",
+            "revisi"
+        ],
+        "answer": "Sistem tidak membatasi jumlah revisi secara kaku, tapi idealnya cukup *1 sampai 2 kali revisi terarah* agar waktu pengerjaan efisien. Karena itu, pastikan baca *Arahan Visual* dan *Checklist* sebelum mulai mendesain ya! 😉",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-038-arahan-visual-warna",
+        "category": "desain",
+        "canonical_question": "Di mana saya bisa membaca arahan visual dan palet warna ormawa?",
+        "patterns": [
+            "kode warna ormawa apa",
+            "lihat brand guideline di mana",
+            "aturan font dan warna desain"
+        ],
+        "keywords": [
+            "arahan",
+            "visual",
+            "palet",
+            "warna",
+            "font",
+            "guideline"
+        ],
+        "answer": "Arahan visual khusus untuk tiap tugas ada di bagian *Detail Tugas*. Sedangkan untuk panduan warna, font, dan logo standar divisi bisa kamu cek di tab *Design Kit Divisi* di dashboard!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-039-setor-link-canva",
+        "category": "desain",
+        "canonical_question": "Apakah hasil desain di Canva bisa langsung disetor link-nya?",
+        "patterns": [
+            "boleh kirim link canva aja gak",
+            "upload pakai link canva",
+            "setor hasil canva"
+        ],
+        "keywords": [
+            "canva",
+            "link",
+            "setor",
+            "langsung",
+            "hasil"
+        ],
+        "answer": "*Bisa banget!* Tapi pastikan pengaturan *Share Link* di Canva kamu udah diubah menjadi **'Anyone with the link can view/edit'** ya, jangan dikunci privat biar koordinator bisa langsung buka tanpa minta akses lagi. 🔗",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-040-minta-materi-panitia-lain",
+        "category": "desain",
+        "canonical_question": "Bagaimana cara meminta link materi yang belum dikirim panitia lain?",
+        "patterns": [
+            "sie acara belum kirim materi",
+            "cara nagih bahan desain ke divisi lain"
+        ],
+        "keywords": [
+            "minta",
+            "materi",
+            "belum",
+            "dikirim",
+            "divisi",
+            "lain"
+        ],
+        "answer": "Cukup ubah status tugas kamu jadi *Stuck / Menunggu Materi* lewat web atau bot WA beserta catatannya. Koordinator divisi kita yang akan bantu menagih bahannya ke koordinator sie terkait biar kamu nggak sungkan! 🙌",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-041-logo-kampus-transparan",
+        "category": "desain",
+        "canonical_question": "Apa yang harus dilakukan jika aset logo kampus tidak transparan?",
+        "patterns": [
+            "minta logo undiksha png",
+            "logo forkom kip transparan di mana",
+            "logo ada background putih"
+        ],
+        "keywords": [
+            "logo",
+            "transparan",
+            "png",
+            "putih",
+            "undiksha",
+            "forkom"
+        ],
+        "answer": "Jangan pakai logo pecah atau berlatar putih dari pencarian sembarangan ya! Ambil file logo resmi berformat *PNG Transparan / Vector* yang udah disediakan di folder Drive *Design Kit* atau cari lewat menu *Referensi*.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-042-template-story-feed",
+        "category": "desain",
+        "canonical_question": "Di mana mencari template story atau feed resmi Forkom KIP?",
+        "patterns": [
+            "cari template feed ig",
+            "template story forkom di mana",
+            "frame desain instagram"
+        ],
+        "keywords": [
+            "template",
+            "story",
+            "feed",
+            "ig",
+            "instagram",
+            "resmi"
+        ],
+        "answer": "Buka menu *Referensi* di web lalu filter tipe desainnya ke *Feed IG* atau *Story IG*, atau ketik `!jobdex cari template feed` di chat WA. Link template siap pakainya langsung keluar!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-043-upload-video-reels",
+        "category": "desain",
+        "canonical_question": "Apakah hasil video animasi atau reels bisa di-upload lewat JobDex?",
+        "patterns": [
+            "cara upload tugas video",
+            "setor hasil reels atau aftermovie",
+            "upload file mp4"
+        ],
+        "keywords": [
+            "video",
+            "animasi",
+            "reels",
+            "aftermovie",
+            "mp4",
+            "upload"
+        ],
+        "answer": "Bisa! Untuk tugas berbentuk video/motion graphics, unggah file MP4-nya ke Google Drive kepanitiaan, lalu setor *Link Google Drive* tersebut melalui fitur Upload Hasil di JobDex.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-044-preview-tidak-muncul",
+        "category": "desain",
+        "canonical_question": "Mengapa link preview desain saya tidak muncul di WhatsApp?",
+        "patterns": [
+            "kenapa thumbnail gak muncul",
+            "preview gambar kosong di wa"
+        ],
+        "keywords": [
+            "preview",
+            "thumbnail",
+            "muncul",
+            "kosong",
+            "gambar"
+        ],
+        "answer": " Kalau kamu menyetor hasil lewat chat WA, sistem hanya mencatat URL link-nya saja sehingga preview gambar otomatis bertuliskan `-`. Kalau ingin ada gambar thumbnail-nya di dashboard, kamu bisa mengunggah file gambarnya langsung lewat form di web.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-045-batas-waktu-koor-cek",
+        "category": "desain",
+        "canonical_question": "Kapan batas waktu koordinator memeriksa draf yang sudah diunggah?",
+        "patterns": [
+            "kok draf saya belum dicek koor",
+            "berapa lama menunggu approval",
+            "koor belum acc tugas"
+        ],
+        "keywords": [
+            "batas",
+            "waktu",
+            "koordinator",
+            "periksa",
+            "cek",
+            "draf"
+        ],
+        "answer": "Jika draf yang kamu unggah belum dicek lebih dari *24 jam*, sistem otomatis mengirimkan peringatan *Koor Alert* ke grup agar koordinator segera memeriksa dan memberikan keputusan ACC atau revisi! 🔔",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-046-daftar-perintah-bot",
+        "category": "bot_wa",
+        "canonical_question": "Apa saja daftar perintah bot yang bisa saya ketik di grup?",
+        "patterns": [
+            "daftar command wa",
+            "perintah bot apa aja",
+            "cara pakai bot wa",
+            "list command jobdex"
+        ],
+        "keywords": [
+            "daftar",
+            "perintah",
+            "command",
+            "bantuan",
+            "bot"
+        ],
+        "answer": "Ketik aja `!jobdex bantuan` di chat! Bot bakal langsung menampilkan daftar komando lengkap yang disesuaikan sama peran kamu (Anggota, Koordinator, atau Admin). 📋",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-047-cara-cek-tugas-wa",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana cara mengecek tugas saya lewat chat WhatsApp?",
+        "patterns": [
+            "cek tugas saya di wa",
+            "command lihat tugas sendiri",
+            "cara tahu tugas aktif saya"
+        ],
+        "keywords": [
+            "cek",
+            "tugas",
+            "saya",
+            "wa",
+            "whatsapp"
+        ],
+        "answer": "Ketik perintah singkat ini di grup atau japri bot:\n👉 `!jobdex tugas saya`\n\nSemua daftar tugas aktif kamu lengkap dengan sisa harinya bakal langsung muncul!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-048-cara-detail-tugas-wa",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana cara melihat detail satu tugas tertentu di WhatsApp?",
+        "patterns": [
+            "lihat detail task di wa",
+            "cara cek redaksi tugas lewat wa",
+            "command detail tugas"
+        ],
+        "keywords": [
+            "detail",
+            "tugas",
+            "task",
+            "rincian",
+            "wa"
+        ],
+        "answer": "Gunakan perintah ini:\n👉 `!jobdex detail task [nama tugas]`\n\nContoh: `!jobdex detail task Logo Resmi`\nBot akan membalas lengkap mulai dari teks redaksi, link referensi, arahan visual, sampai status ke-6 checklist-nya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-049-format-update-status",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana format chat untuk mengupdate status tugas jadi sedang dikerjakan?",
+        "patterns": [
+            "cara update status di wa",
+            "format ubah status sedang dikerjakan",
+            "lapor mulai kerja lewat wa"
+        ],
+        "keywords": [
+            "format",
+            "update",
+            "status",
+            "sedang",
+            "dikerjakan"
+        ],
+        "answer": "Kamu bisa ketik dengan bahasa santai kayak gini:\n👉 `!jobdex update status [nama tugas] menjadi sedang dikerjakan`\n\nAtau lebih singkat:\n👉 `!jobdex [nama tugas] sudah mulai dikerjakan`",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-050-format-upload-link",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana format chat untuk mengunggah link hasil desain?",
+        "patterns": [
+            "format upload hasil di wa",
+            "cara kirim link draf lewat bot",
+            "command setor desain"
+        ],
+        "keywords": [
+            "format",
+            "upload",
+            "hasil",
+            "link",
+            "desain"
+        ],
+        "answer": "Ketik dengan susunan baris seperti ini ya:\n\n`!jobdex upload hasil [nama tugas]`\n`link: [URL Google Drive / Canva]`\n`catatan: [keterangan singkat]`\n\nStatus tugasmu otomatis berubah jadi *Menunggu Approval*! 🎨",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-051-format-approve-koor",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana format chat untuk koordinator menyetujui tugas (approve)?",
+        "patterns": [
+            "command approve tugas",
+            "cara acc tugas lewat wa",
+            "format koor setujui tugas"
+        ],
+        "keywords": [
+            "format",
+            "koordinator",
+            "approve",
+            "acc",
+            "setuju"
+        ],
+        "answer": "Khusus Koordinator atau Super Admin, cukup ketik:\n👉 `!jobdex approve task [nama tugas]`\natau\n👉 `!jobdex acc [nama tugas]`\n\nTugas langsung berstatus selesai dan tercatat waktu persetujuannya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-052-format-revisi-koor",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana format chat untuk koordinator meminta revisi beserta catatannya?",
+        "patterns": [
+            "command minta revisi",
+            "cara kasih revisi lewat wa",
+            "format revisi koor"
+        ],
+        "keywords": [
+            "format",
+            "minta",
+            "revisi",
+            "catatan",
+            "koordinator"
+        ],
+        "answer": "Ketik dengan format berikut:\n\n`!jobdex minta revisi [nama tugas]`\n`catatan: [jelaskan bagian yang perlu diperbaiki]`\n\nContoh:\n`!jobdex minta revisi Banner PDK`\n`catatan: ukuran tanggal kegiatan tolong diperbesar sedikit`",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-053-format-checklist-wa",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana format chat untuk menandai item checklist selesai lewat WA?",
+        "patterns": [
+            "command checklist selesai",
+            "cara centang checklist dari wa"
+        ],
+        "keywords": [
+            "format",
+            "checklist",
+            "selesai",
+            "item",
+            "wa"
+        ],
+        "answer": "Ketik perintah ini:\n👉 `!jobdex checklist [nama tugas] [nama tahapan] selesai`\n\nPilihan tahapannya: `redaksi`, `referensi`, `draft`, `revisi`, `final`, atau `upload`.\nContoh: `!jobdex checklist Sertifikat PDK redaksi selesai`",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-054-format-ganti-pic",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana format chat untuk koordinator mengganti PIC tugas?",
+        "patterns": [
+            "cara ganti pic lewat wa",
+            "command pindah pic tugas",
+            "oper tugas ke anggota lain di wa"
+        ],
+        "keywords": [
+            "format",
+            "ganti",
+            "pic",
+            "koordinator",
+            "oper"
+        ],
+        "answer": "Koordinator bisa langsung mengetik:\n👉 `!jobdex ganti PIC [nama tugas] ke [nama anggota baru]`\n\nContoh: `!jobdex ganti PIC Feed Pembukaan ke Gede Suma`",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-055-format-briefing-koor",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana format chat untuk melihat ringkasan harian (briefing koor)?",
+        "patterns": [
+            "cara cek briefing koor",
+            "command ringkasan tugas hari ini",
+            "lihat rekap cepat koor"
+        ],
+        "keywords": [
+            "format",
+            "briefing",
+            "ringkasan",
+            "koor",
+            "harian"
+        ],
+        "answer": "Cukup ketik:\n👉 `!jobdex briefing`\n\nBot akan merangkum berapa jumlah tugas yang overdue, mendekati deadline H-1/H-2, sedang stuck, dan menunggu approval hari ini! 📊",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-056-format-siapa-belum-update",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana format chat untuk mencari tahu siapa anggota yang belum update progres?",
+        "patterns": [
+            "cek siapa yang belum update",
+            "anggota pasif belum lapor progres",
+            "command siapa belum update"
+        ],
+        "keywords": [
+            "siapa",
+            "belum",
+            "update",
+            "progres",
+            "anggota"
+        ],
+        "answer": "Koordinator tinggal ketik:\n👉 `!jobdex siapa belum update`\n\nBot akan mendata nama PIC yang belum memperbarui progres tugasnya selama 2 hari atau lebih.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-057-format-cari-referensi-wa",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana format chat untuk mencari referensi desain via WA?",
+        "patterns": [
+            "cari referensi di wa gimana",
+            "command cari desain lama",
+            "minta contoh desain ke bot"
+        ],
+        "keywords": [
+            "format",
+            "cari",
+            "referensi",
+            "desain",
+            "wa"
+        ],
+        "answer": "Ketik aja:\n👉 `!jobdex cari [kata kunci desain]`\n\nContoh: `!jobdex cari pamflet` atau `!jobdex cari maskot`\nBot akan mencarikan arsip desain yang paling cocok lengkap beserta link file-nya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-058-bot-tidak-merespons-grup",
+        "category": "bot_wa",
+        "canonical_question": "Kenapa bot tidak merespons perintah saya di grup?",
+        "patterns": [
+            "kok bot diam aja di grup",
+            "bot gak balas chat saya",
+            "perintah gak direspon bot"
+        ],
+        "keywords": [
+            "kenapa",
+            "bot",
+            "tidak",
+            "merespons",
+            "balas",
+            "diam"
+        ],
+        "answer": "Pastikan 3 hal ini ya:\n1. Pesan kamu di grup *wajib diawali* kata `!jobdex`.\n2. Nomor WA kamu sudah terdaftar di menu *Profile* web JobDex.\n3. Kalau baru aja ngetik pesan yang persis sama, tunggu beberapa detik karena ada fitur anti-spam.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-059-bot-akses-ditolak",
+        "category": "bot_wa",
+        "canonical_question": "Kenapa bot menjawab Akses Ditolak saat saya mencoba perintah tertentu?",
+        "patterns": [
+            "muncul tulisan akses ditolak",
+            "kenapa gak diizinkan untuk role kamu",
+            "gagal command karena role"
+        ],
+        "keywords": [
+            "akses",
+            "ditolak",
+            "role",
+            "diizinkan",
+            "gagal"
+        ],
+        "answer": "Itu artinya perintah yang kamu ketik khusus buat *Koordinator* atau *Super Admin* (misal perintah approve tugas, minta revisi, atau ganti PIC), atau tugas tersebut berada di luar kepanitiaan yang kamu ikuti. 🔒",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-060-huruf-besar-kecil",
+        "category": "bot_wa",
+        "canonical_question": "Apakah perintah bot harus menggunakan huruf besar atau kecil?",
+        "patterns": [
+            "harus huruf kecil semua ya",
+            "kalau huruf kapital bisa gak",
+            "case sensitive gak perintahnya"
+        ],
+        "keywords": [
+            "huruf",
+            "besar",
+            "kecil",
+            "kapital",
+            "perintah"
+        ],
+        "answer": "Bebas kok! Mau diketik `!jobdex`, `!JOBDEX`, atau `!Jobdex` semuanya tetap terbaca dengan baik oleh bot kita.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-061-wajib-tanda-seru",
+        "category": "bot_wa",
+        "canonical_question": "Apakah tanda seru (!) wajib diketik sebelum kata jobdex?",
+        "patterns": [
+            "harus pakai tanda seru ya",
+            "kalau gak pakai tanda seru bisa gak"
+        ],
+        "keywords": [
+            "tanda",
+            "seru",
+            "wajib",
+            "jobdex",
+            "prefix"
+        ],
+        "answer": "Kalau di *Grup WhatsApp*, tanda seru (`!jobdex`) *wajib dipakai* supaya bot tahu mana perintah kerjaan dan mana obrolan santai antar-anggota. Tapi kalau kamu *japri (chat pribadi)* ke nomor bot, kamu bisa langsung ngobrol tanpa tanda seru!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-062-nama-tugas-mirip",
+        "category": "bot_wa",
+        "canonical_question": "Apa yang terjadi jika ada dua tugas dengan nama yang mirip?",
+        "patterns": [
+            "muncul kode kandidat tugas",
+            "ditemukan beberapa task mirip",
+            "cara pilih kode tugas"
+        ],
+        "keywords": [
+            "dua",
+            "tugas",
+            "nama",
+            "mirip",
+            "kode",
+            "kandidat"
+        ],
+        "answer": "Kalau ada nama tugas yang mirip (misal *'Poster PDK'* dan *'Poster Raker'*), bot bakal menampilkan daftar pilihan beserta *Kode Uniknya* (contoh: `TSKX7A0`). Kamu tinggal ulangi perintahnya pakai kode tersebut biar nggak salah sasaran!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-063-boleh-japri-bot",
+        "category": "bot_wa",
+        "canonical_question": "Bisakah saya mengechat bot secara pribadi (japri)?",
+        "patterns": [
+            "boleh chat pribadi bot gak",
+            "japri nomor bot bisa gak",
+            "tanya tugas lewat pc"
+        ],
+        "keywords": [
+            "chat",
+            "pribadi",
+            "japri",
+            "pc",
+            "personal",
+            "bot"
+        ],
+        "answer": "*Bisa banget!* Kalau kamu malu nanya di grup ramai-ramai, langsung japri aja nomor WhatsApp bot JobDex kita. Di chat pribadi kamu bebas cek tugas atau tanya-tanya lebih leluasa. 💬",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-064-kenapa-kuota-5-chat",
+        "category": "bot_wa",
+        "canonical_question": "Kenapa jatah tanya-jawab AI saya dibatasi 5 kali sehari?",
+        "patterns": [
+            "kenapa cuma 5 chat sehari",
+            "jatah tanya ai habis",
+            "batas 5 pertanyaan ai"
+        ],
+        "keywords": [
+            "jatah",
+            "kuota",
+            "5",
+            "kali",
+            "sehari",
+            "ai",
+            "dibatasi"
+        ],
+        "answer": "Jatah 5 kali sehari itu khusus buat *obrolan bebas yang memakai tenaga AI pintar* supaya kuota server kita tetap hemat. \n\nTapi tenang, semua perintah utama kayak `!jobdex tugas saya`, update status, upload draf, atau tanya FAQ dasar kayak gini *100% BEBAS TANPA BATAS KUOTA*! ✌️",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-065-kapan-kuota-ai-reset",
+        "category": "bot_wa",
+        "canonical_question": "Kapan kuota 5 chat AI harian di-reset kembali?",
+        "patterns": [
+            "kapan jatah ai balik lagi",
+            "jam berapa kuota chat reset",
+            "besok bisa tanya ai lagi gak"
+        ],
+        "keywords": [
+            "kapan",
+            "kuota",
+            "reset",
+            "balik",
+            "jam",
+            "harian"
+        ],
+        "answer": "Kuota 5 chat AI harian kamu otomatis ter-reset kembali ke nol setiap *pergantian hari (jam 00.00 tengah malam)*. Jadi besok paginya kamu udah bisa ngobrol sama AI lagi!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-066-beda-role-akses",
+        "category": "role",
+        "canonical_question": "Apa bedanya hak akses Super Admin, Koordinator, dan Anggota?",
+        "patterns": [
+            "beda super admin sama koordinator",
+            "hak akses anggota apa aja",
+            "pembagian role di jobdex"
+        ],
+        "keywords": [
+            "beda",
+            "hak",
+            "akses",
+            "super",
+            "admin",
+            "koordinator",
+            "anggota"
+        ],
+        "answer": "Ini bedanya:\n• *Anggota*: Melihat tugas, update status progres, centang checklist, dan setor hasil desain.\n• *Koordinator*: Semua akses anggota + membuat tugas, mengganti PIC, serta memberikan ACC/Revisi di divisinya atau acaranya.\n• *Super Admin*: Akses penuh ke seluruh pengaturan organisasi, ruang kerja, acara, dan manajemen gateway WhatsApp. 🔑",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-067-siapa-super-admin",
+        "category": "role",
+        "canonical_question": "Siapa saja yang saat ini memegang hak Super Admin?",
+        "patterns": [
+            "siapa super admin sekarang",
+            "admin utama jobdex siapa",
+            "hubungi super admin siapa"
+        ],
+        "keywords": [
+            "siapa",
+            "memegang",
+            "super",
+            "admin",
+            "utama"
+        ],
+        "answer": "Hak *Super Admin* dipegang oleh pengelola utama sistem (Sumesta / Koordinator Inti) yang bertanggung jawab menjaga server, database, dan koneksi gateway WhatsApp Forkom KIP Undiksha tetap stabil.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-068-ganti-foto-profil",
+        "category": "role",
+        "canonical_question": "Bagaimana cara mengganti foto profil akun JobDex?",
+        "patterns": [
+            "cara ganti foto profil",
+            "ubah avatar di web",
+            "upload foto akun"
+        ],
+        "keywords": [
+            "cara",
+            "ganti",
+            "ubah",
+            "foto",
+            "profil",
+            "avatar"
+        ],
+        "answer": "Masuk ke dashboard web, klik menu *Profile* di sidebar kiri, lalu klik tombol ubah foto pada avatar kamu dan simpan perubahannya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-069-lupa-password",
+        "category": "role",
+        "canonical_question": "Bagaimana jika saya lupa password akun JobDex.in?",
+        "patterns": [
+            "lupa kata sandi jobdex",
+            "gak bisa masuk lupa password",
+            "reset sandi akun"
+        ],
+        "keywords": [
+            "lupa",
+            "password",
+            "sandi",
+            "reset",
+            "login"
+        ],
+        "answer": "Klik fitur *Lupa Password* di halaman login untuk menerima email pengaturan ulang kata sandi, atau langsung hubungi *Super Admin* agar dibantu reset dengan cepat! 🔓",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-070-nomor-wa-belum-kenal",
+        "category": "role",
+        "canonical_question": "Kenapa nomor WhatsApp saya tidak dikenali oleh bot saat mengirim perintah?",
+        "patterns": [
+            "bot gak kenal nomor saya",
+            "nomor wa tidak terdaftar di sistem",
+            "kenapa profil saya gak kebaca di wa"
+        ],
+        "keywords": [
+            "nomor",
+            "whatsapp",
+            "dikenali",
+            "terdaftar",
+            "bot"
+        ],
+        "answer": "Karena nomor WhatsApp yang kamu pakai ngetik belum disimpan di data akun JobDex kamu, atau ada salah ketik digit angka. Pastikan nomor di akun web sama persis dengan nomor WA aktifmu ya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-071-cara-sinkron-nomor-hp",
+        "category": "role",
+        "canonical_question": "Bagaimana cara mendaftarkan nomor HP ke profil agar sinkron dengan bot?",
+        "patterns": [
+            "cara daftarin nomor wa di web",
+            "masukin nomor hp ke profil",
+            "sinkronisasi nomor wa"
+        ],
+        "keywords": [
+            "cara",
+            "daftar",
+            "nomor",
+            "hp",
+            "profil",
+            "sinkron"
+        ],
+        "answer": "Login ke web *JobDex.in*, buka menu *Profile* di sebelah kiri, ketik nomor WhatsApp aktif kamu di kolom *Nomor Telepon / WhatsApp* (bisa format `08...` atau `628...`), lalu klik *Simpan*! 📱",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-072-arti-dual-role-badge",
+        "category": "role",
+        "canonical_question": "Apa arti badge ganda (Dual-Role) di tabel anggota?",
+        "patterns": [
+            "kenapa anggota punya 2 badge",
+            "arti dua label jabatan di menu anggota",
+            "dual role itu apa"
+        ],
+        "keywords": [
+            "arti",
+            "badge",
+            "ganda",
+            "dual",
+            "role",
+            "anggota"
+        ],
+        "answer": "Di organisasi kita, satu anggota bisa punya jabatan tetap di divisi sekaligus jadi panitia di acara tertentu. \n• *Badge 1 (Indigo)*: Jabatan tetap kamu di Divisi Ormawa.\n• *Badge 2 (Hijau Lime)*: Peran kepanitiaan kamu di Acara yang sedang jalan (misal: *Koor Acara - PDK 2026*). Keren kan! ✨",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-073-tidak-bisa-buka-pengaturan",
+        "category": "role",
+        "canonical_question": "Mengapa saya tidak bisa mengakses atau mengubah halaman Pengaturan?",
+        "patterns": [
+            "menu pengaturan terkunci",
+            "gak bisa ubah setting wa",
+            "kenapa pengaturan gak bisa diklik"
+        ],
+        "keywords": [
+            "tidak",
+            "bisa",
+            "akses",
+            "halaman",
+            "pengaturan",
+            "setting"
+        ],
+        "answer": "Bagian *Pengaturan Gateway & Konfigurasi Inti* dikunci khusus untuk pengurus berwenang (*Super Admin / Koordinator*) supaya token koneksi WhatsApp dan struktur divisi tidak terubah secara tidak sengaja oleh anggota.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-074-cara-logout-web",
+        "category": "role",
+        "canonical_question": "Bagaimana cara keluar (logout) dari sistem web?",
+        "patterns": [
+            "tombol logout di mana",
+            "cara keluar akun jobdex",
+            "sign out dari web"
+        ],
+        "keywords": [
+            "cara",
+            "keluar",
+            "logout",
+            "akun",
+            "web"
+        ],
+        "answer": "Klik foto profil/nama kamu di *pojok kanan atas* layar dashboard, lalu pilih tombol *Keluar (Logout)* pada menu dropdown yang muncul.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-075-koordinator-dua-acara",
+        "category": "role",
+        "canonical_question": "Bisakah satu orang menjadi koordinator di dua acara sekaligus?",
+        "patterns": [
+            "jadi koor di dua acara",
+            "pegang dua kepanitiaan sekaligus"
+        ],
+        "keywords": [
+            "satu",
+            "orang",
+            "koordinator",
+            "dua",
+            "acara",
+            "sekaligus"
+        ],
+        "answer": "Bisa! Sistem penugasan kepanitiaan kita (`event_members`) mendukung anggota maupun koordinator untuk terdaftar di lebih dari satu kepanitiaan acara secara bersamaan.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-076-acara-aktif-sekarang",
+        "category": "acara",
+        "canonical_question": "Acara apa saja yang saat ini sedang aktif di ormawa?",
+        "patterns": [
+            "acara yang lagi jalan apa aja",
+            "program kerja aktif sekarang",
+            "daftar event forkom kip"
+        ],
+        "keywords": [
+            "acara",
+            "event",
+            "aktif",
+            "sekarang",
+            "jalan"
+        ],
+        "answer": "Kamu bisa melihat daftar acara yang sedang berjalan langsung di kartu *Ringkasan Dashboard* (seperti *RAKER 2026* dan *PDK 2026*) atau membuka menu *Acara* di sidebar kiri untuk melihat persentase penyelesaian job desk tiap event! 📅",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-077-apa-itu-pdk",
+        "category": "acara",
+        "canonical_question": "Apa itu kegiatan PDK 2026?",
+        "patterns": [
+            "pdk 2026 itu acara apa",
+            "kepanjangan pdk",
+            "jobdesk pdk 2026"
+        ],
+        "keywords": [
+            "apa",
+            "kegiatan",
+            "pdk",
+            "2026",
+            "acara"
+        ],
+        "answer": "*PDK 2026* adalah salah satu program kerja kepanitiaan utama di *Forum Komunikasi KIP-Kuliah Undiksha* yang seluruh kebutuhan desain, publikasi, dan administrasi kreatifnya sedang kita kelola bareng di JobDex.in.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-078-apa-itu-raker",
+        "category": "acara",
+        "canonical_question": "Apa itu kegiatan RAKER 2026?",
+        "patterns": [
+            "raker 2026 itu apa",
+            "kepanjangan raker",
+            "acara raker forkom"
+        ],
+        "keywords": [
+            "apa",
+            "kegiatan",
+            "raker",
+            "2026",
+            "rapat"
+        ],
+        "answer": "*RAKER 2026 (Rapat Kerja)* adalah agenda perencanaan program kerja pengurus Forkom KIP Undiksha selama satu periode ke depan.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-079-arti-notifikasi-h3",
+        "category": "acara",
+        "canonical_question": "Apa arti notifikasi H-3 pada pengingat tugas?",
+        "patterns": [
+            "dapat chat reminder h-3",
+            "arti deadline h-3",
+            "kenapa bot japri h-3"
+        ],
+        "keywords": [
+            "arti",
+            "notifikasi",
+            "h-3",
+            "pengingat",
+            "deadline"
+        ],
+        "answer": "Artinya waktu pengumpulan tugas kamu tinggal *3 hari lagi*, tapi statusnya terdeteksi masih *Belum Dimulai*. Bot mengirim pengingat ramah supaya kamu bisa mulai mencicil tugasnya dari sekarang tanpa terburu-buru! ⏰",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-080-tindakan-notifikasi-h1",
+        "category": "acara",
+        "canonical_question": "Apa yang harus dilakukan jika menerima notifikasi H-1?",
+        "patterns": [
+            "dapat peringatan h-1",
+            "besok deadline harus gimana",
+            "reminder h-1 tugas"
+        ],
+        "keywords": [
+            "notifikasi",
+            "h-1",
+            "besok",
+            "deadline",
+            "tindakan"
+        ],
+        "answer": "Notifikasi *H-1* berarti batas waktu tugasmu adalah *besok*! Segera selesaikan dan unggah draf hasilnya. Kalau ternyata ada kendala mendadak yang bikin telat, langsung lapor dengan mengetik `!jobdex [nama tugas] stuck, catatan: [alasan]` ya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-081-akibat-tugas-overdue",
+        "category": "acara",
+        "canonical_question": "Apa yang terjadi jika tugas sudah melewati batas waktu (Overdue)?",
+        "patterns": [
+            "kalau lewat deadline gimana",
+            "arti status overdue",
+            "tugas telat dikumpul"
+        ],
+        "keywords": [
+            "lewat",
+            "batas",
+            "waktu",
+            "overdue",
+            "telat",
+            "terlambat"
+        ],
+        "answer": "Tugas yang lewat batas waktu akan masuk ke daftar merah *OVERDUE* pada rekap harian grup jam 12 siang dan masuk laporan *Briefing Koordinator*. Yuk segera setor drafnya atau komunikasikan ke koordinator agar jadwal publikasi acara tidak mundur! 🚨",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-082-jam-cron-siang",
+        "category": "acara",
+        "canonical_question": "Jam berapa bot otomatis mengirim rekap deadline ke grup?",
+        "patterns": [
+            "jadwal cron jobdex",
+            "jam berapa pengingat grup keluar",
+            "kapan rekap harian muncul"
+        ],
+        "keywords": [
+            "jam",
+            "berapa",
+            "otomatis",
+            "rekap",
+            "deadline",
+            "12"
+        ],
+        "answer": "Sistem penjadwalan otomatis (Vercel Cron) kita disetel tepat pukul *12.00 WITA setiap siang*. Waktu yang pas buat ngecek progres sambil istirahat siang!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-083-arti-simulasi-sandbox",
+        "category": "acara",
+        "canonical_question": "Kenapa pesan bot yang masuk bertuliskan [SIMULASI SANDBOX]?",
+        "patterns": [
+            "arti simulasi sandbox di wa",
+            "kenapa ada tulisan sandbox",
+            "dialihkan dari tujuan asli artinya apa"
+        ],
+        "keywords": [
+            "simulasi",
+            "sandbox",
+            "dialihkan",
+            "arti",
+            "pesan"
+        ],
+        "answer": "Tulisan `🧪 [SIMULASI SANDBOX]` menandakan sistem sedang dalam *Mode Uji Coba*. Di mode ini, semua pesan notifikasi (yang aslinya menuju japri anggota atau grup lain) sengaja dibelokkan ke grup testing agar tidak mengganggu nomor anggota saat fitur sedang dites! 🛠️",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-084-hubungkan-grup-acara",
+        "category": "acara",
+        "canonical_question": "Bagaimana cara menghubungkan grup WhatsApp baru dengan acara tertentu?",
+        "patterns": [
+            "cara sambungin grup wa ke acara",
+            "command hubungkan grup acara",
+            "daftarin grup kepanitiaan baru"
+        ],
+        "keywords": [
+            "cara",
+            "hubungkan",
+            "grup",
+            "whatsapp",
+            "acara",
+            "baru"
+        ],
+        "answer": "Masukkan nomor bot JobDex ke grup WA kepanitiaan tersebut, lalu Koordinator cukup mengetik perintah ini di dalam grupnya:\n\n👉 `!jobdex hubungkan grup acara [nama acara]`\nContoh: `!jobdex hubungkan grup acara PDK 2026`",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-085-tanggung-jawab-terlambat",
+        "category": "acara",
+        "canonical_question": "Siapa yang bertanggung jawab jika suatu tugas terlambat?",
+        "patterns": [
+            "kalau tugas telat siapa yang salah",
+            "tanggung jawab keterlambatan tugas"
+        ],
+        "keywords": [
+            "siapa",
+            "tanggung",
+            "jawab",
+            "terlambat",
+            "telat"
+        ],
+        "answer": "Tanggung jawab pengerjaan ada pada *PIC tugas*, namun *Koordinator* turut memantau dan membantu jika ada kendala. Di kepanitiaan kita mengutamakan komunikasi terbuka: kalau berat, bilang sejak awal biar bisa dibantu bareng-bareng! 🤝",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-086-undur-tanggal-deadline",
+        "category": "acara",
+        "canonical_question": "Bisakah tanggal deadline diundur jika ada kendala mendesak?",
+        "patterns": [
+            "cara minta perpanjang deadline",
+            "bisa ubah tanggal deadline gak",
+            "undur batas waktu tugas"
+        ],
+        "keywords": [
+            "undur",
+            "perpanjang",
+            "ubah",
+            "tanggal",
+            "deadline"
+        ],
+        "answer": "Bisa, dengan persetujuan *Koordinator*! Sampaikan alasan mendesaknya ke koordinator kamu. Koordinator bisa mengedit tanggal deadline langsung lewat dashboard web atau lewat perintah `!jobdex edit task`.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-087-lihat-kalender-jadwal",
+        "category": "acara",
+        "canonical_question": "Bagaimana cara melihat kalender jadwal acara di web dashboard?",
+        "patterns": [
+            "menu kalender di mana",
+            "lihat jadwal deadline sebulan",
+            "tampilan kalender tugas"
+        ],
+        "keywords": [
+            "cara",
+            "lihat",
+            "kalender",
+            "jadwal",
+            "dashboard"
+        ],
+        "answer": "Klik menu *Kalender* di barisan navigasi sebelah kiri dashboard. Di sana semua tenggat waktu tugas dan jadwal acara sudah terpetakan per tanggal secara visual!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-088-arti-koor-alert",
+        "category": "acara",
+        "canonical_question": "Apa arti notifikasi Koor Alert di grup?",
+        "patterns": [
+            "arti koor alert",
+            "kenapa muncul peringatan koor alert",
+            "ada tugas butuh perhatian koor"
+        ],
+        "keywords": [
+            "arti",
+            "notifikasi",
+            "koor",
+            "alert",
+            "perhatian"
+        ],
+        "answer": "*Koor Alert* adalah sinyal pengingat khusus buat *Koordinator* kalau ada tugas yang macet (*stuck*) lebih dari 12 jam, nunggu bahan materi lebih dari sehari, atau draf yang sudah diupload tapi belum di-acc lebih dari 24 jam.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-089-dashboard-lambat-hp",
+        "category": "teknis",
+        "canonical_question": "Kenapa dashboard terasa lambat saat dimuat di HP?",
+        "patterns": [
+            "web lemot di hp",
+            "kenapa loading lama",
+            "buka referensi berat di hp"
+        ],
+        "keywords": [
+            "lambat",
+            "lemot",
+            "loading",
+            "lama",
+            "hp",
+            "berat"
+        ],
+        "answer": "Tenang, halaman referensi sekarang udah kita batasi tampil 18 kartu per halaman dengan tombol *Muat Lebih Banyak* supaya enteng di HP! Kalau masih terasa lambat, pastikan sinyal internetmu stabil atau tutup tab browser yang menumpuk ya.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-090-gambar-referensi-tidak-muncul",
+        "category": "teknis",
+        "canonical_question": "Kenapa gambar referensi desain tidak mau muncul?",
+        "patterns": [
+            "foto referensi pecah gak muncul",
+            "gambar di web gak keluar",
+            "thumbnail referensi error"
+        ],
+        "keywords": [
+            "gambar",
+            "foto",
+            "referensi",
+            "tidak",
+            "muncul",
+            "error"
+        ],
+        "answer": "Biasanya karena koneksi internet sedang membatasi pemuatan gambar dari server penyimpanan (Cloudinary/Drive), atau file aslinya di Google Drive telah dihapus/dipindah. Coba refresh halaman atau klik tombol *Buka File Asli* pada kartunya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-091-tombol-simpan-tidak-merespons",
+        "category": "teknis",
+        "canonical_question": "Apa yang harus dilakukan jika tombol simpan tidak merespons?",
+        "patterns": [
+            "tombol simpan gak bisa diklik",
+            "gagal simpan perubahan di web",
+            "klik tombol gak jalan"
+        ],
+        "keywords": [
+            "tombol",
+            "simpan",
+            "tidak",
+            "merespons",
+            "diklik",
+            "macet"
+        ],
+        "answer": "Periksa dulu apakah ada kolom wajib (*required*) yang masih kosong atau format input yang belum sesuai (seperti format URL link yang belum pakai `https://`). Kalau semua sudah terisi benar, coba refresh halaman sekali lalu simpan kembali.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-092-tidak-terima-notif-wa",
+        "category": "teknis",
+        "canonical_question": "Kenapa saya tidak menerima notifikasi WhatsApp saat ditugaskan?",
+        "patterns": [
+            "saya gak dapat wa tugas baru",
+            "notif wa gak masuk ke nomor saya"
+        ],
+        "keywords": [
+            "tidak",
+            "menerima",
+            "dapat",
+            "notifikasi",
+            "wa",
+            "tugas"
+        ],
+        "answer": "Kemungkinan besar karena sistem sedang berada dalam *Mode Sandbox* (sehingga pesan dialihkan ke grup testing), atau nomor WhatsApp di profil akun kamu belum terisi dengan benar.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-093-lapor-bug-error",
+        "category": "teknis",
+        "canonical_question": "Ke mana saya harus melapor jika menemukan bug atau data salah?",
+        "patterns": [
+            "cara lapor bug aplikasi",
+            "ada error di web lapor siapa",
+            "data tugas salah"
+        ],
+        "keywords": [
+            "ke",
+            "mana",
+            "lapor",
+            "bug",
+            "error",
+            "salah"
+        ],
+        "answer": "Langsung kirim tangkapan layar (*screenshot*) kendalanya ke grup koordinasi atau japri ke *Super Admin (Sumesta)* biar bisa langsung diperbaiki secepat kilat! 🛠️",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-094-link-drive-terkunci",
+        "category": "teknis",
+        "canonical_question": "Kenapa link file upload Google Drive terkunci atau minta izin akses?",
+        "patterns": [
+            "link drive gak bisa dibuka",
+            "minta akses google drive",
+            "file hasil terkunci"
+        ],
+        "keywords": [
+            "link",
+            "drive",
+            "terkunci",
+            "izin",
+            "akses",
+            "buka"
+        ],
+        "answer": "Itu karena PIC yang mengunggah lupa mengubah setelan berbagi (*Share Settings*) di Google Drive-nya. Ingatkan PIC untuk mengubah akses folder/file menjadi *'Siapa saja yang memiliki link dapat melihat'* ya! 🔓",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-095-cara-hapus-tugas-salah",
+        "category": "teknis",
+        "canonical_question": "Bagaimana cara menghapus atau mengarsipkan tugas yang salah dibuat?",
+        "patterns": [
+            "cara hapus tugas",
+            "salah bikin jobdesk gimana hapusnya",
+            "command archive task"
+        ],
+        "keywords": [
+            "cara",
+            "hapus",
+            "arsip",
+            "archive",
+            "tugas",
+            "salah"
+        ],
+        "answer": "Koordinator atau Admin bisa mengarsipkan tugas yang salah buat lewat dashboard web, atau ketik perintah di WA:\n👉 `!jobdex archive task [nama tugas]`\nlalu konfirmasi kode arsip yang muncul.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-096-ubah-desain-sudah-acc",
+        "category": "teknis",
+        "canonical_question": "Apakah draf desain yang sudah di-acc bisa diubah kembali?",
+        "patterns": [
+            "tugas udah diapprove tapi ada revisi mendadak",
+            "ubah tugas yang sudah selesai"
+        ],
+        "keywords": [
+            "sudah",
+            "acc",
+            "approve",
+            "diubah",
+            "revisi",
+            "kembali"
+        ],
+        "answer": "Bisa! Jika ada perubahan mendadak (misal jam acara berganti setelah poster di-acc), Koordinator cukup mengubah status tugas kembali menjadi *Perlu Revisi* dan menambahkan catatan perubahannya.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-097-kuota-fonnte-berkurang",
+        "category": "teknis",
+        "canonical_question": "Mengapa kuota pesan gateway WhatsApp berkurang?",
+        "patterns": [
+            "kuota fonnte berkurang",
+            "jatah pesan gateway wa"
+        ],
+        "keywords": [
+            "kuota",
+            "pesan",
+            "gateway",
+            "fonnte",
+            "berkurang"
+        ],
+        "answer": "Setiap pesan keluar yang dikirim oleh bot (baik pengingat cron harian, notifikasi tugas, maupun balasan chat) menggunakan 1 kuota pengiriman pada gateway Fonnte ormawa kita.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-098-nomor-gateway-berganti",
+        "category": "teknis",
+        "canonical_question": "Apa yang harus dilakukan jika nomor gateway WhatsApp bot berganti?",
+        "patterns": [
+            "ganti nomor bot wa gimana",
+            "scan qr ulang nomor bot baru"
+        ],
+        "keywords": [
+            "nomor",
+            "gateway",
+            "bot",
+            "berganti",
+            "baru",
+            "token"
+        ],
+        "answer": "Jika ormawa mengganti nomor HP bot, *Super Admin* cukup menautkan perangkat baru di dashboard Fonnte, menyalin API Token barunya, lalu menyimpannya di menu *Pengaturan > WhatsApp Gateway* pada web JobDex.",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-099-server-sedang-sibuk",
+        "category": "teknis",
+        "canonical_question": "Kenapa bot membalas bahwa asisten AI sedang bermasalah atau sibuk?",
+        "patterns": [
+            "koneksi ke asisten ai lagi bermasalah",
+            "kenapa ai lagi pusing",
+            "error ai fallback"
+        ],
+        "keywords": [
+            "asisten",
+            "ai",
+            "bermasalah",
+            "sibuk",
+            "pusing",
+            "error"
+        ],
+        "answer": "Pesan itu muncul kalau jaringan ke server AI eksternal sedang penuh sesaat. Tapi jangan khawatir, seluruh perintah sistem (`!jobdex tugas saya`, update status, upload hasil) tetap jalan normal 100%! 💪",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-100-bersihkan-cache-browser",
+        "category": "teknis",
+        "canonical_question": "Bagaimana cara membersihkan cache browser jika tampilan web tidak terupdate?",
+        "patterns": [
+            "tampilan web belum berubah",
+            "cara hard refresh browser",
+            "bersihkan cache web"
+        ],
+        "keywords": [
+            "cache",
+            "browser",
+            "tampilan",
+            "refresh",
+            "update"
+        ],
+        "answer": "Kalau di laptop, tekan tombol *Ctrl + F5* (atau *Ctrl + Shift + R*) secara bersamaan. Kalau di browser HP, tarik layar ke bawah untuk muat ulang atau buka lewat tab baru ya!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-101-format-tambah-jobdesk-wa",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana format lengkap membuat tugas baru langsung dari WhatsApp?",
+        "patterns": [
+            "format tambah jobdesk di wa",
+            "cara bikin tugas lewat chat wa",
+            "command tambah jobdesk"
+        ],
+        "keywords": [
+            "format",
+            "tambah",
+            "jobdesk",
+            "buat",
+            "tugas",
+            "wa"
+        ],
+        "answer": "Koordinator bisa membuat tugas lewat WA dengan format:\n\n`!jobdex tambah jobdesk`\n`tipe: [acara / divisi]`\n`acara: [nama acara jika tipe acara]`\n`judul: [nama tugas]`\n`pic: [nama anggota]`\n`deadline: [YYYY-MM-DD]`\n`prioritas: [tinggi / sedang / rendah]`\n\nNanti bot akan menampilkan preview-nya dulu sebelum disimpan! 📋",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-102-konfirmasi-preview-kode",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana cara mengonfirmasi preview tambah atau edit tugas di WA?",
+        "patterns": [
+            "cara konfirmasi preview jobdesk",
+            "muncul kode prv terus gimana",
+            "simpan preview tugas di wa"
+        ],
+        "keywords": [
+            "konfirmasi",
+            "preview",
+            "kode",
+            "simpan",
+            "wa"
+        ],
+        "answer": "Setelah bot menampilkan ringkasan preview dan memberikan kode unik, kamu tinggal ketik:\n👉 `!jobdex konfirmasi [KODE_PREVIEW]`\n\nSaat itu juga tugas langsung resmi tersimpan ke database!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-103-cek-role-saya-wa",
+        "category": "bot_wa",
+        "canonical_question": "Bagaimana cara mengecek jabatan atau role saya lewat WhatsApp?",
+        "patterns": [
+            "cek role saya di wa",
+            "lihat jabatan saya lewat bot",
+            "command cek pengirim"
+        ],
+        "keywords": [
+            "cek",
+            "role",
+            "jabatan",
+            "saya",
+            "pengirim"
+        ],
+        "answer": "Ketik aja:\n👉 `!jobdex cek role saya`\n\nBot akan memberi tahu nama akun kamu yang terdeteksi beserta jabatan divisi dan kepanitiaan aktifmu!",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-104-ganti-tema-gelap-terang",
+        "category": "umum",
+        "canonical_question": "Apakah tampilan web JobDex.in punya mode gelap (Dark Mode)?",
+        "patterns": [
+            "cara ganti dark mode",
+            "ada mode gelap gak di web",
+            "ubah warna tema dashboard"
+        ],
+        "keywords": [
+            "mode",
+            "gelap",
+            "terang",
+            "dark",
+            "tema",
+            "tampilan"
+        ],
+        "answer": "*Ada dong!* Kamu tinggal klik ikon *Bulan / Matahari* di barisan atas (topbar) sebelah kanan dekat nama profil kamu. Tampilan dashboard langsung berubah ke mode gelap yang nyaman di mata! 🌙",
+        "is_active": true,
+        "hit_count": 0
+    },
+    {
+        "id": "faq-105-kenapa-tambah-ormawa-dikunci",
+        "category": "umum",
+        "canonical_question": "Kenapa tombol tambah organisasi baru di halaman Ruang Kerja dikunci?",
+        "patterns": [
+            "kenapa ruang kerja terkunci",
+            "gak bisa tambah ormawa baru",
+            "terkunci untuk periode berjalan"
+        ],
+        "keywords": [
+            "ruang",
+            "kerja",
+            "ormawa",
+            "dikunci",
+            "terkunci",
+            "periode"
+        ],
+        "answer": "Ruang kerja saat ini sengaja difokuskan dan dikunci khusus untuk operasional penuh *Forum Komunikasi KIP-Kuliah Undiksha* pada periode kepengurusan berjalan agar seluruh data panitia tetap terpusat dan rapi! 🏛️",
+        "is_active": true,
+        "hit_count": 0
+    }
+]

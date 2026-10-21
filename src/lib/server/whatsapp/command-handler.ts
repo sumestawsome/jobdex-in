@@ -62,6 +62,12 @@ import {
   isReferenceSearchQuestion,
   searchDesignReferencesFromQuestion,
 } from "@/lib/server/reference-search";
+import {
+  findFaqMatch,
+  incrementFaqHitCount,
+} from "@/lib/server/faq-matcher";
+
+export { findFaqMatch } from "@/lib/server/faq-matcher";
 
 function isGroupAllowedByVariants(incomingGroupId: string, allowedGroupIds: string[]): boolean {
   if (!incomingGroupId) return false;
@@ -1438,7 +1444,7 @@ export async function executeWhatsAppWebhook(
     const isRefSearch = isReferenceSearchQuestion(question);
 
     const updateDebugIntent = async (
-      routedTo: "task_command" | "task_help" | "reference_search" | "gemini_fallback" | "deepseek_fallback",
+      routedTo: "task_command" | "task_help" | "reference_search" | "gemini_fallback" | "deepseek_fallback" | "instant_faq_match",
       parsedTaskIntent: string | null,
       refQuery: string | null = null
     ) => {
@@ -2903,17 +2909,74 @@ export async function executeWhatsAppWebhook(
       return NextResponse.json({ ok: true });
     }
 
-    // --- Fallback: DeepSeek AI Assistant with Live Project Context & Daily Rate Limiting ---
-    const rawQuestion = sanitizePinFromMessage(
-      question || incoming.message.replace(/^!jobdex/i, "").trim() || incoming.message
-    );
-    console.log("[WhatsApp AI Assistant] Processing natural question with live context:", rawQuestion);
-
-    // 1. Identifikasi nomor pengirim (normalisasi format: e.g. 6285119459703)
+    // Identifikasi nomor pengirim (normalisasi format: e.g. 6285119459703)
     const effectiveSenderPhone = (
       resolvedSenderNumber ||
       (incoming.sender ? incoming.sender.replace(/[^\d]/g, "").replace(/^0/, "62") : "")
     ).replace(/[^\d]/g, "").replace(/^0/, "62");
+
+    const rawQuestion = sanitizePinFromMessage(
+      question || incoming.message.replace(/^!jobdex/i, "").trim() || incoming.message
+    );
+
+    // --- Fase 14B: Instant FAQ Knowledge Matcher (105 FAQ Dokumen) ---
+    // Pencocokan instan tanpa memanggil DeepSeek API (0 token cost & respon seketika)
+    const faqCandidateQuery = question || incoming.message;
+    const faqMatch = await findFaqMatch(faqCandidateQuery);
+
+    if (faqMatch) {
+      const matchedFaq = faqMatch.faq;
+      console.log("[whatsapp command] step: instant_faq_match", {
+        faqId: matchedFaq.id,
+        canonicalQuestion: matchedFaq.canonical_question,
+        score: faqMatch.score,
+        patternMatched: faqMatch.patternMatched,
+        matchedKeywords: faqMatch.matchedKeywordsCount,
+      });
+
+      // Tambah hit_count (+1) di Firestore
+      await incrementFaqHitCount(matchedFaq.id);
+
+      // Pastikan formatWhatsAppText (*bold* bukan **bold**) diaplikasikan ke jawaban FAQ
+      const formattedAnswer = formatWhatsAppText(matchedFaq.answer);
+
+      // Simpan log ke ai_logs untuk audit dan analitik
+      const aiLogRef = getAdminDb().collection("ai_logs").doc();
+      await aiLogRef.set({
+        id: aiLogRef.id,
+        organization_id: detectedOrgId || "main_org",
+        asked_by: "whatsapp_bot",
+        sender_phone: effectiveSenderPhone || "unknown",
+        question: sanitizePinFromMessage(faqCandidateQuery),
+        context_summary: `Instant FAQ Match: [${matchedFaq.id}] ${matchedFaq.canonical_question}`,
+        answer: formattedAnswer,
+        model_used: "instant_faq_match",
+        source: "whatsapp",
+        whatsapp_sender: senderLabel,
+        whatsapp_group_id: incoming.groupId || "",
+        created_at: FieldValue.serverTimestamp(),
+      });
+
+      console.log("[whatsapp command] step: instant_faq_sending_reply");
+      const sendResult = await sendWhatsAppMessage(formattedAnswer);
+      await createWhatsAppLog({
+        message: formattedAnswer,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+
+      await updateDebugIntent("instant_faq_match", null, faqCandidateQuery);
+      console.log("[whatsapp command] handled", {
+        commandType: "instant_faq_match",
+        faqId: matchedFaq.id,
+        handled: true,
+        stopFurtherProcessing: true,
+      });
+      return NextResponse.json({ ok: true, faqId: matchedFaq.id });
+    }
+
+    // --- Fallback: DeepSeek AI Assistant with Live Project Context & Daily Rate Limiting ---
+    console.log("[WhatsApp AI Assistant] Processing natural question with live context:", rawQuestion);
 
     // 2. Pengecekan Kuota (Super Admin: 6285119459703 atau role super_admin bypass kuota)
     const isSuperAdminPhone =
