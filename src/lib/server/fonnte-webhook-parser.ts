@@ -118,15 +118,27 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
     root.username
   );
 
-  // Read raw message ID
-  const rawMessageId = pickString(
-    data.inboxid,
+  // Read raw message ID (abaikan 0, "0", null, undefined)
+  const candidateId = pickString(
     data.id,
+    data.inboxid,
+    data.message_id,
+    data.msg_id,
+    root.id,
     root.inboxid,
-    root.id
+    root.message_id
   );
+  const rawMessageId =
+    candidateId && candidateId !== "0" && candidateId !== "null" && candidateId !== "undefined"
+      ? candidateId
+      : undefined;
 
-  const timestamp = data.timestamp || root.timestamp;
+  const rawTimestamp = data.timestamp ?? root.timestamp;
+  const timestamp =
+    (typeof rawTimestamp === "string" || typeof rawTimestamp === "number") && String(rawTimestamp).trim() !== "0"
+      ? String(rawTimestamp).trim()
+      : undefined;
+
 
   const keys = Object.keys(root);
   if (!message) {

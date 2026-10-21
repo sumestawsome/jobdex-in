@@ -7,6 +7,19 @@ import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+// In-memory dedupe lock cache (TTL 15 detik) untuk mencegah retry berulang dari network Fonnte
+const inMemoryDedupeLocks = new Map<string, number>();
+const DEDUPE_TTL_SECONDS = 15;
+const DEDUPE_TTL_MS = DEDUPE_TTL_SECONDS * 1000;
+
+function pruneExpiredMemoryLocks(now: number) {
+  for (const [key, expiresAt] of inMemoryDedupeLocks.entries()) {
+    if (now > expiresAt) {
+      inMemoryDedupeLocks.delete(key);
+    }
+  }
+}
+
 export async function GET() {
   return NextResponse.json({
     ok: true,
@@ -111,16 +124,16 @@ export async function POST(request: NextRequest) {
   }
 
   // --- Route-Level Atomic Deduplication (Fase 27A.2.6) ---
-  // Gunakan timestamp atau time-bucket 10 detik agar tidak memblokir pengetesan berulang secara permanen
-  const timeBucket = incoming.timestamp 
-    ? String(incoming.timestamp) 
-    : String(Math.floor(Date.now() / 10000));
+  // Masukkan ID unik pesan (inboxid/id non-0) ATAU timestamp detik pesan
+  const rawId = incoming.rawMessageId && incoming.rawMessageId !== "0" ? incoming.rawMessageId : null;
+  const messageTimestamp = incoming.timestamp ? String(incoming.timestamp) : String(Math.floor(Date.now() / 1000));
+  const uniqueMessageIdentifier = rawId ? `id:${rawId}` : `ts:${messageTimestamp}`;
 
   const dedupeKeySource = [
     incoming.provider,
     incoming.groupId || "personal",
     incoming.sender || "unknown",
-    incoming.rawMessageId || timeBucket,
+    uniqueMessageIdentifier,
     incoming.message || "",
   ].join("|");
 
@@ -129,35 +142,100 @@ export async function POST(request: NextRequest) {
     .update(dedupeKeySource)
     .digest("hex");
 
+  const now = Date.now();
+  pruneExpiredMemoryLocks(now);
+
+  // 1. Cek in-memory lock (15s TTL)
+  const memExpiresAt = inMemoryDedupeLocks.get(dedupeKey);
+  if (memExpiresAt && now <= memExpiresAt) {
+    console.log("[whatsapp inbound dedupe] in-memory duplicate ignored (<15s)", {
+      dedupeKeyPreview: dedupeKey.slice(0, 32),
+      uniqueMessageIdentifier,
+    });
+    return NextResponse.json({
+      ok: true,
+      deduped: true,
+    });
+  }
+  inMemoryDedupeLocks.set(dedupeKey, now + DEDUPE_TTL_MS);
+
+  // 2. Cek Firestore distributed lock (15s TTL)
   const db = getAdminDb();
   const docRef = db.collection("whatsapp_inbound_logs").doc(dedupeKey);
+  let isDuplicate = false;
 
   try {
-    // Atomic create
+    // Atomic create lock
     await docRef.create({
       dedupe_key: dedupeKey,
       provider: incoming.provider,
       group_id: incoming.groupId || "",
       sender: incoming.sender || "",
+      unique_identifier: uniqueMessageIdentifier,
       message_preview: incoming.message.slice(0, 80),
       status: "processing",
       created_at: FieldValue.serverTimestamp(),
+      created_at_ms: now,
+      expires_at_ms: now + DEDUPE_TTL_MS,
     });
     console.log("[whatsapp inbound dedupe] lock created", {
       dedupeKeyPreview: dedupeKey.slice(0, 32),
+      uniqueMessageIdentifier,
+      ttlSeconds: DEDUPE_TTL_SECONDS,
     });
   } catch (error: unknown) {
     const errObj = error as Record<string, unknown> | null;
     if (errObj && (errObj.code === 6 || (typeof errObj.message === "string" && errObj.message.includes("already exists")))) {
-      console.log("[whatsapp inbound dedupe] duplicate ignored", {
-        dedupeKeyPreview: dedupeKey.slice(0, 32),
-      });
-      return NextResponse.json({
-        ok: true,
-        deduped: true,
-      });
+      // Periksa apakah dokumen lock sudah kedaluwarsa (> 15 detik)
+      const existingDoc = await docRef.get();
+      if (existingDoc.exists) {
+        const data = existingDoc.data();
+        let docCreatedAtMs = typeof data?.created_at_ms === "number" ? data.created_at_ms : 0;
+        if (!docCreatedAtMs && data?.created_at?.toMillis) {
+          docCreatedAtMs = data.created_at.toMillis();
+        } else if (!docCreatedAtMs && typeof data?.created_at?._seconds === "number") {
+          docCreatedAtMs = data.created_at._seconds * 1000;
+        }
+
+        const ageMs = docCreatedAtMs > 0 ? (now - docCreatedAtMs) : Infinity;
+
+        // Jika lock sudah kedaluwarsa (> 15 detik), perbarui lock dan izinkan pesan diproses
+        if (ageMs > DEDUPE_TTL_MS) {
+          console.log("[whatsapp inbound dedupe] expired lock found (>15s), renewing lock and allowing message", {
+            dedupeKeyPreview: dedupeKey.slice(0, 32),
+            ageSeconds: Math.round(ageMs / 1000),
+          });
+          await docRef.set({
+            dedupe_key: dedupeKey,
+            provider: incoming.provider,
+            group_id: incoming.groupId || "",
+            sender: incoming.sender || "",
+            unique_identifier: uniqueMessageIdentifier,
+            message_preview: incoming.message.slice(0, 80),
+            status: "processing",
+            created_at: FieldValue.serverTimestamp(),
+            created_at_ms: now,
+            expires_at_ms: now + DEDUPE_TTL_MS,
+          }, { merge: true });
+        } else {
+          // Lock masih aktif dan di bawah 15 detik -> retry murni dari Fonnte
+          console.log("[whatsapp inbound dedupe] duplicate ignored (active lock <15s)", {
+            dedupeKeyPreview: dedupeKey.slice(0, 32),
+            ageSeconds: Math.round(ageMs / 1000),
+          });
+          isDuplicate = true;
+        }
+      }
+    } else {
+      console.error("Deduplication error:", error);
     }
-    console.error("Deduplication error:", error);
+  }
+
+  if (isDuplicate) {
+    return NextResponse.json({
+      ok: true,
+      deduped: true,
+    });
   }
 
   // Forward to shared command execution engine and await result so Vercel runtime does not freeze before completion
