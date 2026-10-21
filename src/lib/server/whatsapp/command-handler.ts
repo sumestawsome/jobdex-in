@@ -562,7 +562,8 @@ export async function executeWhatsAppWebhook(
   });
 
   const message = incoming.message || "";
-  const isJobdexPrefixed = message.trim().toLowerCase().startsWith("!jobdex");
+  const trimmed = message.trim();
+  const isJobdexPrefixed = trimmed.toLowerCase().startsWith("!jobdex");
 
   // Di grup WhatsApp, abaikan pesan yang bukan untuk bot (tidak berawalan !jobdex) agar tidak spam obrolan panitia
   if (incoming.isGroup && !isJobdexPrefixed) {
@@ -571,6 +572,35 @@ export async function executeWhatsAppWebhook(
       ignored: true,
       reason: "non_jobdex_group_message",
     });
+  }
+
+  // --- Penanganan Langsung: Perintah !jobdex Tunggal (Tanpa Argumen) ---
+  const cleanAfterPrefix = trimmed.replace(/^!jobdex/i, "").trim();
+  if (isJobdexPrefixed && cleanAfterPrefix === "") {
+    const singleJobdexReply = [
+      "Halo! Ada yang bisa JobDex bantu? 🤖",
+      "Ketik `!jobdex bantuan` untuk lihat daftar perintah, atau ketik `!jobdex tugas saya` untuk cek tugas kamu."
+    ].join("\n");
+
+    const target = incoming.groupId || getDefaultGroupId();
+    const isGroup = isGroupRecipient(target);
+    const sendResult = await baseSendWhatsAppMessage({
+      target,
+      message: singleJobdexReply,
+      type: isGroup ? "group" : "phone",
+    });
+
+    await baseCreateWhatsAppLog({
+      message: singleJobdexReply,
+      status: "sent",
+      response: sendResult.responseText,
+      recipient: target,
+      isGroup,
+      provider: sendResult.provider,
+    });
+
+    console.log("[whatsapp command] handled empty !jobdex greeting directly (0 token)");
+    return NextResponse.json({ ok: true, commandType: "empty_jobdex_greeting" });
   }
 
   let parsedCommand = parseWhatsAppCommand(incoming.message || "");
@@ -800,7 +830,22 @@ export async function executeWhatsAppWebhook(
     "👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
   ].join("\n");
 
-  if (cleanQuery === "" || cleanQuery === "help" || cleanQuery === "menu" || cleanQuery === "bantuan") {
+  const singleJobdexReply = [
+    "Halo! Ada yang bisa JobDex bantu? 🤖",
+    "Ketik `!jobdex bantuan` untuk lihat daftar perintah, atau ketik `!jobdex tugas saya` untuk cek tugas kamu."
+  ].join("\n");
+
+  if (cleanQuery === "") {
+    const sendResult = await sendWhatsAppMessage(singleJobdexReply);
+    await createWhatsAppLog({
+      message: singleJobdexReply,
+      status: "sent",
+      response: sendResult.responseText,
+    });
+    return NextResponse.json({ ok: true, commandType: "empty_jobdex_greeting" });
+  }
+
+  if (cleanQuery === "help" || cleanQuery === "menu" || cleanQuery === "bantuan") {
     console.log("[whatsapp command] resolved command", {
       rawQuery: message,
       normalizedQuery: cleanQuery,
@@ -2913,8 +2958,12 @@ export async function executeWhatsAppWebhook(
         modelUsed = aiResult.model;
       } catch (aiErr) {
         console.error("[WhatsApp AI Assistant] Error generating fallback response:", aiErr);
-        answer = "Halo! Maaf yaa, asisten AI lagi ada kendala jaringan nih. Coba tanya lagi beberapa saat lagi atau cek langsung tugasmu lewat perintah `!jobdex tugas saya` yaa! 🙌";
+        answer = "Waduh, koneksi ke asisten AI lagi bermasalah nih. Tapi kamu tetep bisa pakai perintah biasa kayak `!jobdex tugas saya` ya! ✌️";
       }
+    }
+
+    if (!answer || answer.trim() === "") {
+      answer = "Waduh, koneksi ke asisten AI lagi bermasalah nih. Tapi kamu tetep bisa pakai perintah biasa kayak `!jobdex tugas saya` ya! ✌️";
     }
 
     const aiLogRef = getAdminDb().collection("ai_logs").doc();
@@ -2972,10 +3021,7 @@ export async function executeWhatsAppWebhook(
       });
     }
 
-    const errorReply = [
-      WA_LABEL.ai,
-      GEMINI_EMPTY_ANSWER_FALLBACK,
-    ].join("\n");
+    const errorReply = "Waduh, koneksi ke asisten AI lagi bermasalah nih. Tapi kamu tetep bisa pakai perintah biasa kayak `!jobdex tugas saya` ya! ✌️";
 
     try {
       const sendResult = await sendWhatsAppMessage(errorReply);
@@ -2985,6 +3031,7 @@ export async function executeWhatsAppWebhook(
         response: sendResult.responseText,
       });
     } catch (sendError) {
+      console.error("[whatsapp command] Failed to dispatch safe-reply error:", sendError);
       let status = "failed";
       let errorMsg = sendError instanceof Error ? sendError.message : "Gagal mengirim error reply ke WhatsApp.";
       let cooldownUntil: Date | null = null;
@@ -3006,7 +3053,9 @@ export async function executeWhatsAppWebhook(
     }
 
     return NextResponse.json({
-      ok: false,
+      ok: true,
+      handled: true,
+      fallbackUsed: true,
       error:
         error instanceof Error
           ? error.message

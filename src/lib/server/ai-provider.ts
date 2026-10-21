@@ -33,6 +33,11 @@ export interface AIProviderResult {
 // ─── Config Helpers ──────────────────────────────────────────────────────────
 
 function getProvider(): AIProviderName {
+  // 1. Prioritaskan DeepSeek jika DEEPSEEK_API_KEY tersedia
+  if (process.env.DEEPSEEK_API_KEY?.trim()) {
+    return "deepseek";
+  }
+
   const explicit = (
     process.env.DEFAULT_AI_PROVIDER ||
     process.env.AI_PROVIDER ||
@@ -40,15 +45,16 @@ function getProvider(): AIProviderName {
   ).toLowerCase();
 
   if (explicit === "deepseek") return "deepseek";
-  if (explicit === "gemini") return "gemini";
+  if (explicit === "gemini" && process.env.GEMINI_API_KEY?.trim()) return "gemini";
   if (explicit === "mock") return "mock";
 
-  // Auto-detect based on available keys: DeepSeek preferred if key is set
-  if (process.env.DEEPSEEK_API_KEY) {
-    return "deepseek";
+  // 2. Jika ada GEMINI_API_KEY, gunakan gemini
+  if (process.env.GEMINI_API_KEY?.trim()) {
+    return "gemini";
   }
 
-  return "gemini";
+  // 3. Default aman ke deepseek
+  return "deepseek";
 }
 
 function getDeepSeekConfig(tier: "fast" | "pro" = "fast") {
@@ -278,36 +284,61 @@ export async function generateText(params: AIProviderParams): Promise<AIProvider
     } catch (err) {
       primaryError = err instanceof Error ? err : new Error(String(err));
       console.warn("[AI Provider] Primary provider DeepSeek failed:", primaryError.message);
-      console.info("[AI Provider] Attempting automatic fallback to Gemini...");
 
-      try {
-        result = await callGemini(params);
-        console.info("[AI Provider] Fallback to Gemini SUCCESS.");
-      } catch (geminiErr) {
-        const gErr = geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
-        console.error("[AI Provider] Both DeepSeek & Gemini failed:", {
-          deepseek: primaryError.message,
-          gemini: gErr,
-        });
+      // Jangan paksa memanggil Gemini jika kunci Gemini tidak ada
+      const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY?.trim());
+      if (hasGeminiKey) {
+        console.info("[AI Provider] Attempting automatic fallback to Gemini...");
+        try {
+          result = await callGemini(params);
+          console.info("[AI Provider] Fallback to Gemini SUCCESS.");
+        } catch (geminiErr) {
+          const gErr = geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
+          console.error("[AI Provider] Both DeepSeek & Gemini failed:", {
+            deepseek: primaryError.message,
+            gemini: gErr,
+          });
+        }
+      } else {
+        console.warn("[AI Provider] GEMINI_API_KEY tidak dikonfigurasi, melewati fallback Gemini.");
       }
     }
   } else if (resolvedProvider === "gemini") {
-    try {
-      result = await callGemini(params);
-    } catch (err) {
-      primaryError = err instanceof Error ? err : new Error(String(err));
-      console.warn("[AI Provider] Primary provider Gemini failed:", primaryError.message);
-      console.info("[AI Provider] Attempting automatic fallback to DeepSeek...");
-
+    const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY?.trim());
+    if (hasGeminiKey) {
       try {
-        result = await callDeepSeek(params);
-        console.info("[AI Provider] Fallback to DeepSeek SUCCESS.");
-      } catch (deepseekErr) {
-        const dErr = deepseekErr instanceof Error ? deepseekErr.message : String(deepseekErr);
-        console.error("[AI Provider] Both Gemini & DeepSeek failed:", {
-          gemini: primaryError.message,
-          deepseek: dErr,
-        });
+        result = await callGemini(params);
+      } catch (err) {
+        primaryError = err instanceof Error ? err : new Error(String(err));
+        console.warn("[AI Provider] Primary provider Gemini failed:", primaryError.message);
+
+        const hasDeepSeekKey = Boolean(process.env.DEEPSEEK_API_KEY?.trim());
+        if (hasDeepSeekKey) {
+          console.info("[AI Provider] Attempting automatic fallback to DeepSeek...");
+          try {
+            result = await callDeepSeek(params);
+            console.info("[AI Provider] Fallback to DeepSeek SUCCESS.");
+          } catch (deepseekErr) {
+            const dErr = deepseekErr instanceof Error ? deepseekErr.message : String(deepseekErr);
+            console.error("[AI Provider] Both Gemini & DeepSeek failed:", {
+              gemini: primaryError.message,
+              deepseek: dErr,
+            });
+          }
+        }
+      }
+    } else {
+      // Gemini requested but no key, use DeepSeek directly
+      const hasDeepSeekKey = Boolean(process.env.DEEPSEEK_API_KEY?.trim());
+      if (hasDeepSeekKey) {
+        console.info("[AI Provider] GEMINI_API_KEY tidak ada, langsung beralih ke DeepSeek...");
+        try {
+          result = await callDeepSeek(params);
+        } catch (deepseekErr) {
+          primaryError = deepseekErr instanceof Error ? deepseekErr : new Error(String(deepseekErr));
+        }
+      } else {
+        console.warn("[AI Provider] Tidak ada API key AI yang tersedia (Gemini & DeepSeek tidak terkonfigurasi).");
       }
     }
   } else {
@@ -325,12 +356,13 @@ export async function generateText(params: AIProviderParams): Promise<AIProvider
 
   // If all providers failed, construct actionable fallback
   const lastErrorMessage = primaryError?.message || "Semua AI Provider (DeepSeek & Gemini) gagal merespons.";
+  const safePanitiaReply = "Waduh, koneksi ke asisten AI lagi bermasalah nih. Tapi kamu tetep bisa pakai perintah biasa kayak `!jobdex tugas saya` ya! ✌️";
   const fallbackResult: AIProviderResult = {
-    text: GEMINI_EMPTY_ANSWER_FALLBACK,
+    text: safePanitiaReply,
     provider: "mock",
     model: "fallback",
     inputChars: params.prompt.length,
-    outputChars: GEMINI_EMPTY_ANSWER_FALLBACK.length,
+    outputChars: safePanitiaReply.length,
     estimatedTokens: 0,
     cacheHit: false,
   };
