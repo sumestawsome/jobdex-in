@@ -68,6 +68,7 @@ import {
 } from "@/lib/server/faq-matcher";
 
 export { findFaqMatch } from "@/lib/server/faq-matcher";
+export { formatWhatsAppText } from "@/lib/server/whatsapp";
 
 function isGroupAllowedByVariants(incomingGroupId: string, allowedGroupIds: string[]): boolean {
   if (!incomingGroupId) return false;
@@ -2919,66 +2920,7 @@ export async function executeWhatsAppWebhook(
       question || incoming.message.replace(/^!jobdex/i, "").trim() || incoming.message
     );
 
-    // --- Fase 14B: Instant FAQ Knowledge Matcher (105 FAQ Dokumen) ---
-    // Pencocokan instan tanpa memanggil DeepSeek API (0 token cost & respon seketika)
-    const faqCandidateQuery = question || incoming.message;
-    const faqMatch = await findFaqMatch(faqCandidateQuery);
-
-    if (faqMatch) {
-      const matchedFaq = faqMatch.faq;
-      console.log("[whatsapp command] step: instant_faq_match", {
-        faqId: matchedFaq.id,
-        canonicalQuestion: matchedFaq.canonical_question,
-        score: faqMatch.score,
-        patternMatched: faqMatch.patternMatched,
-        matchedKeywords: faqMatch.matchedKeywordsCount,
-      });
-
-      // Tambah hit_count (+1) di Firestore
-      await incrementFaqHitCount(matchedFaq.id);
-
-      // Pastikan formatWhatsAppText (*bold* bukan **bold**) diaplikasikan ke jawaban FAQ
-      const formattedAnswer = formatWhatsAppText(matchedFaq.answer);
-
-      // Simpan log ke ai_logs untuk audit dan analitik
-      const aiLogRef = getAdminDb().collection("ai_logs").doc();
-      await aiLogRef.set({
-        id: aiLogRef.id,
-        organization_id: detectedOrgId || "main_org",
-        asked_by: "whatsapp_bot",
-        sender_phone: effectiveSenderPhone || "unknown",
-        question: sanitizePinFromMessage(faqCandidateQuery),
-        context_summary: `Instant FAQ Match: [${matchedFaq.id}] ${matchedFaq.canonical_question}`,
-        answer: formattedAnswer,
-        model_used: "instant_faq_match",
-        source: "whatsapp",
-        whatsapp_sender: senderLabel,
-        whatsapp_group_id: incoming.groupId || "",
-        created_at: FieldValue.serverTimestamp(),
-      });
-
-      console.log("[whatsapp command] step: instant_faq_sending_reply");
-      const sendResult = await sendWhatsAppMessage(formattedAnswer);
-      await createWhatsAppLog({
-        message: formattedAnswer,
-        status: "sent",
-        response: sendResult.responseText,
-      });
-
-      await updateDebugIntent("instant_faq_match", null, faqCandidateQuery);
-      console.log("[whatsapp command] handled", {
-        commandType: "instant_faq_match",
-        faqId: matchedFaq.id,
-        handled: true,
-        stopFurtherProcessing: true,
-      });
-      return NextResponse.json({ ok: true, faqId: matchedFaq.id });
-    }
-
-    // --- Fallback: DeepSeek AI Assistant with Live Project Context & Daily Rate Limiting ---
-    console.log("[WhatsApp AI Assistant] Processing natural question with live context:", rawQuestion);
-
-    // 2. Pengecekan Kuota (Super Admin: 6285119459703 atau role super_admin bypass kuota)
+    // 1. Pengecekan Kuota & Status Pengirim (Super Admin: 6285119459703 atau role super_admin bypass kuota)
     const isSuperAdminPhone =
       effectiveSenderPhone === "6285119459703" ||
       effectiveSenderPhone === "085119459703" ||
@@ -3002,14 +2944,90 @@ export async function executeWhatsAppWebhook(
       // fallback
     }
 
-    if (!isSuperAdmin && effectiveSenderPhone) {
-      const usageDocRef = db
-        .collection("ai_daily_usage")
-        .doc(`${effectiveSenderPhone}_${currentDate}`);
-      const usageDoc = await usageDocRef.get();
-      const currentUsage = usageDoc.exists ? Number(usageDoc.data()?.count || 0) : 0;
+    // 2. Ambil Riwayat Penggunaan AI Hari Ini
+    const usageDocRef = effectiveSenderPhone
+      ? db.collection("ai_daily_usage").doc(`${effectiveSenderPhone}_${currentDate}`)
+      : null;
+    const usageDoc = usageDocRef ? await usageDocRef.get() : null;
+    const currentUsage = usageDoc && usageDoc.exists ? Number(usageDoc.data()?.count || 0) : 0;
+    const isFirstChatOfDay = currentUsage === 0;
 
-      if (currentUsage >= 5) {
+    // --- Logika "First Impression Wow" & FAQ Matcher ---
+    // JIKA chat pertama hari ini (usageCount === 0):
+    //   * Lewati (bypass) pengecekan FAQ matcher.
+    //   * Langsung arahkan query ke DeepSeek AI agar pengguna mendapat jawaban interaktif, lengkap, dan berkesan.
+    // JIKA sudah pernah berinteraksi hari ini (usageCount > 0):
+    //   * Cek ke database FAQ (findFaqMatch) terlebih dahulu.
+    //   * Jika cocok di FAQ: kirim jawaban FAQ (0 token, hemat kuota).
+    //   * Jika tidak cocok: arahkan ke DeepSeek AI fallback (dengan validasi batas 5 chat/hari untuk non-admin).
+    const faqCandidateQuery = question || incoming.message;
+
+    if (!isFirstChatOfDay) {
+      console.log("[whatsapp command] step: checking_faq_match (returning user today)", {
+        phone: effectiveSenderPhone,
+        currentUsage,
+      });
+
+      const faqMatch = await findFaqMatch(faqCandidateQuery);
+
+      if (faqMatch) {
+        const matchedFaq = faqMatch.faq;
+        console.log("[whatsapp command] step: instant_faq_match", {
+          faqId: matchedFaq.id,
+          canonicalQuestion: matchedFaq.canonical_question,
+          score: faqMatch.score,
+          patternMatched: faqMatch.patternMatched,
+          matchedKeywords: faqMatch.matchedKeywordsCount,
+        });
+
+        // Tambah hit_count (+1) di Firestore
+        await incrementFaqHitCount(matchedFaq.id);
+
+        // Pastikan formatWhatsAppText (*bold* bukan **bold**) diaplikasikan ke jawaban FAQ
+        const formattedAnswer = formatWhatsAppText(matchedFaq.answer);
+
+        // Simpan log ke ai_logs untuk audit dan analitik
+        const aiLogRef = getAdminDb().collection("ai_logs").doc();
+        await aiLogRef.set({
+          id: aiLogRef.id,
+          organization_id: detectedOrgId || "main_org",
+          asked_by: "whatsapp_bot",
+          sender_phone: effectiveSenderPhone || "unknown",
+          question: sanitizePinFromMessage(faqCandidateQuery),
+          context_summary: `Instant FAQ Match: [${matchedFaq.id}] ${matchedFaq.canonical_question}`,
+          answer: formattedAnswer,
+          model_used: "instant_faq_match",
+          source: "whatsapp",
+          whatsapp_sender: senderLabel,
+          whatsapp_group_id: incoming.groupId || "",
+          created_at: FieldValue.serverTimestamp(),
+        });
+
+        console.log("[whatsapp command] step: instant_faq_sending_reply");
+        const sendResult = await sendWhatsAppMessage(formattedAnswer);
+        await createWhatsAppLog({
+          message: formattedAnswer,
+          status: "sent",
+          response: sendResult.responseText,
+        });
+
+        await updateDebugIntent("instant_faq_match", null, faqCandidateQuery);
+        console.log("[whatsapp command] handled", {
+          commandType: "instant_faq_match",
+          faqId: matchedFaq.id,
+          handled: true,
+          stopFurtherProcessing: true,
+        });
+        return NextResponse.json({ ok: true, faqId: matchedFaq.id });
+      }
+
+      // Jika tidak cocok di FAQ, periksa batas kuota harian (maks 5 chat/hari untuk non-admin)
+      if (!isSuperAdmin && currentUsage >= 5) {
+        console.log("[whatsapp command] step: ai_rate_limit_exceeded", {
+          phone: effectiveSenderPhone,
+          currentUsage,
+        });
+
         const quotaExceededMessage = [
           "Waduh, jatah 5 tanya-jawab AI kamu buat hari ini udah abis nih! 😅",
           "",
@@ -3031,8 +3049,15 @@ export async function executeWhatsAppWebhook(
         });
         return NextResponse.json({ ok: true, rateLimited: true });
       }
+    } else {
+      console.log("[whatsapp command] step: first_impression_wow_triggered", {
+        reason: "usageCount === 0: bypassing FAQ matcher to provide full AI experience",
+        phone: effectiveSenderPhone,
+      });
+    }
 
-      // Tambahkan counter pemakaian di Firestore (+1)
+    // Naikkan counter pemakaian harian pengguna (+1) di Firestore saat masuk ke AI
+    if (usageDocRef) {
       await usageDocRef.set(
         {
           phone: effectiveSenderPhone,
