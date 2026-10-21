@@ -39,4 +39,6 @@ environment-variable-di-vercel.txt
 .ngodingpakeai.com
 .playwright-mcp/
 /*.png
+tsconfig.tsbuildinfo
+
 
