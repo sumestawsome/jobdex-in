@@ -4,6 +4,9 @@ import { sendViaFonnte } from "./fonnte-provider";
 import { getWhatsAppSystemSettings } from "../whatsapp-settings";
 import { getOrmawaGatewayConfig } from "../ormawa-whatsapp-gateway";
 import type { WhatsAppSendPayload, WhatsAppSendResult, WhatsAppProviderName, WhatsAppSendTarget } from "./provider";
+import { formatWhatsAppText } from "./formatting";
+
+export { formatWhatsAppText };
 
 export class WhatsAppRateLimitError extends Error {
   status: "skipped_min_interval" | "skipped_hourly_limit" | "skipped_cooldown" | "rate_limited" | "failed";
@@ -73,8 +76,14 @@ export async function sendWhatsAppMessage(payload: WhatsAppSendPayload): Promise
     throw new Error("WhatsApp sending is disabled by WHATSAPP_ENABLED=false");
   }
 
+  // --- WhatsApp Markdown Formatter (Fix Bold & Clean Formatting) ---
+  const cleanedMessage = formatWhatsAppText(payload.message);
+  let effectivePayload: WhatsAppSendPayload = {
+    ...payload,
+    message: cleanedMessage,
+  };
+
   // --- Global WhatsApp Sandbox / Test Mode Guard ---
-  let effectivePayload = payload;
   try {
     const settings = await getWhatsAppSystemSettings();
     const isSandboxActive = Boolean(settings.isTestMode || settings.sandbox_mode);
@@ -86,15 +95,15 @@ export async function sendWhatsAppMessage(payload: WhatsAppSendPayload): Promise
       const sandboxBanner = [
         `🧪 *[SIMULASI SANDBOX]* (Dialihkan dari: ${originalTarget})`,
         "",
-        payload.message,
+        cleanedMessage,
       ].join("\n");
 
       console.info(`[WHATSAPP SANDBOX] Intercepting dispatch: redirecting ${originalTarget} -> ${sandboxTarget}`);
 
       effectivePayload = {
-        ...payload,
+        ...effectivePayload,
         target: sandboxTarget,
-        message: sandboxBanner,
+        message: formatWhatsAppText(sandboxBanner),
         type: "group",
       };
     }

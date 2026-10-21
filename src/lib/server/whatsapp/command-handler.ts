@@ -22,6 +22,7 @@ import {
   getAllowedGroupIds,
   getWhatsAppRecipient as getDefaultGroupId,
   isGroupRecipient,
+  formatWhatsAppText,
 } from "@/lib/server/whatsapp";
 import {
   extractJobDexQuestion,
@@ -663,6 +664,7 @@ export async function executeWhatsAppWebhook(
   const detectedOrgId = await resolveWebhookOrmawaId(incoming, payload);
 
   const sendWhatsAppMessage = async (message: string, customPhone?: string) => {
+    const formattedMessage = formatWhatsAppText(message);
     const defaultTarget = incoming.isGroup
       ? (incoming.groupId || getDefaultGroupId())
       : (incoming.sender || incoming.groupId || getDefaultGroupId());
@@ -687,7 +689,7 @@ export async function executeWhatsAppWebhook(
     try {
       const result = await baseSendWhatsAppMessage({
         target,
-        message,
+        message: formattedMessage,
         type,
         org_id: detectedOrgId || undefined,
       });
@@ -697,7 +699,7 @@ export async function executeWhatsAppWebhook(
           `[whatsapp command] Balasan bot dilewati: gateway ormawa (${detectedOrgId}) belum diatur.`
         );
         await createWhatsAppLog({
-          message,
+          message: formattedMessage,
           status: "skipped",
           errorMessage: result.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
           recipient: target,
@@ -770,6 +772,7 @@ export async function executeWhatsAppWebhook(
     replyMessage: string,
     result: { success: boolean; taskId?: string },
   ) => {
+    const formattedReply = formatWhatsAppText(replyMessage);
     const recipient = result.success
       ? await resolveTaskCommandReplyRecipient(result.taskId)
       : incoming.groupId || getDefaultGroupId();
@@ -803,7 +806,7 @@ export async function executeWhatsAppWebhook(
     try {
       const sendResult = await baseSendWhatsAppMessage({
         target: recipient,
-        message: replyMessage,
+        message: formattedReply,
         type,
         org_id: taskOrgId || detectedOrgId || undefined,
       });
@@ -813,7 +816,7 @@ export async function executeWhatsAppWebhook(
           `[whatsapp command] Balasan tugas dilewati: gateway ormawa belum diatur.`
         );
         await createWhatsAppLog({
-          message: replyMessage,
+          message: formattedReply,
           status: "skipped",
           errorMessage: sendResult.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
           recipient,
@@ -831,7 +834,7 @@ export async function executeWhatsAppWebhook(
       });
 
       await createWhatsAppLog({
-        message: replyMessage,
+        message: formattedReply,
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
         recipient,
@@ -2983,10 +2986,22 @@ export async function executeWhatsAppWebhook(
       profile: getBotProfile(),
     });
 
-    const deepseekSystemPrompt =
-      "Kamu adalah asisten bot WhatsApp internal untuk ormawa Forkom KIP Undiksha. " +
-      "Gaya bicaramu ramah, santai, solutif, khas mahasiswa aktif, tidak kaku, dan langsung ke inti. " +
-      "Jika anggota ingin membuat tugas tapi infonya kurang (misal belum ada deadline atau PIC), tanyakan kekurangannya dengan santai.";
+    const deepseekSystemPrompt = [
+      "Peranmu murni sebagai asisten internal JobDex.in untuk kepanitiaan dan ormawa Forkom KIP Undiksha.",
+      "",
+      "BATASAN KETAT:",
+      "- Kamu HANYA boleh menjawab hal-hal seputar tugas, kepanitiaan, alur desain/revisi, pembagian job desk, jadwal acara, dan fitur JobDex.in.",
+      "- JANGAN PERNAH membuatkan kode pemrograman (seperti HTML, CSS, JavaScript, Python), menulis esai di luar ormawa, atau menjawab topik umum yang tidak ada kaitannya dengan kegiatan kepanitiaan mahasiswa.",
+      "- Jika pengguna meminta hal di luar topik tersebut, tolak dengan gaya santai, sopan, dan ramah ala mahasiswa:",
+      '  "Waduh, aku fokus bantuin job desk dan kepanitiaan ormawa aja nih! 😅 Kalau butuh info soal tugas, deadline, atau desain, baru tanyain ke aku yaa!"',
+      "",
+      "ATURAN FORMAT BALASAN WHATSAPP (SANGAT PENTING):",
+      "- Gaya bicaramu ramah, santai, solutif, khas mahasiswa aktif, tidak kaku, dan langsung ke inti.",
+      "- Gunakan format WhatsApp: *teks* untuk tebal (JANGAN gunakan markdown **teks**).",
+      "- Jangan gunakan header markdown (#, ##, ###). Gunakan teks tebal *Judul*.",
+      "- Hindari spasi dan baris kosong yang berlebihan.",
+      "- Jika anggota ingin membuat tugas tapi infonya kurang (misal belum ada deadline atau PIC), tanyakan kekurangannya dengan santai.",
+    ].join("\n");
 
     const deepseekUserPrompt = [
       "RINGKASAN KONTEKS ACARA & TUGAS AKTIF SAAT INI (JOBDEX.IN):",
@@ -3058,6 +3073,9 @@ export async function executeWhatsAppWebhook(
       answer = "Waduh, koneksi ke asisten AI lagi bermasalah nih. Tapi kamu tetep bisa pakai perintah biasa kayak `!jobdex tugas saya` ya! ✌️";
     }
 
+    // Bersihkan dan rapikan formatting respon dengan WhatsApp Markdown Formatter
+    answer = formatWhatsAppText(answer);
+
     const aiLogRef = getAdminDb().collection("ai_logs").doc();
     await aiLogRef.set({
       id: aiLogRef.id,
@@ -3074,7 +3092,7 @@ export async function executeWhatsAppWebhook(
       created_at: FieldValue.serverTimestamp(),
     });
 
-    const replyMessage = answer;
+    const replyMessage = formatWhatsAppText(answer);
     console.log("[whatsapp command] step: execute_ai_fallback_sending_reply", { model: modelUsed });
     const sendResult = await sendWhatsAppMessage(replyMessage);
     await createWhatsAppLog({
