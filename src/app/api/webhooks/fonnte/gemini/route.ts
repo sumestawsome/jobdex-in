@@ -5,6 +5,7 @@ import { executeWhatsAppWebhook } from "@/lib/server/whatsapp/command-handler";
 import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function GET() {
   return NextResponse.json({
@@ -110,11 +111,16 @@ export async function POST(request: NextRequest) {
   }
 
   // --- Route-Level Atomic Deduplication (Fase 27A.2.6) ---
+  // Gunakan timestamp atau time-bucket 10 detik agar tidak memblokir pengetesan berulang secara permanen
+  const timeBucket = incoming.timestamp 
+    ? String(incoming.timestamp) 
+    : String(Math.floor(Date.now() / 10000));
+
   const dedupeKeySource = [
     incoming.provider,
     incoming.groupId || "personal",
     incoming.sender || "unknown",
-    incoming.timestamp || "",
+    incoming.rawMessageId || timeBucket,
     incoming.message || "",
   ].join("|");
 
@@ -154,40 +160,37 @@ export async function POST(request: NextRequest) {
     console.error("Deduplication error:", error);
   }
 
-  // Forward to shared command execution engine asynchronously in background
-  // Respon HTTP 200 OK segera dikembalikan ke server Fonnte agar koneksi tidak timeout
-  executeWhatsAppWebhook(incoming, payload)
-    .then(async (response) => {
-      try {
-        await docRef.update({
-          status: response.ok ? "processed" : "failed",
-          processed_at: FieldValue.serverTimestamp(),
-          reply_provider: incoming.provider,
-          reply_target: incoming.groupId || incoming.sender,
-          error: response.ok ? null : `Status ${response.status}`,
-        });
-      } catch (updateErr) {
-        console.error("[fonnte webhook] Failed to update dedupe log status:", updateErr);
-      }
-    })
-    .catch(async (err: unknown) => {
-      console.error("[fonnte webhook] Error executing command in background:", err);
-      try {
-        await docRef.update({
-          status: "failed",
-          processed_at: FieldValue.serverTimestamp(),
-          reply_provider: incoming.provider,
-          reply_target: incoming.groupId || incoming.sender,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      } catch {
-        // ignore update error
-      }
-    });
-
-  return NextResponse.json({
-    ok: true,
-    status: "processing",
-    message: "Webhook Fonnte berhasil diterima dan sedang diproses.",
-  });
+  // Forward to shared command execution engine and await result so Vercel runtime does not freeze before completion
+  try {
+    const response = await executeWhatsAppWebhook(incoming, payload);
+    try {
+      await docRef.update({
+        status: response.ok ? "processed" : "failed",
+        processed_at: FieldValue.serverTimestamp(),
+        reply_provider: incoming.provider,
+        reply_target: incoming.groupId || incoming.sender,
+        error: response.ok ? null : `Status ${response.status}`,
+      });
+    } catch (updateErr) {
+      console.error("[fonnte webhook] Failed to update dedupe log status:", updateErr);
+    }
+    return response;
+  } catch (err: unknown) {
+    console.error("[fonnte webhook] Error executing command:", err);
+    try {
+      await docRef.update({
+        status: "failed",
+        processed_at: FieldValue.serverTimestamp(),
+        reply_provider: incoming.provider,
+        reply_target: incoming.groupId || incoming.sender,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    } catch {
+      // ignore update error
+    }
+    return NextResponse.json({
+      ok: false,
+      error: err instanceof Error ? err.message : "Internal command execution error",
+    }, { status: 500 });
+  }
 }

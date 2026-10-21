@@ -73,6 +73,13 @@ function isGroupAllowedByVariants(incomingGroupId: string, allowedGroupIds: stri
 async function isGroupAllowedForJobDex(groupId: string): Promise<boolean> {
   if (!groupId) return false;
 
+  // 1. Sandbox Group is always allowed
+  const variants = getGroupIdVariants(groupId);
+  if (variants.some((v) => v.includes("120363406824082148"))) {
+    return true;
+  }
+
+  // 2. Allowed Group IDs from environment
   const allowed = getAllowedGroupIds();
   if (isGroupAllowedByVariants(groupId, allowed)) {
     return true;
@@ -80,16 +87,28 @@ async function isGroupAllowedForJobDex(groupId: string): Promise<boolean> {
 
   try {
     const db = getAdminDb();
-    const variants = getGroupIdVariants(groupId);
+    // 3. Check Events collection
     for (const variant of variants) {
       const snapshot = await db
         .collection("events")
         .where("whatsapp_group_id", "==", variant)
-        .where("whatsapp_group_verified", "==", true)
         .limit(1)
         .get();
 
       if (!snapshot.empty) {
+        return true;
+      }
+    }
+
+    // 4. Check Divisions collection
+    for (const variant of variants) {
+      const divSnapshot = await db
+        .collection("divisions")
+        .where("whatsapp_group_id", "==", variant)
+        .limit(1)
+        .get();
+
+      if (!divSnapshot.empty) {
         return true;
       }
     }
@@ -563,10 +582,15 @@ export async function executeWhatsAppWebhook(
 
   const message = incoming.message || "";
   const trimmed = message.trim();
-  const isJobdexPrefixed = trimmed.toLowerCase().startsWith("!jobdex");
+  const stripped = trimmed.replace(/^[*_~`]+|[*_~`]+$/g, "").trim();
+  const isJobdexPrefixed = /^[!/]jobde[xs]/i.test(stripped);
 
   // Di grup WhatsApp, abaikan pesan yang bukan untuk bot (tidak berawalan !jobdex) agar tidak spam obrolan panitia
   if (incoming.isGroup && !isJobdexPrefixed) {
+    console.log("[whatsapp command] step: non_jobdex_group_message_ignored", {
+      isGroup: incoming.isGroup,
+      messagePreview: trimmed.slice(0, 30),
+    });
     return NextResponse.json({
       ok: true,
       ignored: true,
@@ -575,36 +599,51 @@ export async function executeWhatsAppWebhook(
   }
 
   // --- Penanganan Langsung: Perintah !jobdex Tunggal (Tanpa Argumen) ---
-  const cleanAfterPrefix = trimmed.replace(/^!jobdex/i, "").trim();
+  const cleanAfterPrefix = stripped.replace(/^[!/]jobde[xs]\b/i, "").trim();
   if (isJobdexPrefixed && cleanAfterPrefix === "") {
+    console.log("[whatsapp command] step: empty_jobdex_greeting");
     const singleJobdexReply = [
-      "Halo! Ada yang bisa JobDex bantu? 🤖",
-      "Ketik `!jobdex bantuan` untuk lihat daftar perintah, atau ketik `!jobdex tugas saya` untuk cek tugas kamu."
+      "Halo! Ada yang bisa JobDex bantu? 🙌",
+      "Ketik `!jobdex bantuan` untuk daftar perintah lengkap, atau `!jobdex tugas saya` untuk cek tugas aktif kamu."
     ].join("\n");
 
-    const target = incoming.groupId || getDefaultGroupId();
-    const isGroup = isGroupRecipient(target);
+    const replyTarget = incoming.isGroup
+      ? (incoming.groupId || getDefaultGroupId())
+      : (incoming.sender || incoming.groupId || getDefaultGroupId());
+    const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
+
+    console.log("[whatsapp command] step: empty_jobdex_sending_reply", {
+      target: replyTarget,
+      isGroup: isGroupTarget,
+      provider: incoming.provider,
+    });
+
     const sendResult = await baseSendWhatsAppMessage({
-      target,
+      target: replyTarget,
       message: singleJobdexReply,
-      type: isGroup ? "group" : "phone",
+      type: isGroupTarget ? "group" : "phone",
     });
 
     await baseCreateWhatsAppLog({
       message: singleJobdexReply,
-      status: "sent",
+      status: sendResult.ok ? "sent" : "failed",
       response: sendResult.responseText,
-      recipient: target,
-      isGroup,
+      recipient: replyTarget,
+      isGroup: isGroupTarget,
       provider: sendResult.provider,
     });
 
-    console.log("[whatsapp command] handled empty !jobdex greeting directly (0 token)");
+    console.log("[whatsapp command] step: empty_jobdex_greeting_completed", {
+      ok: sendResult.ok,
+      target: replyTarget,
+    });
     return NextResponse.json({ ok: true, commandType: "empty_jobdex_greeting" });
   }
 
+  console.log("[whatsapp command] step: parse_command_start");
   let parsedCommand = parseWhatsAppCommand(incoming.message || "");
   if (parsedCommand.intent === "unknown") {
+    console.log("[whatsapp command] step: parse_command_natural_fallback");
     const { parseWhatsAppCommandNatural } = await import("@/lib/server/whatsapp-command-parser");
     const naturalParsed = await parseWhatsAppCommandNatural(incoming.message || "");
     if (naturalParsed.intent !== "unknown") {
@@ -613,7 +652,7 @@ export async function executeWhatsAppWebhook(
   }
   const intent = parsedCommand.intent;
 
-  console.log("[whatsapp command] command detected", {
+  console.log("[whatsapp command] step: command_detected", {
     command: intent,
     provider: incoming.provider,
     groupId: incoming.groupId,
@@ -624,12 +663,15 @@ export async function executeWhatsAppWebhook(
   const detectedOrgId = await resolveWebhookOrmawaId(incoming, payload);
 
   const sendWhatsAppMessage = async (message: string, customPhone?: string) => {
-    const target = customPhone || incoming.groupId || getDefaultGroupId();
-    const isGroup = isGroupRecipient(target);
+    const defaultTarget = incoming.isGroup
+      ? (incoming.groupId || getDefaultGroupId())
+      : (incoming.sender || incoming.groupId || getDefaultGroupId());
+    const target = customPhone || defaultTarget;
+    const isGroup = incoming.isGroup || isGroupRecipient(target);
     const type = isGroup ? "group" : "phone";
-    const cleanCmd = incoming.message.replace(/^!jobdex/i, "").trim().toLowerCase();
+    const cleanCmd = stripped.replace(/^[!/]jobde[xs]\b/i, "").trim().toLowerCase();
 
-    console.log("[whatsapp command] before send", {
+    console.log("[whatsapp command] step: before_send_message", {
       sendReason: "standard_reply",
       target,
       type,
@@ -814,7 +856,7 @@ export async function executeWhatsAppWebhook(
   };
 
   // --- Bare & Help Command Handling (Fase 27A.2.5) ---
-  const cleanQuery = message.replace(/^!jobdex/i, "").trim().toLowerCase();
+  const cleanQuery = stripped.replace(/^[!/]jobde[xs]\b/i, "").trim().toLowerCase();
 
   const helpMenuReply = [
     "✨ *Halo rekan-rekan Forkom KIP!*",
@@ -831,11 +873,12 @@ export async function executeWhatsAppWebhook(
   ].join("\n");
 
   const singleJobdexReply = [
-    "Halo! Ada yang bisa JobDex bantu? 🤖",
-    "Ketik `!jobdex bantuan` untuk lihat daftar perintah, atau ketik `!jobdex tugas saya` untuk cek tugas kamu."
+    "Halo! Ada yang bisa JobDex bantu? 🙌",
+    "Ketik `!jobdex bantuan` untuk daftar perintah lengkap, atau `!jobdex tugas saya` untuk cek tugas aktif kamu."
   ].join("\n");
 
   if (cleanQuery === "") {
+    console.log("[whatsapp command] step: clean_query_empty_greeting");
     const sendResult = await sendWhatsAppMessage(singleJobdexReply);
     await createWhatsAppLog({
       message: singleJobdexReply,
@@ -846,6 +889,7 @@ export async function executeWhatsAppWebhook(
   }
 
   if (cleanQuery === "help" || cleanQuery === "menu" || cleanQuery === "bantuan") {
+    console.log("[whatsapp command] step: help_menu");
     console.log("[whatsapp command] resolved command", {
       rawQuery: message,
       normalizedQuery: cleanQuery,
@@ -1103,8 +1147,14 @@ export async function executeWhatsAppWebhook(
       accepted = false;
       reason = "empty";
     } else if (cand.normalized === deviceSender) {
-      accepted = false;
-      reason = "wablas_device_phone";
+      if (isJobdexPrefixed) {
+        console.log("[whatsapp command] step: bot_self_test_candidate_accepted", { candidate: cand.normalized });
+        accepted = true;
+        reason = "bot_self_test_allowed";
+      } else {
+        accepted = false;
+        reason = "wablas_device_phone";
+      }
     } else if (groupOwner && cand.normalized === groupOwner && incoming.isGroup) {
       accepted = false;
       reason = "group_owner";
@@ -1144,16 +1194,16 @@ export async function executeWhatsAppWebhook(
     }
   } else {
     const normalizedIncomingSender = normalizePhone(incoming.sender);
-    if (normalizedIncomingSender === deviceSender) {
+    if (normalizedIncomingSender === deviceSender && !isJobdexPrefixed) {
       resolvedSenderNumber = "";
       senderSource = "fallback_rejected_device";
     } else {
       resolvedSenderNumber = normalizedIncomingSender;
-      senderSource = "fallback";
+      senderSource = normalizedIncomingSender === deviceSender ? "fallback_bot_self_test" : "fallback";
     }
   }
 
-  if (resolvedSenderNumber === deviceSender) {
+  if (resolvedSenderNumber === deviceSender && !isJobdexPrefixed) {
     resolvedSenderNumber = "";
   }
   if (resolvedSenderNumber === defaultGroupId || allowedGroupIds.includes(resolvedSenderNumber) || resolvedSenderNumber.startsWith("120363")) {
@@ -1161,6 +1211,7 @@ export async function executeWhatsAppWebhook(
   }
 
   // Firestore user lookup with multi-field normalized check (Tugas 5)
+  console.log("[whatsapp command] step: user_lookup", { resolvedSenderNumber });
   let senderUserProfile: UserProfile | null = null;
   let isSenderMatched = false;
 
@@ -1188,9 +1239,16 @@ export async function executeWhatsAppWebhook(
     }
   }
 
+  if (resolvedSenderNumber === deviceSender && isJobdexPrefixed && !senderUserProfile) {
+    console.log("[whatsapp command] step: assign_bot_superadmin_for_self_test");
+    senderUserProfile = getBotProfile();
+    isSenderMatched = true;
+  }
+
+  console.log("[whatsapp command] step: group_validation_start");
   const isGroupIdAllowed = await isGroupAllowedForJobDex(incoming.groupId || "");
   const isSenderAllowed = await isGroupAllowedForJobDex(incoming.sender);
-  const isGroupOrSenderAllowed = isGroupIdAllowed || isSenderAllowed;
+  const isGroupOrSenderAllowed = !incoming.isGroup || isGroupIdAllowed || isSenderAllowed;
 
   const groupVariants = getGroupIdVariants(incoming.groupId || "");
   const matchedEvent = await findEventByGroupId(incoming.groupId || "");
@@ -1264,6 +1322,7 @@ export async function executeWhatsAppWebhook(
   }
 
   if (!incoming.message || !question) {
+    console.log("[whatsapp command] step: empty_or_no_question");
     console.log("[whatsapp command] handled", {
       commandType: "empty_or_no_question",
       handled: true,
@@ -1273,16 +1332,36 @@ export async function executeWhatsAppWebhook(
   }
 
   if (!isGroupOrSenderAllowed) {
+    console.log("[whatsapp command] step: unauthorized_group_or_sender", {
+      groupId: incoming.groupId,
+      sender: incoming.sender,
+      intent,
+    });
     // Jika tidak allowed/verified, hanya izinkan command claim terbatas:
     // - cek_grup
     // - hubungkan_grup_acara
     if (intent !== "cek_grup" && intent !== "hubungkan_grup_acara") {
+      console.log("[whatsapp command] step: notifying_unlinked_group");
+      const unlinkedMsg = [
+        "⚠️ *Grup Belum Terhubung ke JobDex.in*",
+        "",
+        "Grup WhatsApp ini belum dihubungkan ke event/divisi mana pun di JobDex.",
+        "Ketik `!jobdex cek grup` untuk melihat ID grup ini, lalu hubungkan melalui menu Pengaturan Event di dashboard.",
+      ].join("\n");
+
+      const sendResult = await sendWhatsAppMessage(unlinkedMsg);
+      await createWhatsAppLog({
+        message: unlinkedMsg,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+
       console.log("[whatsapp command] handled", {
         commandType: "unauthorized_group_or_sender",
         handled: true,
         stopFurtherProcessing: true,
       });
-      return NextResponse.json({ ok: true, ignored: true, reason: "unauthorized_group_or_sender" });
+      return NextResponse.json({ ok: true, ignored: true, reason: "unauthorized_group_notified" });
     }
   }
 
@@ -1325,6 +1404,7 @@ export async function executeWhatsAppWebhook(
         cleanQuery.includes("panitia");
 
       if (isRequestingSpecificEventContext && !matchedEvent && !matchedDivision) {
+        console.log("[whatsapp command] step: unlinked_group_warning");
         const warningReply = [
           "Grup ini sudah terhubung ke JobDex.in, tapi belum cocok dengan event mana pun.",
           "Coba cek ID WhatsApp Group Acara di dashboard."
@@ -1379,6 +1459,7 @@ export async function executeWhatsAppWebhook(
 
     // Tugas 8: Cek Pengirim Command
     if (isCekPengirim) {
+      console.log("[whatsapp command] step: execute_cek_pengirim");
       const replyMessage = [
         WA_LABEL.debugPengirim,
         "",
@@ -1407,6 +1488,7 @@ export async function executeWhatsAppWebhook(
 
     // Tugas 8b: Cek Role Command
     if (intent === "cek_role") {
+      console.log("[whatsapp command] step: execute_cek_role");
       const replyMessage = [
         WA_LABEL.cekRole,
         "",
@@ -1437,6 +1519,11 @@ export async function executeWhatsAppWebhook(
     const requiresAuth = intent !== "unknown" && !isBantuan && !isCekPengirim;
 
     if (requiresAuth && !isSenderMatched) {
+      console.log("[whatsapp command] step: auth_required_unmatched_user", {
+        resolvedSenderNumber,
+        incomingSender: incoming.sender,
+        intent,
+      });
       const replyMessage = [
         "👋 *Halo rekan!*",
         "",
@@ -1488,6 +1575,7 @@ export async function executeWhatsAppWebhook(
 
     // 1. Bantuan Task Command — Role-aware (Fix E)
     if (intent === "bantuan_task") {
+      console.log("[whatsapp command] step: execute_bantuan_task");
       const userRole = senderUserProfile?.role || "anggota";
       const isAdmin = userRole === "super_admin";
       const isKoordinator = userRole === "koordinator_divisi" || userRole === "koordinator_acara";
@@ -1573,6 +1661,7 @@ export async function executeWhatsAppWebhook(
 
     // Handlers for WhatsApp Group Routing (Fase 19C)
     if (intent === "cek_grup") {
+      console.log("[whatsapp command] step: execute_cek_grup");
       const groupSubject = group ? (getString(group.subject) || getString(group.name)) : "";
       const linkedEvent = await findEventByGroupId(incoming.groupId || "");
       const linkedEventName = linkedEvent ? linkedEvent.name : "-";
@@ -1635,6 +1724,7 @@ export async function executeWhatsAppWebhook(
     }
 
     if (intent === "event_grup") {
+      console.log("[whatsapp command] step: execute_event_grup");
       const events = await getEventsWithGroupId();
       let replyMessage = "";
       if (events.length === 0) {
@@ -1687,6 +1777,7 @@ export async function executeWhatsAppWebhook(
     }
 
     if (intent === "hubungkan_grup_acara") {
+      console.log("[whatsapp command] step: execute_hubungkan_grup_acara");
       const eventName = String(parsedCommand.fields.event_name || "").trim();
       
       if (!incoming.isGroup || !incoming.groupId) {
@@ -2909,6 +3000,7 @@ export async function executeWhatsAppWebhook(
     let modelUsed = "deepseek-chat";
 
     // 4. Panggil DeepSeek API (endpoint: https://api.deepseek.com/chat/completions)
+    console.log("[whatsapp command] step: execute_ai_fallback_starting");
     const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim();
     const deepseekBaseUrl = (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
 
@@ -2983,6 +3075,7 @@ export async function executeWhatsAppWebhook(
     });
 
     const replyMessage = answer;
+    console.log("[whatsapp command] step: execute_ai_fallback_sending_reply", { model: modelUsed });
     const sendResult = await sendWhatsAppMessage(replyMessage);
     await createWhatsAppLog({
       message: replyMessage,
@@ -2991,6 +3084,7 @@ export async function executeWhatsAppWebhook(
     });
 
     await updateDebugIntent("deepseek_fallback", null);
+    console.log("[whatsapp command] step: execute_ai_fallback_completed");
     console.log("[whatsapp command] handled", {
       commandType: "deepseek_ai_fallback",
       model: modelUsed,
@@ -2999,6 +3093,9 @@ export async function executeWhatsAppWebhook(
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
+    console.log("[whatsapp command] step: catch_error_safe_reply_starting", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     if (error instanceof WhatsAppRateLimitError) {
       try {
         await baseCreateWhatsAppLog({
@@ -3024,12 +3121,14 @@ export async function executeWhatsAppWebhook(
     const errorReply = "Waduh, koneksi ke asisten AI lagi bermasalah nih. Tapi kamu tetep bisa pakai perintah biasa kayak `!jobdex tugas saya` ya! ✌️";
 
     try {
+      console.log("[whatsapp command] step: dispatching_safe_reply_fallback");
       const sendResult = await sendWhatsAppMessage(errorReply);
       await createWhatsAppLog({
         message: errorReply,
         status: "sent",
         response: sendResult.responseText,
       });
+      console.log("[whatsapp command] step: safe_reply_fallback_dispatched");
     } catch (sendError) {
       console.error("[whatsapp command] Failed to dispatch safe-reply error:", sendError);
       let status = "failed";

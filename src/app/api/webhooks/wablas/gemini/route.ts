@@ -4,6 +4,7 @@ import { executeWhatsAppWebhook } from "@/lib/server/whatsapp/command-handler";
 import type { NormalizedIncomingWhatsAppMessage } from "@/types";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 async function parseRequestBody(request: NextRequest) {
   const contentType = request.headers.get("content-type") ?? "";
