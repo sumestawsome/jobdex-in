@@ -75,6 +75,7 @@ export type Event = {
   description: string;
   event_date: unknown;
   coordinator_id: string;
+  secretary_id?: string;
   status: EventStatus;
   progress_percentage: number;
   created_by: string;

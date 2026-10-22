@@ -7,11 +7,14 @@ import {
 } from "@/lib/server/whatsapp";
 import {
   buildDigestReminderMessage,
+  buildEmptyEventReminderMessage,
   buildReminderDigest,
+  checkDigestAlreadySentToday,
   createTaskReminderDigestLog,
   getDigestDateKey,
   getTaskIdsAlreadyInDigestToday,
   logWhatsAppDigestDispatch,
+  normalizeMentionPhone,
   processSmartFollowupReminders,
 } from "@/lib/server/deadline-reminders";
 import { groupTasksByTarget } from "@/lib/server/group-routing";
@@ -147,24 +150,51 @@ async function handleCron(request: Request) {
     // Group tasks using the routing helper
     const taskGroups = await groupTasksByTarget(activeTasks, eventsCache, divisionsMap);
 
-    // If targetGroupId is explicitly provided in testing, redirect all groups or group all tasks into targetGroupId
-    if (targetGroupIdParam) {
-      const allActiveTasksForTest: Task[] = [];
-      for (const groupData of taskGroups.values()) {
-        allActiveTasksForTest.push(...groupData.tasks);
+    // Collect active events with a configured WhatsApp group that have no active tasks (Condition 1)
+    const emptyEvents: Event[] = [];
+    eventsCache.forEach((event) => {
+      const isActive = event.status === "persiapan" || event.status === "berlangsung";
+      const hasGroup = Boolean(event.whatsapp_group_id && event.whatsapp_group_id.trim());
+      const hasNoActiveTasks = !activeTasks.some((t) => t.event_id === event.id);
+
+      if (isActive && hasGroup && hasNoActiveTasks) {
+        emptyEvents.push(event);
       }
-      taskGroups.clear();
-      taskGroups.set(targetGroupIdParam, {
-        target: {
-          groupId: targetGroupIdParam,
-          groupType: "default_group",
-          groupName: "Test Group Override",
-        },
-        tasks: allActiveTasksForTest.length > 0 ? allActiveTasksForTest : activeTasks,
-      });
+    });
+
+    // If targetGroupId is explicitly provided in testing:
+    if (targetGroupIdParam) {
+      const matchingEmptyEvent = emptyEvents.find(
+        (e) => e.whatsapp_group_id === targetGroupIdParam
+      );
+
+      if (matchingEmptyEvent) {
+        // Targeted testing for a specific empty event: do not inject foreign tasks into this group
+        taskGroups.clear();
+      } else {
+        const allActiveTasksForTest: Task[] = [];
+        for (const groupData of taskGroups.values()) {
+          allActiveTasksForTest.push(...groupData.tasks);
+        }
+        taskGroups.clear();
+        if (allActiveTasksForTest.length > 0 || activeTasks.length > 0) {
+          taskGroups.set(targetGroupIdParam, {
+            target: {
+              groupId: targetGroupIdParam,
+              groupType: "default_group",
+              groupName: "Test Group Override",
+            },
+            tasks: allActiveTasksForTest.length > 0 ? allActiveTasksForTest : activeTasks,
+          });
+        }
+      }
     }
 
-    if (taskGroups.size === 0 && !globalDefaultGroupId) {
+    const emptyEventsToProcess = targetGroupIdParam
+      ? emptyEvents.filter((e) => e.whatsapp_group_id === targetGroupIdParam)
+      : emptyEvents;
+
+    if (taskGroups.size === 0 && emptyEventsToProcess.length === 0 && !globalDefaultGroupId) {
       return NextResponse.json(
         { ok: false, error: "No target WhatsApp groups configured and default group ID is empty." },
         { status: 500 }
@@ -440,7 +470,249 @@ async function handleCron(request: Request) {
       }
     });
 
-    await Promise.allSettled(groupPromises);
+    // 4. Process Empty Event Digests (Condition 1: Event baru & belum ada job desk sama sekali)
+    const emptyEventPromises = emptyEventsToProcess.map(async (emptyEvent) => {
+      const targetGroupId = emptyEvent.whatsapp_group_id!;
+      const groupName = emptyEvent.name;
+
+      // Anti-spam check: don't resend empty event reminder today unless force=true or dryRun=true
+      if (!force && !dryRun) {
+        const alreadySentToday = await checkDigestAlreadySentToday({
+          digestType: "EMPTY_EVENT_DIGEST",
+          groupId: targetGroupId,
+          digestDateKey,
+        });
+
+        if (alreadySentToday) {
+          groupResults.push({
+            targetGroupId,
+            groupName,
+            taskCount: 0,
+            newTaskCount: 0,
+            status: "skipped",
+            reason: "Empty event reminder already sent today. Use ?force=true to override.",
+          });
+          return;
+        }
+      }
+
+      // Resolve Koordinator & Sekretaris
+      let coordUser = emptyEvent.coordinator_id ? usersMap.get(emptyEvent.coordinator_id) : undefined;
+      let secUser = emptyEvent.secretary_id ? usersMap.get(emptyEvent.secretary_id) : undefined;
+
+      if (!coordUser || !secUser) {
+        try {
+          const membersSnap = await db
+            .collection("events")
+            .doc(emptyEvent.id)
+            .collection("event_members")
+            .get();
+
+          membersSnap.forEach((mDoc) => {
+            const mData = mDoc.data();
+            const role = (mData.role_in_event || "").toLowerCase();
+            const uId = mData.user_id || mDoc.id;
+            if (!coordUser && (role.includes("koor") || role.includes("ketua"))) {
+              coordUser = usersMap.get(uId);
+            }
+            if (!secUser && (role.includes("sekretaris") || role.includes("sekre"))) {
+              secUser = usersMap.get(uId);
+            }
+          });
+        } catch (err) {
+          console.warn(`Could not fetch event_members for ${emptyEvent.id}:`, err);
+        }
+      }
+
+      const coordName = coordUser?.name || "Koordinator Acara";
+      const coordPhone = normalizeMentionPhone(coordUser?.whatsapp_number);
+      const coordDisplay = coordPhone ? `@${coordPhone} (${coordName})` : coordName;
+
+      const secName = secUser?.name || "Sekretaris Acara";
+      const secPhone = normalizeMentionPhone(secUser?.whatsapp_number);
+      const secDisplay = secPhone ? `@${secPhone} (${secName})` : secName;
+
+      const emptyCategories = {
+        overdue: 0,
+        today: 0,
+        h_1: 0,
+        h_2_h_3: 0,
+        h_5_h_7: 0,
+        waitingApproval: 0,
+        stuck: 0,
+      };
+
+      const emptyMentionedPhones = [coordPhone, secPhone].filter(
+        (p): p is string => Boolean(p && p.length > 5)
+      );
+      const messageContent = buildEmptyEventReminderMessage(
+        emptyEvent.name,
+        coordDisplay,
+        secDisplay
+      );
+
+      // Dry-Run Mode
+      if (dryRun) {
+        groupResults.push({
+          targetGroupId,
+          groupName,
+          taskCount: 0,
+          newTaskCount: 0,
+          status: "dry_run",
+          messagePreview: messageContent.slice(0, 200),
+          fullMessage: messageContent,
+        });
+        for (const phone of emptyMentionedPhones) {
+          sentMentionedPhones.add(phone);
+        }
+        return;
+      }
+
+      // Live Send Mode
+      try {
+        const eventOrgId =
+          emptyEvent.organization_id ||
+          emptyEvent.org_id ||
+          emptyEvent.orgId ||
+          "main_org";
+
+        const dispatchResult = await sendWhatsAppMessage({
+          target: targetGroupId,
+          message: messageContent,
+          type: "group",
+          mentions: emptyMentionedPhones,
+          org_id: eventOrgId,
+        });
+
+        if (dispatchResult.skipped) {
+          await logWhatsAppDigestDispatch({
+            organizationId: eventOrgId,
+            recipient: targetGroupId,
+            messageContent,
+            status: "skipped",
+            taskIds: [],
+            categories: emptyCategories,
+            mentionedPhones: emptyMentionedPhones,
+            errorMessage:
+              dispatchResult.error ||
+              "Gateway WhatsApp ormawa belum dikonfigurasi.",
+            provider: dispatchResult.provider,
+          });
+          return;
+        }
+
+        const whatsappLogId = await logWhatsAppDigestDispatch({
+          organizationId: eventOrgId,
+          recipient: targetGroupId,
+          messageContent,
+          status: "sent",
+          taskIds: [],
+          categories: emptyCategories,
+          mentionedPhones: emptyMentionedPhones,
+          wablasResponse: dispatchResult.responseText,
+          provider: dispatchResult.provider,
+        });
+
+        await createTaskReminderDigestLog({
+          digestType: "EMPTY_EVENT_DIGEST",
+          groupId: targetGroupId,
+          digestDateKey,
+          taskIds: [],
+          allCurrentTaskIds: [],
+          newTaskIds: [],
+          categories: emptyCategories,
+          mentionedPhones: emptyMentionedPhones,
+          status: "sent",
+          messageContent,
+          whatsappLogId,
+          target_group_id: targetGroupId,
+          target_group_type: "event_group",
+          linked_event_id: emptyEvent.id,
+        });
+
+        digestSentCount++;
+        for (const phone of emptyMentionedPhones) {
+          sentMentionedPhones.add(phone);
+        }
+
+        groupResults.push({
+          targetGroupId,
+          groupName,
+          taskCount: 0,
+          newTaskCount: 0,
+          status: "sent",
+          messagePreview: messageContent.slice(0, 150),
+        });
+      } catch (error: unknown) {
+        let status = "failed";
+        let cooldownUntil: Date | null = null;
+        let rateLimitReason: string | undefined;
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Gagal mengirim digest acara baru.";
+
+        digestFailedCount++;
+        digestErrors.push({ target: targetGroupId, reason: errorMessage });
+
+        if (error instanceof WhatsAppRateLimitError) {
+          status = error.status;
+          cooldownUntil = error.cooldownUntil;
+          rateLimitReason = error.message;
+          skipped.rateLimited++;
+        } else {
+          errors.push(`Group ${targetGroupId}: ${errorMessage}`);
+        }
+
+        const eventOrgId =
+          emptyEvent.organization_id ||
+          emptyEvent.org_id ||
+          emptyEvent.orgId ||
+          "main_org";
+
+        const whatsappLogId = await logWhatsAppDigestDispatch({
+          organizationId: eventOrgId,
+          recipient: targetGroupId,
+          messageContent,
+          status,
+          taskIds: [],
+          categories: emptyCategories,
+          mentionedPhones: emptyMentionedPhones,
+          errorMessage,
+          cooldownUntil,
+          rateLimitReason,
+          provider: process.env.WHATSAPP_PROVIDER || "fonnte",
+        });
+
+        await createTaskReminderDigestLog({
+          digestType: "EMPTY_EVENT_DIGEST",
+          groupId: targetGroupId,
+          digestDateKey,
+          taskIds: [],
+          allCurrentTaskIds: [],
+          newTaskIds: [],
+          categories: emptyCategories,
+          mentionedPhones: emptyMentionedPhones,
+          status: "failed",
+          messageContent,
+          whatsappLogId,
+          target_group_id: targetGroupId,
+          target_group_type: "event_group",
+          linked_event_id: emptyEvent.id,
+        });
+
+        groupResults.push({
+          targetGroupId,
+          groupName,
+          taskCount: 0,
+          newTaskCount: 0,
+          status: "failed",
+          reason: errorMessage,
+        });
+      }
+    });
+
+    await Promise.allSettled([...groupPromises, ...emptyEventPromises]);
 
     skipped.alreadyInDigestToday = alreadyInDigestToday;
 
@@ -460,9 +732,11 @@ async function handleCron(request: Request) {
       checkedTasks,
       activeTasks: activeTasks.length,
       eligibleTasks: eligibleTasksCount,
-      groupsChecked: taskGroups.size,
+      groupsChecked: taskGroups.size + emptyEventsToProcess.length,
       groups: groupResults,
-      digestSent: digestSentCount > 0 || (dryRun && eligibleTasksCount > 0),
+      digestSent:
+        digestSentCount > 0 ||
+        (dryRun && (eligibleTasksCount > 0 || emptyEventsToProcess.length > 0)),
       digestTaskCount,
       newTaskIdsInDigest,
       categories: categoriesSum,

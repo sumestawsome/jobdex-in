@@ -435,7 +435,8 @@ export type DigestType =
   | "DAILY_DIGEST"
   | "OVERDUE_DIGEST"
   | "APPROVAL_DIGEST"
-  | "URGENT_DIGEST";
+  | "URGENT_DIGEST"
+  | "EMPTY_EVENT_DIGEST";
 
 export type DigestCategoryKey =
   | "overdue"
@@ -482,7 +483,7 @@ const DIGEST_CATEGORY_ORDER: DigestCategoryKey[] = [
   "stuck",
 ];
 
-function normalizeMentionPhone(value?: string) {
+export function normalizeMentionPhone(value?: string) {
   if (!value) {
     return "";
   }
@@ -671,6 +672,7 @@ export function buildDigestReminderMessage(
   const dateText = formatIndonesianDate(now);
   const includedTaskIds = new Set<string>();
   let renderedCount = 0;
+  let hasSevereOverdue = false;
   const taskLines: string[] = [];
 
   for (const category of DIGEST_CATEGORY_ORDER) {
@@ -710,6 +712,27 @@ export function buildDigestReminderMessage(
           ? "Acara Ormawa"
           : "Humas dan Media Kreatif";
 
+      // Kondisi 3 & 2: Cek apakah tugas telat parah (> 3 hari) atau berjalan normal
+      const diffDays = item.diffDays;
+      const isSevereOverdue = diffDays !== null && diffDays <= -3;
+      const overdueDays = diffDays !== null && diffDays < 0 ? Math.abs(diffDays) : 0;
+
+      const picMentionOrName = phone ? `@${phone}` : picName;
+      let roastingNote = "";
+      let taskStatusDisplay = statusText;
+
+      if (isSevereOverdue) {
+        hasSevereOverdue = true;
+        taskStatusDisplay = `${statusText} (Telat ${overdueDays} Hari ⚠️)`;
+        roastingNote = `\n   • 💀 Waduh ${picMentionOrName}, tugas yang ini udah lewat ${overdueDays} hari nih wkwk, yuk segera disetor drafnya jangan sampai jadi fosil ya! 💀`;
+      } else if (category === "today") {
+        taskStatusDisplay = `${statusText} (Deadline Hari Ini ⏰)`;
+      } else if (category === "h_1") {
+        taskStatusDisplay = `${statusText} (Besok Deadline ⏳)`;
+      } else if (category === "h_2_h_3" && diffDays !== null) {
+        taskStatusDisplay = `${statusText} (${diffDays} Hari Lagi 📌)`;
+      }
+
       const notes =
         (category === "stuck" || item.task.status === "stuck") &&
         item.task.stuck_notes
@@ -718,7 +741,7 @@ export function buildDigestReminderMessage(
 
       renderedCount++;
       taskLines.push(
-        `${renderedCount}. *${taskTitle}*\n   • ${eventOrDivLabel}: ${eventOrDivVal}\n   • PIC: ${picDisplay}\n   • Deadline: ${deadline}\n   • Status: ${statusText}${notes}`
+        `${renderedCount}. *${taskTitle}*\n   • ${eventOrDivLabel}: ${eventOrDivVal}\n   • PIC: ${picDisplay}\n   • Deadline: ${deadline}\n   • Status: ${taskStatusDisplay}${notes}${roastingNote}`
       );
 
       includedTaskIds.add(item.task.id);
@@ -740,17 +763,59 @@ export function buildDigestReminderMessage(
       ? `\n_(dan ${remainingCount} tugas lainnya)_\n`
       : "";
 
+  const footerMessage = hasSevereOverdue
+    ? `Yuk yang tugasnya udah lewat deadline atau mendekati waktu setor, gercep disetor yaa biar gak jadi fosil! Tetap semangat tim! 🔥`
+    : `Yuk yang belum update atau mau nyetor draf, bisa langsung setor yaa. Semangat! 🔥`;
+
   return [
     `📢 *Halo rekan-rekan Forkom KIP!*`,
     `Ini rekap tugas yang lagi jalan dan butuh dicek per siang ini (${dateText}):`,
     ``,
     taskLines.join("\n\n"),
     remainingText,
-    `Yuk yang belum update atau mau nyetor draf, bisa langsung setor yaa. Semangat! 🔥`,
+    footerMessage,
     `👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
   ]
     .filter((line, i, arr) => !(line === "" && arr[i - 1] === ""))
     .join("\n");
+}
+
+export function buildEmptyEventReminderMessage(
+  eventName: string,
+  coordDisplay: string,
+  secDisplay: string,
+  now = new Date(),
+): string {
+  const dateText = formatIndonesianDate(now);
+  return [
+    `📢 *Semangat Siang Tim ${eventName}!* ✨`,
+    `Wah, acara *${eventName}* sudah resmi terdaftar di JobDex.in per siang ini (${dateText}), tapi belum ada job desk atau pembagian tugas yang diinput sama sekali. 📋`,
+    ``,
+    `Yuk senggol Koordinator kita ${coordDisplay} dan Sekretaris ${secDisplay} buat mulai rembukan santai bareng panitia, susun timeline, dan input pembagian tugas pertama di web yaa! 🙌`,
+    ``,
+    `Biar semua pengerjaan ke-track rapi dan gak ada yang keteteran pas hari H. Semangat semuanya! 🔥`,
+    `👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
+  ].join("\n");
+}
+
+export async function checkDigestAlreadySentToday(data: {
+  digestType?: DigestType;
+  groupId: string;
+  digestDateKey: string;
+}): Promise<boolean> {
+  const db = getAdminDb();
+  let query = db
+    .collection("task_reminder_digest_logs")
+    .where("group_id", "==", data.groupId)
+    .where("digest_date_key", "==", data.digestDateKey)
+    .where("status", "in", ["sent", "pending"]);
+
+  if (data.digestType) {
+    query = query.where("digest_type", "==", data.digestType);
+  }
+
+  const snapshot = await query.limit(1).get();
+  return !snapshot.empty;
 }
 
 export function getDigestDateKey(date = new Date()) {
