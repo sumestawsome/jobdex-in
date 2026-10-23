@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { RoleBadge } from "@/components/ui/role-badge";
-import { X } from "lucide-react";
+import { X, Pencil } from "lucide-react";
 import { MemberStatusBadge } from "@/components/members/member-status-badge";
 import type { UserProfile } from "@/types";
 
@@ -38,24 +38,24 @@ export function MemberDetailDialog({
     ["Email", member.email || "-"],
     ["Nomor WhatsApp", member.whatsapp_number || "-"],
     ["Divisi", member.division_id || "-"],
-    ["Organization", member.organization_id || "-"],
-    ["Tanggal bergabung", formatDate(member.created_at)],
+    ["Organization ID", member.organization_id || "-"],
+    ["Tanggal Bergabung", formatDate(member.created_at)],
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-8">
-      <div className="w-full max-w-2xl rounded-[8px] bg-white dark:bg-slate-900 shadow-xl">
-        <div className="border-b border-slate-200 dark:border-slate-800 p-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 backdrop-blur-xs px-4 py-8">
+      <div className="w-full max-w-2xl rounded-none bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-none">
+        <div className="border-b border-zinc-200 dark:border-zinc-800 p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">
-                Detail anggota
+              <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+                Detail Anggota
               </h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{member.email}</p>
+              <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">{member.email}</p>
             </div>
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            <Button type="button" variant="ghost" size="sm" onClick={onClose} className="rounded-none shadow-none">
               <X className="h-4 w-4" />
-              Tutup
+              <span>Tutup</span>
             </Button>
           </div>
         </div>
@@ -66,27 +66,27 @@ export function MemberDetailDialog({
               <MemberStatusBadge isActive={member.is_active} />
             </div>
             {onEdit && canEditRole && (
-              <Button
+              <button
                 type="button"
-                size="sm"
                 onClick={() => {
                   onClose();
                   onEdit(member);
                 }}
-                className="font-bold text-xs"
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-none bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-zinc-950 text-xs font-semibold shadow-none transition-all border border-amber-600 dark:border-amber-400 cursor-pointer"
               >
-                Rotasi Peran / Edit
-              </Button>
+                <Pencil className="size-3 text-zinc-950/80" />
+                <span>Rotasi Peran / Edit</span>
+              </button>
             )}
           </div>
-          <dl className="divide-y divide-slate-200 dark:divide-slate-800">
+          <dl className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {rows.map(([label, value]) => (
               <div
                 key={label}
                 className="grid gap-1 py-3 sm:grid-cols-[170px_1fr]"
               >
-                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</dt>
-                <dd className="text-sm font-semibold text-slate-950 dark:text-slate-50">{value}</dd>
+                <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{label}</dt>
+                <dd className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{value}</dd>
               </div>
             ))}
           </dl>

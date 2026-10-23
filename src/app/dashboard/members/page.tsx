@@ -9,12 +9,14 @@ import {
   type MemberStatusFilter,
 } from "@/components/members/member-filters";
 import { MembersTable } from "@/components/members/members-table";
-import { Badge } from "@/components/ui/badge";
+import { MemberCardGrid } from "@/components/members/member-card-grid";
+import { MemberViewToggle, type MemberViewMode } from "@/components/members/member-view-toggle";
+import { getDivisionRoleLabel } from "@/components/members/member-card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import Link from "next/link";
-import { Building2, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { getMembers, updateMember } from "@/lib/firebase/members";
@@ -23,7 +25,6 @@ import { collection, collectionGroup, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { canManageMembers } from "@/lib/permissions";
 import type { MemberUpdateInput, UserProfile, UserRole, Division } from "@/types";
-
 import { showConfirm, showSuccess, showError } from "@/lib/swal";
 
 export default function MembersPage() {
@@ -45,10 +46,41 @@ function MembersManagement() {
   const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
   const [statusFilter, setStatusFilter] = useState<MemberStatusFilter>("all");
   const [divisionFilter, setDivisionFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<MemberViewMode>("table");
+  const [isMobile, setIsMobile] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<UserProfile | null>(null);
   const [selectedEdit, setSelectedEdit] = useState<UserProfile | null>(null);
-
   const [divisionsList, setDivisionsList] = useState<Division[]>([]);
+
+  useEffect(() => {
+    const updateMobileStatus = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        try {
+          const savedMode = localStorage.getItem("jobdex_members_view_mode") as MemberViewMode | null;
+          if (savedMode === "table" || savedMode === "card") {
+            setViewMode(savedMode);
+          }
+        } catch {
+          // ignore localStorage error
+        }
+      }
+    };
+
+    updateMobileStatus();
+    window.addEventListener("resize", updateMobileStatus);
+    return () => window.removeEventListener("resize", updateMobileStatus);
+  }, []);
+
+  const handleViewModeChange = (mode: MemberViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("jobdex_members_view_mode", mode);
+    } catch {
+      // ignore localStorage error
+    }
+  };
 
   const loadMembers = useCallback(async () => {
     setLoading(true);
@@ -115,13 +147,24 @@ function MembersManagement() {
   }, [members]);
 
   const filteredMembers = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const queryTokens = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
     return members.filter((member) => {
+      const eventRole = eventRolesByUser[member.id] || "";
+      const divisionRole = getDivisionRoleLabel(member.role);
+      const searchableContent = [
+        member.name || "",
+        member.email || "",
+        member.whatsapp_number || "",
+        member.division_id || "",
+        divisionRole,
+        eventRole,
+      ].join(" ").toLowerCase();
+
       const matchesSearch =
-         !query ||
-        member.name?.toLowerCase().includes(query) ||
-        member.email?.toLowerCase().includes(query);
+        queryTokens.length === 0 ||
+        queryTokens.every((token) => searchableContent.includes(token));
+
       const matchesRole = roleFilter === "all" || member.role === roleFilter;
       const matchesStatus =
         statusFilter === "all" ||
@@ -149,7 +192,7 @@ function MembersManagement() {
 
       return matchesWorkspace && matchesSearch && matchesRole && matchesStatus && matchesDivision;
     });
-  }, [activeWorkspace.org_id, activeWorkspace.campus_id, divisionFilter, members, roleFilter, search, statusFilter]);
+  }, [activeWorkspace.campus_id, activeWorkspace.org_id, divisionFilter, eventRolesByUser, members, roleFilter, search, statusFilter]);
 
   async function handleSaveMember(memberId: string, input: MemberUpdateInput) {
     if (!userProfile) {
@@ -220,29 +263,29 @@ function MembersManagement() {
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-16">
       {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-[#e1e2e3] bg-white shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-none">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-[#242424] text-white font-bold text-xs shrink-0 shadow-xs">
+          <span className="flex size-9 items-center justify-center rounded-none bg-zinc-900 text-white font-bold text-xs shrink-0 shadow-none">
             {activeWorkspace.campus_code}
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-[#242424] truncate">
+              <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">
                 {activeOrmawa.name}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#e8f7f0] border border-[#a3e6cd] px-2 py-0.5 text-[10px] font-semibold text-[#19a874]">
-                <span className="size-1.5 rounded-full bg-[#19a874] animate-pulse" />
+              <span className="inline-flex items-center gap-1 rounded-none bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                <span className="size-1.5 rounded-none bg-emerald-600 dark:bg-emerald-400 animate-pulse" />
                 Aktif
               </span>
             </div>
-            <p className="text-xs text-[#898989] truncate mt-0.5">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
               {activeCampus.name} • Menampilkan anggota terfilter untuk ruang kerja ini
             </p>
           </div>
         </div>
         <Link
           href="/dashboard/workspace"
-          className="text-xs font-semibold text-[#242424] hover:underline inline-flex items-center gap-1 shrink-0"
+          className="text-xs font-semibold text-zinc-900 dark:text-zinc-200 hover:underline inline-flex items-center gap-1 shrink-0"
         >
           <span>Ganti Ruang Kerja</span>
           <ArrowRight className="size-3" />
@@ -250,18 +293,18 @@ function MembersManagement() {
       </div>
 
       {/* ── Header Section ──────────────────────────────────────────────────── */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#e1e2e3]">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#242424]">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
             Anggota & Tim Organisasi
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-[#898989]">
+          <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
             Kelola profil tim, penetapan peran (role), pembagian divisi, dan hak akses ruang kerja.
           </p>
         </div>
-        <div className="rounded-lg border border-[#e1e2e3] bg-white px-4 py-2 text-right shadow-2xs">
-          <span className="text-[10px] font-semibold text-[#898989] uppercase tracking-wider block">Total Anggota</span>
-          <span className="text-lg font-bold text-[#242424]">
+        <div className="rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-2 text-right shadow-none">
+          <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block">Total Anggota</span>
+          <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
             {(activeWorkspace.org_id === "org-undiksha-forkom-kip" || activeWorkspace.org_id === "org-undiksha-bem" || activeWorkspace.org_id === "org-ui-bem")
               ? filteredMembers.length
               : activeOrmawa.member_count}
@@ -282,10 +325,28 @@ function MembersManagement() {
         onDivisionChange={setDivisionFilter}
       />
 
-      {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
-          {error}
+      {/* ── View Mode & Summary Bar ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Menampilkan <strong className="text-zinc-900 dark:text-zinc-100">{filteredMembers.length}</strong> dari {members.length} anggota terdaftar
         </p>
+        <div className="hidden md:inline-flex">
+          <MemberViewToggle value={isMobile ? "card" : viewMode} onChange={handleViewModeChange} />
+        </div>
+      </div>
+
+      {error ? (
+        <div className="flex flex-col items-start gap-3 rounded-none bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200 border border-red-200 dark:border-red-900 shadow-none">
+          <p>{error}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void loadMembers()}
+            className="rounded-none bg-white text-red-700 hover:bg-red-50 dark:bg-zinc-900 dark:text-red-200 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 shadow-none"
+          >
+            Muat ulang
+          </Button>
+        </div>
       ) : null}
 
       {loading ? (
@@ -296,7 +357,7 @@ function MembersManagement() {
           description={`Ruang kerja ${activeOrmawa.name} (${activeCampus.code}) belum memiliki anggota terdaftar.`}
           action={
             <Link href="/dashboard/workspace">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="rounded-none shadow-none">
                 Ganti Ruang Kerja
               </Button>
             </Link>
@@ -308,14 +369,29 @@ function MembersManagement() {
           description={`Tidak ada anggota pada filter aktif di ruang kerja ${activeOrmawa.name}. Coba ubah kata kunci pencarian atau filter status/divisi.`}
           action={
             <Link href="/dashboard/workspace">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="rounded-none shadow-none">
                 Pilih Ruang Kerja Lain
               </Button>
             </Link>
           }
         />
-      ) : (
+      ) : !isMobile && viewMode === "table" ? (
         <MembersTable
+          members={filteredMembers}
+          eventRolesByUser={eventRolesByUser}
+          onView={setSelectedDetail}
+          onEdit={(member) => {
+            if (userProfile.role !== "super_admin" && member.role === "super_admin") {
+              setError("Koordinator divisi tidak dapat mengedit super admin.");
+              return;
+            }
+
+            setSelectedEdit(member);
+          }}
+          onToggleStatus={handleToggleStatus}
+        />
+      ) : (
+        <MemberCardGrid
           members={filteredMembers}
           eventRolesByUser={eventRolesByUser}
           onView={setSelectedDetail}

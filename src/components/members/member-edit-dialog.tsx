@@ -28,7 +28,7 @@ type MemberEditFormProps = {
 };
 
 const selectClassName =
-  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors focus:border-slate-400 focus:ring-4 focus:ring-slate-100 disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:border-slate-500 dark:focus:ring-slate-800 dark:disabled:bg-slate-800 dark:disabled:text-slate-400";
+  "h-11 w-full rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none transition-colors focus:border-zinc-900 dark:focus:border-zinc-500 focus:ring-1 focus:ring-zinc-900/10 dark:focus:ring-zinc-700/50 shadow-none disabled:bg-zinc-100 disabled:text-zinc-400 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500 [&>option]:bg-white [&>option]:text-zinc-900 dark:[&>option]:bg-zinc-900 dark:[&>option]:text-zinc-100";
 
 export function MemberEditDialog({
   member,
@@ -119,17 +119,17 @@ function MemberEditForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-8">
-      <div className="w-full max-w-2xl rounded-[8px] bg-white dark:bg-slate-900 shadow-xl">
-        <div className="border-b border-slate-200 dark:border-slate-800 p-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 backdrop-blur-xs px-4 py-8">
+      <div className="w-full max-w-2xl rounded-none bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-none">
+        <div className="border-b border-zinc-200 dark:border-zinc-800 p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">Edit anggota</h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{member.email}</p>
+              <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Edit Anggota</h2>
+              <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">{member.email}</p>
             </div>
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            <Button type="button" variant="ghost" size="sm" onClick={onClose} className="rounded-none shadow-none">
               <X className="h-4 w-4" />
-              Tutup
+              <span>Tutup</span>
             </Button>
           </div>
         </div>
@@ -138,7 +138,7 @@ function MemberEditForm({
           <div>
             <label
               htmlFor="member-name"
-              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
               Nama
             </label>
@@ -146,13 +146,14 @@ function MemberEditForm({
               id="member-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
+              className="rounded-none shadow-none"
             />
           </div>
 
           <div>
             <label
               htmlFor="member-whatsapp"
-              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
               Nomor WhatsApp
             </label>
@@ -161,13 +162,14 @@ function MemberEditForm({
               value={whatsappNumber}
               onChange={(event) => setWhatsappNumber(event.target.value)}
               placeholder="08xxxxxxxxxx"
+              className="rounded-none shadow-none"
             />
           </div>
 
           <div>
             <label
               htmlFor="member-whatsapp-pin"
-              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
               PIN Perintah WhatsApp (6 Digit)
             </label>
@@ -177,8 +179,9 @@ function MemberEditForm({
               onChange={(event) => setWhatsappCommandPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="Contoh: 123456"
               maxLength={6}
+              className="rounded-none shadow-none"
             />
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               Digunakan untuk memvalidasi eksekusi perintah WhatsApp group (Fase 12C).
             </p>
           </div>
@@ -187,7 +190,7 @@ function MemberEditForm({
             <div>
               <label
                 htmlFor="member-role"
-                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
               >
                 Role
               </label>
@@ -205,7 +208,7 @@ function MemberEditForm({
                 ))}
               </select>
               {!canEditRole ? (
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                   Koordinator divisi tidak dapat mengubah role pada fase ini.
                 </p>
               ) : null}
@@ -214,7 +217,7 @@ function MemberEditForm({
             <div>
               <label
                 htmlFor="member-division"
-                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-350"
+                className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
               >
                 Divisi
               </label>
@@ -237,36 +240,37 @@ function MemberEditForm({
             </div>
           </div>
 
-          <label className="flex items-center gap-3 rounded-[8px] border border-slate-200 dark:border-slate-800 p-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label className="flex items-center gap-3 rounded-none border border-zinc-200 dark:border-zinc-800 p-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
             <input
               type="checkbox"
               checked={isSelf ? true : isActive}
               disabled={isSelf}
               onChange={(event) => setIsActive(event.target.checked)}
+              className="rounded-none"
             />
-            Akun aktif
+            <span>Akun aktif</span>
           </label>
           {isSelf ? (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Untuk mencegah terkunci, akun sendiri tidak dapat dinonaktifkan
               dari UI ini.
             </p>
           ) : null}
 
           {error ? (
-            <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+            <p className="rounded-none bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200 border border-red-200 dark:border-red-900 shadow-none">
               {error}
             </p>
           ) : null}
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" size="sm" onClick={onClose} className="rounded-none shadow-none">
               <X className="h-4 w-4" />
-              Batal
+              <span>Batal</span>
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting}>
+            <Button type="submit" size="sm" disabled={isSubmitting} className="rounded-none shadow-none">
               <Save className="h-4 w-4" />
-              {isSubmitting ? "Menyimpan..." : "Simpan perubahan"}
+              <span>{isSubmitting ? "Menyimpan..." : "Simpan perubahan"}</span>
             </Button>
           </div>
         </form>
