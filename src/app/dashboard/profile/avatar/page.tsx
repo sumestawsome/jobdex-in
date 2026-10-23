@@ -30,6 +30,14 @@ const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+function getInitials(name?: string | null) {
+  if (!name) return "JD";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "JD";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 export default function AvatarUploadPage() {
   const router = useRouter();
   const { user, userProfile, reloadUserProfile } = useAuth();
@@ -43,11 +51,8 @@ export default function AvatarUploadPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const currentAvatar =
-    userProfile?.avatar_url ||
-    (userProfile?.name
-      ? `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.name)}&background=95bdff&color=1a1a1a&bold=true&rounded=true&size=128`
-      : "/default-avatar.png");
+  const userInitials = getInitials(userProfile?.name);
+  const currentAvatar = userProfile?.avatar_url;
 
   const validateAndSelectFile = useCallback((selectedFile: File) => {
     setErrorDetails(null);
@@ -191,31 +196,33 @@ export default function AvatarUploadPage() {
       {/* ── Breadcrumbs / Header ────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <Link href="/dashboard/profile">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2 rounded-none shadow-none border-zinc-200 dark:border-zinc-800">
             <ArrowLeft className="size-4" />
-            Kembali ke Profil
+            <span>Kembali ke Profil</span>
           </Button>
         </Link>
-        <Badge variant="info">Perbaikan Audit</Badge>
+        <Badge variant="neutral" className="rounded-none font-bold text-xs">
+          Avatar Akun
+        </Badge>
       </div>
 
       <div>
-        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
           Unggah Foto Profil
         </h1>
-        <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-          Ubah avatar akun Anda dengan format standar, pengecekan ukuran otomatis, dan diagnosa pesan error terperinci.
+        <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+          Ubah avatar akun Anda dengan format standar persegi, validasi ukuran instan, dan penyimpanan aman Cloudinary.
         </p>
       </div>
 
-      {/* ── Error Banner (Pesan Error Terperinci) ────────────────────────────── */}
+      {/* ── Error Banner ────────────────────────────────────────────────────── */}
       {errorDetails && (
         <div
           role="alert"
-          className="rounded-xl border-2 border-red-500 bg-red-50 dark:bg-red-950/40 p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200"
+          className="rounded-none border border-red-500 bg-red-50 dark:bg-red-950/40 p-4 shadow-none animate-in fade-in slide-in-from-top-2 duration-150"
         >
           <div className="flex items-start gap-3">
-            <div className="p-1.5 bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400 rounded-lg shrink-0">
+            <div className="p-1.5 bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400 rounded-none shrink-0">
               <ShieldAlert className="size-5" />
             </div>
             <div className="flex-1 min-w-0">
@@ -224,8 +231,8 @@ export default function AvatarUploadPage() {
                   {errorDetails.title}
                 </h3>
                 {errorDetails.statusCode && (
-                  <span className="rounded bg-red-200 dark:bg-red-800/60 px-1.5 py-0.5 text-[10px] font-mono font-bold text-red-800 dark:text-red-200">
-                    Status {errorDetails.statusCode}
+                  <span className="rounded-none bg-red-200 dark:bg-red-800/60 px-1.5 py-0.5 text-[10px] font-mono font-bold text-red-800 dark:text-red-200">
+                    HTTP {errorDetails.statusCode}
                   </span>
                 )}
               </div>
@@ -233,7 +240,7 @@ export default function AvatarUploadPage() {
                 {errorDetails.message}
               </p>
               {errorDetails.tip && (
-                <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-red-600 dark:text-red-400 bg-red-100/60 dark:bg-red-900/40 px-2.5 py-1.5 rounded-md">
+                <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-red-600 dark:text-red-400 bg-red-100/60 dark:bg-red-900/40 px-2.5 py-1.5 rounded-none">
                   <Info className="size-3.5 shrink-0" />
                   <span>{errorDetails.tip}</span>
                 </div>
@@ -243,7 +250,7 @@ export default function AvatarUploadPage() {
               variant="ghost"
               size="sm"
               onClick={() => setErrorDetails(null)}
-              className="text-red-700 hover:text-red-900 hover:bg-red-100 text-xs px-2 h-7"
+              className="text-red-700 hover:text-red-900 hover:bg-red-100 dark:hover:bg-red-900 text-xs px-2 h-7 rounded-none shadow-none"
             >
               Tutup
             </Button>
@@ -253,9 +260,9 @@ export default function AvatarUploadPage() {
 
       {/* ── Success Banner ─────────────────────────────────────────────────── */}
       {success && (
-        <div className="rounded-xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="rounded-none border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 p-4 shadow-none animate-in fade-in slide-in-from-top-2 duration-150">
           <div className="flex items-start gap-3">
-            <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 rounded-lg shrink-0">
+            <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 rounded-none shrink-0">
               <CheckCircle2 className="size-5" />
             </div>
             <div className="flex-1">
@@ -269,7 +276,7 @@ export default function AvatarUploadPage() {
                 <Button
                   size="sm"
                   onClick={() => router.push("/dashboard/profile")}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 rounded-none shadow-none font-bold"
                 >
                   Lihat Profil
                 </Button>
@@ -277,7 +284,7 @@ export default function AvatarUploadPage() {
                   variant="outline"
                   size="sm"
                   onClick={handleReset}
-                  className="text-xs h-8"
+                  className="text-xs h-8 rounded-none shadow-none"
                 >
                   Unggah Foto Lain
                 </Button>
@@ -288,44 +295,56 @@ export default function AvatarUploadPage() {
       )}
 
       {/* ── Main Upload Card ────────────────────────────────────────────────── */}
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader>
-          <CardTitle className="text-lg font-bold">Pilih Gambar Avatar</CardTitle>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Gunakan foto wajah atau logo yang jelas dengan rasio persegi (1:1).
+      <Card className="rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-none">
+        <CardHeader className="border-b border-zinc-200 dark:border-zinc-800 pb-3">
+          <CardTitle className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
+            Pilih Gambar Avatar
+          </CardTitle>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+            Gunakan foto wajah atau logo yang jelas dengan rasio kotak persegi (1:1).
           </p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 pt-5">
           {/* Avatar Comparison: Current vs Preview */}
-          <div className="flex items-center justify-around p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-around p-4 rounded-none bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800">
             <div className="flex flex-col items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500">Avatar Saat Ini</span>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={currentAvatar}
-                alt="Current Avatar"
-                className="size-20 rounded-full border-2 border-slate-300 dark:border-slate-700 object-cover shadow-sm"
-              />
+              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Avatar Saat Ini</span>
+              <div className="size-20 rounded-none border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 overflow-hidden flex items-center justify-center shadow-none">
+                {currentAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={currentAvatar}
+                    alt="Current Avatar"
+                    className="size-full object-cover rounded-none"
+                  />
+                ) : (
+                  <span className="font-bold text-xl text-zinc-900 dark:text-zinc-100">
+                    {userInitials}
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="text-slate-400 text-xl font-bold">→</div>
+            <div className="text-zinc-400 text-lg font-bold">→</div>
 
             <div className="flex flex-col items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500">
+              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
                 {previewUrl ? "Pratinjau Baru" : "Belum Ada File"}
               </span>
-              {previewUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={previewUrl}
-                  alt="New Preview"
-                  className="size-20 rounded-full border-2 border-primary object-cover shadow-md ring-2 ring-primary/20"
-                />
-              ) : (
-                <div className="size-20 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400">
-                  <Camera className="size-6" />
-                </div>
-              )}
+              <div className="size-20 rounded-none border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 overflow-hidden flex items-center justify-center shadow-none">
+                {previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewUrl}
+                    alt="New Preview"
+                    className="size-full object-cover rounded-none border-2 border-indigo-600"
+                  />
+                ) : (
+                  <div className="size-full border border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center text-zinc-400">
+                    <Camera className="size-6" />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -336,12 +355,12 @@ export default function AvatarUploadPage() {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             className={`
-              relative flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed
-              cursor-pointer transition-all duration-200 text-center
+              relative flex flex-col items-center justify-center p-8 rounded-none border-2 border-dashed
+              cursor-pointer transition-all duration-150 text-center shadow-none
               ${
                 isDragging
-                  ? "border-primary bg-primary/5 scale-[1.01]"
-                  : "border-slate-300 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50/60 dark:hover:bg-slate-900/30"
+                  ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/20"
+                  : "border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30"
               }
             `}
           >
@@ -352,27 +371,27 @@ export default function AvatarUploadPage() {
               onChange={handleInputChange}
               className="hidden"
             />
-            <div className="p-3 bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 rounded-full mb-3 shadow-sm">
-              <UploadCloud className="size-8" />
+            <div className="p-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-none mb-3 border border-zinc-200 dark:border-zinc-700">
+              <UploadCloud className="size-8 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <p className="font-semibold text-sm text-slate-900 dark:text-white">
-              Seret dan lepaskan file gambar ke sini, atau <span className="text-primary underline">jelajahi</span>
+            <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+              Seret dan lepaskan file gambar ke sini, atau <span className="text-indigo-600 dark:text-indigo-400 underline">jelajahi file</span>
             </p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Mendukung JPEG, PNG, atau WebP (Maksimal 5 MB)
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Mendukung format JPG, PNG, atau WebP (Maksimal 5 MB)
             </p>
           </div>
 
           {/* Selected File Details */}
           {file && (
-            <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+            <div className="flex items-center justify-between p-3 rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40">
               <div className="flex items-center gap-3 min-w-0">
-                <FileImage className="size-5 text-primary shrink-0" />
+                <FileImage className="size-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                  <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">
                     {file.name}
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-zinc-500 font-mono">
                     {(file.size / (1024 * 1024)).toFixed(2)} MB • {file.type}
                   </p>
                 </div>
@@ -384,22 +403,22 @@ export default function AvatarUploadPage() {
                   e.stopPropagation();
                   handleReset();
                 }}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs gap-1 h-8"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 text-xs gap-1 h-8 rounded-none shadow-none"
               >
                 <Trash2 className="size-3.5" />
-                Hapus
+                <span>Hapus</span>
               </Button>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
             <Button
               type="button"
               variant="outline"
               onClick={handleReset}
               disabled={uploading || (!file && !previewUrl)}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto rounded-none shadow-none text-xs"
             >
               Reset
             </Button>
@@ -407,17 +426,17 @@ export default function AvatarUploadPage() {
               type="button"
               onClick={handleUpload}
               disabled={!file || uploading}
-              className="w-full sm:w-auto gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold"
+              className="w-full sm:w-auto gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-none shadow-none"
             >
               {uploading ? (
                 <>
                   <RefreshCw className="size-4 animate-spin" />
-                  Mengunggah ke Cloudinary...
+                  <span>Mengunggah ke Cloudinary...</span>
                 </>
               ) : (
                 <>
                   <UploadCloud className="size-4" />
-                  Simpan Foto Profil
+                  <span>Simpan Foto Profil</span>
                 </>
               )}
             </Button>
