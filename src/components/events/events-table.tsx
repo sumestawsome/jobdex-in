@@ -26,29 +26,29 @@ export function EventsTable({
   onEdit,
 }: EventsTableProps) {
   return (
-    <>
-      {/* Desktop Table View */}
-      <div className="hidden md:block overflow-hidden rounded-xl border border-[#e1e2e3] bg-white shadow-2xs">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-[#e1e2e3] bg-[#f7f7f8]">
-                <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Nama Acara</th>
-                <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Ruang Kerja</th>
-                <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Tanggal</th>
-                <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Koordinator</th>
-                <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Status</th>
-                <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Progress</th>
-                <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Anggota</th>
-                <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#e1e2e3]">
-              {events.map((event) => (
-                <tr key={event.id} className="align-middle hover:bg-[#f7f7f8] transition-colors">
+    <div className="overflow-hidden rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-none">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[920px] border-collapse text-left text-xs">
+          <thead>
+            <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/60">
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Nama Acara</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Ruang Kerja</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Tanggal</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Koordinator</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Status</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Progress</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Anggota</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Aksi</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            {events.map((event) => {
+              const progress = Math.min(100, Math.max(0, event.progress_percentage ?? 0));
+              return (
+                <tr key={event.id} className="align-middle hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                   <td className="px-4 py-3">
-                    <p className="font-bold text-[#242424] text-xs">{event.name}</p>
-                    <p className="mt-0.5 line-clamp-2 max-w-xs text-[11px] text-[#898989]">
+                    <p className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{event.name}</p>
+                    <p className="mt-0.5 line-clamp-2 max-w-xs text-[11px] text-zinc-500 dark:text-zinc-400">
                       {event.description || "-"}
                     </p>
                   </td>
@@ -58,117 +58,59 @@ export function EventsTable({
                       orgId={event.org_id || event.organization_id}
                     />
                   </td>
-                  <td className="px-4 py-3 text-[#6b7280]">
+                  <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
                     {formatEventDate(event.event_date)}
                   </td>
-                  <td className="px-4 py-3 text-[#6b7280]">
+                  <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
                     {usersById.get(event.coordinator_id)?.name ??
                       "Koordinator belum ditentukan"}
                   </td>
                   <td className="px-4 py-3">
                     <EventStatusBadge status={event.status} />
                   </td>
-                  <td className="px-4 py-3 font-semibold text-[#242424]">
-                    {event.progress_percentage ?? 0}%
+                  <td className="px-4 py-3">
+                    <div className="w-28 space-y-1">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                        {progress}%
+                      </span>
+                      <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-none overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                        <div
+                          className="h-full bg-emerald-600 dark:bg-emerald-500 rounded-none transition-all duration-300"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-[#6b7280]">
+                  <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
                     {memberCounts[event.id] ?? 0} orang
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <Link
                         href={`/dashboard/events/${event.id}`}
-                        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-[11px] font-semibold transition-all shadow-2xs"
+                        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-[11px] font-semibold transition-all shadow-none border border-indigo-700 dark:border-indigo-500"
                       >
-                        <Eye className="size-3 text-[#898989]" />
+                        <Eye className="size-3 text-white/90" />
                         <span>Detail</span>
                       </Link>
                       {canManageEvent(userProfile, event, userRoles?.[event.id]) && (
                         <button
                           type="button"
                           onClick={() => onEdit(event)}
-                          className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-[11px] font-semibold transition-all shadow-2xs cursor-pointer"
+                          className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-zinc-950 text-[11px] font-semibold transition-all shadow-none border border-amber-600 dark:border-amber-400 cursor-pointer"
                         >
-                          <Pencil className="size-3 text-[#898989]" />
+                          <Pencil className="size-3 text-zinc-950/80" />
                           <span>Edit</span>
                         </button>
                       )}
                     </div>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-
-      {/* Mobile Card View */}
-      <div className="grid gap-3.5 md:hidden">
-        {events.map((event) => (
-          <div
-            key={event.id}
-            className="rounded-xl border border-[#e1e2e3] bg-white p-4 shadow-2xs space-y-3"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h3 className="font-bold text-[#242424] text-sm">{event.name}</h3>
-                <p className="mt-1 line-clamp-2 text-xs text-[#898989]">
-                  {event.description || "-"}
-                </p>
-              </div>
-              <EventStatusBadge status={event.status} />
-            </div>
-
-            <div className="text-xs space-y-1.5 border-t border-[#e1e2e3] pt-2.5">
-              <div className="flex justify-between">
-                <span className="text-[#898989]">Ruang Kerja:</span>
-                <WorkspaceBadge
-                  campusId={event.campus_id || event.univ_id}
-                  orgId={event.org_id || event.organization_id}
-                />
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#898989]">Tanggal:</span>
-                <span className="font-medium text-[#242424]">{formatEventDate(event.event_date)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#898989]">Koordinator:</span>
-                <span className="font-medium text-[#242424]">
-                  {usersById.get(event.coordinator_id)?.name ?? "Belum ditentukan"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#898989]">Anggota:</span>
-                <span className="font-medium text-[#242424]">{memberCounts[event.id] ?? 0} orang</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#898989]">Progress:</span>
-                <span className="font-bold text-[#242424]">{event.progress_percentage ?? 0}%</span>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-[#e1e2e3] flex items-center gap-2">
-              <Link
-                href={`/dashboard/events/${event.id}`}
-                className="flex-1 inline-flex items-center justify-center gap-1 h-8 rounded-lg border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold shadow-2xs"
-              >
-                <Eye className="size-3.5 text-[#898989]" />
-                <span>Detail</span>
-              </Link>
-              {canManageEvent(userProfile, event, userRoles?.[event.id]) && (
-                <button
-                  type="button"
-                  onClick={() => onEdit(event)}
-                  className="flex-1 inline-flex items-center justify-center gap-1 h-8 rounded-lg border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold shadow-2xs cursor-pointer"
-                >
-                  <Pencil className="size-3.5 text-[#898989]" />
-                  <span>Edit</span>
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
+    </div>
   );
 }

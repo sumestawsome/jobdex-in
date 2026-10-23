@@ -8,7 +8,7 @@ type EventStatusBadgeProps = {
 
 export function EventStatusBadge({ status }: EventStatusBadgeProps) {
   if (!status) {
-    return <Badge>Tanpa status</Badge>;
+    return <Badge variant="neutral">Tanpa status</Badge>;
   }
 
   const variant =

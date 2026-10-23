@@ -15,7 +15,7 @@ type EventFiltersProps = {
 };
 
 const selectClassName =
-  "h-9 w-full rounded-lg border border-[#e1e2e3] bg-white px-3 text-xs font-medium text-[#242424] outline-none transition-colors focus:border-[#242424] focus:ring-1 focus:ring-[#242424]/10 shadow-2xs cursor-pointer";
+  "h-9 w-full rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 text-xs font-medium text-zinc-900 dark:text-zinc-100 outline-none transition-colors focus:border-zinc-900 dark:focus:border-zinc-500 focus:ring-1 focus:ring-zinc-900/10 dark:focus:ring-zinc-700/50 shadow-none cursor-pointer [&>option]:bg-white [&>option]:text-zinc-900 dark:[&>option]:bg-zinc-900 dark:[&>option]:text-zinc-100";
 
 export function EventFilters({
   search,
@@ -28,12 +28,12 @@ export function EventFilters({
   return (
     <div className="grid grid-cols-2 gap-2.5 md:grid-cols-[1.5fr_1fr_1fr]">
       <div className="col-span-2 md:col-span-1 relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#898989]" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-500 dark:text-zinc-400" />
         <Input
-          placeholder="Cari nama acara..."
+          placeholder="Cari nama acara, koordinator, deskripsi..."
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          className="pl-8 h-9 text-xs rounded-lg border-[#e1e2e3] bg-white text-[#242424] placeholder:text-[#898989] focus:ring-1 focus:ring-[#242424] shadow-2xs"
+          className="pl-8 h-9 text-xs rounded-none border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-500 focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-600 shadow-none"
         />
       </div>
       <select

@@ -23,10 +23,10 @@ type EventFormDialogProps = {
 };
 
 const selectClassName =
-  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
+  "h-11 w-full rounded-none border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-1 focus:ring-slate-300 dark:focus:ring-slate-700 shadow-none";
 
 const textareaClassName =
-  "min-h-20 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
+  "min-h-20 w-full rounded-none border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-1 focus:ring-slate-300 dark:focus:ring-slate-700 shadow-none";
 
 export function EventFormDialog(props: EventFormDialogProps) {
   if (!props.open) {
@@ -192,7 +192,7 @@ function EventForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-4 py-8">
-      <div className="w-full max-w-3xl rounded-[8px] bg-white dark:bg-slate-900 shadow-xl my-auto">
+      <div className="w-full max-w-3xl rounded-none bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-none my-auto">
         <div className="border-b border-slate-200 dark:border-slate-800 p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -329,7 +329,7 @@ function EventForm({
             <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
               Anggota acara
             </label>
-            <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-[8px] bg-white dark:bg-slate-950 p-3 space-y-2">
+            <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-none bg-white dark:bg-slate-950 p-3 space-y-2">
               {users.filter(u => u.id !== coordinatorId && u.id !== secretaryId).map((u) => {
                 const isChecked = selectedMemberIds.includes(u.id);
                 return (
@@ -402,7 +402,7 @@ function EventForm({
             <button
               type="button"
               onClick={() => setShowDesignKit((prev) => !prev)}
-              className="w-full flex items-center justify-between gap-3 rounded-[8px] bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 border border-violet-200 dark:border-violet-800/50 px-4 py-3 text-left transition-colors hover:from-violet-100 hover:to-indigo-100 dark:hover:from-violet-950/50 dark:hover:to-indigo-950/50"
+              className="w-full flex items-center justify-between gap-3 rounded-none bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 border border-violet-200 dark:border-violet-800/50 px-4 py-3 text-left transition-colors hover:from-violet-100 hover:to-indigo-100 dark:hover:from-violet-950/50 dark:hover:to-indigo-950/50 shadow-none"
             >
               <div className="flex items-center gap-2.5">
                 <Palette className="h-4 w-4 text-violet-600 dark:text-violet-400" />
@@ -421,7 +421,7 @@ function EventForm({
             </button>
 
             {showDesignKit && (
-              <div className="mt-3 rounded-[8px] border border-violet-100 dark:border-violet-900/30 bg-white dark:bg-slate-950 p-4 space-y-4">
+              <div className="mt-3 rounded-none border border-violet-100 dark:border-violet-900/30 bg-white dark:bg-slate-950 p-4 space-y-4 shadow-none">
 
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -528,7 +528,7 @@ function EventForm({
           </div>
 
           {error ? (
-            <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+            <p className="rounded-none bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200 border border-red-200 dark:border-red-900 shadow-none">
               {error}
             </p>
           ) : null}

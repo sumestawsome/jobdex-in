@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { EventFilters, type EventDateFilter } from "@/components/events/event-filters";
 import { EventFormDialog } from "@/components/events/event-form-dialog";
 import { EventsTable } from "@/components/events/events-table";
-import { Badge } from "@/components/ui/badge";
+import { EventCardGrid } from "@/components/events/event-card-grid";
+import { EventViewToggle, type EventViewMode } from "@/components/events/event-view-toggle";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
-import { Plus, Building2, ArrowRight } from "lucide-react";
+import { Plus, ArrowRight } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -45,9 +46,41 @@ function EventsManagement() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | EventStatus>("all");
   const [dateFilter, setDateFilter] = useState<EventDateFilter>("all");
+  const [viewMode, setViewMode] = useState<EventViewMode>("table");
+  const [isMobile, setIsMobile] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [selectedEventMembers, setSelectedEventMembers] = useState<EventMember[]>([]);
+
+  useEffect(() => {
+    const updateMobileStatus = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        try {
+          const savedMode = localStorage.getItem("jobdex_events_view_mode") as EventViewMode | null;
+          if (savedMode === "table" || savedMode === "card") {
+            setViewMode(savedMode);
+          }
+        } catch {
+          // ignore localStorage error
+        }
+      }
+    };
+
+    updateMobileStatus();
+    window.addEventListener("resize", updateMobileStatus);
+    return () => window.removeEventListener("resize", updateMobileStatus);
+  }, []);
+
+  const handleViewModeChange = (mode: EventViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("jobdex_events_view_mode", mode);
+    } catch {
+      // ignore localStorage error
+    }
+  };
 
   const loadEvents = useCallback(async () => {
     if (!userProfile) {
@@ -118,12 +151,24 @@ function EventsManagement() {
   }, [userProfile, users]);
 
   const filteredEvents = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const queryTokens = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     return events.filter((event) => {
-      const matchesSearch = !query || event.name.toLowerCase().includes(query);
+      const coordinatorName = usersById.get(event.coordinator_id)?.name || "";
+      const searchableContent = [
+        event.name,
+        event.description || "",
+        coordinatorName,
+        event.design_kit_visual_direction || "",
+        event.whatsapp_group_name || "",
+      ].join(" ").toLowerCase();
+
+      const matchesSearch =
+        queryTokens.length === 0 ||
+        queryTokens.every((token) => searchableContent.includes(token));
+
       const matchesStatus =
         statusFilter === "all" || event.status === statusFilter;
       const eventDate = getEventDate(event.event_date);
@@ -149,7 +194,7 @@ function EventsManagement() {
 
       return matchesWorkspace && matchesSearch && matchesStatus && matchesDate;
     });
-  }, [activeWorkspace.org_id, activeWorkspace.campus_id, dateFilter, events, search, statusFilter]);
+  }, [activeWorkspace.org_id, activeWorkspace.campus_id, dateFilter, events, search, statusFilter, usersById]);
 
   async function handleSaveEvent(input: EventInput, eventId?: string) {
     if (!userProfile) {
@@ -272,6 +317,17 @@ function EventsManagement() {
     }
   }
 
+  const handleEditEvent = useCallback(async (event: Event) => {
+    setSelectedEvent(event);
+    try {
+      const members = await getEventMembers(event.id);
+      setSelectedEventMembers(members);
+    } catch {
+      setSelectedEventMembers([]);
+    }
+    setFormOpen(true);
+  }, []);
+
   if (!userProfile) {
     return null;
   }
@@ -281,29 +337,29 @@ function EventsManagement() {
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-16">
       {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-[#e1e2e3] bg-white shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-none">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-[#242424] text-white font-bold text-xs shrink-0 shadow-xs">
+          <span className="flex size-9 items-center justify-center rounded-none bg-zinc-900 text-white font-bold text-xs shrink-0 shadow-none">
             {activeWorkspace.campus_code}
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-[#242424] truncate">
+              <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">
                 {activeOrmawa.name}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#e8f7f0] border border-[#a3e6cd] px-2 py-0.5 text-[10px] font-semibold text-[#19a874]">
-                <span className="size-1.5 rounded-full bg-[#19a874] animate-pulse" />
+              <span className="inline-flex items-center gap-1 rounded-none bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                <span className="size-1.5 rounded-none bg-emerald-600 dark:bg-emerald-400 animate-pulse" />
                 Aktif
               </span>
             </div>
-            <p className="text-xs text-[#898989] truncate mt-0.5">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
               {activeCampus.name} • Menampilkan acara terfilter untuk ruang kerja ini
             </p>
           </div>
         </div>
         <Link
           href="/dashboard/workspace"
-          className="text-xs font-semibold text-[#242424] hover:underline inline-flex items-center gap-1 shrink-0"
+          className="text-xs font-semibold text-zinc-900 dark:text-zinc-200 hover:underline inline-flex items-center gap-1 shrink-0"
         >
           <span>Ganti Ruang Kerja</span>
           <ArrowRight className="size-3" />
@@ -311,12 +367,12 @@ function EventsManagement() {
       </div>
 
       {/* ── Header Section ──────────────────────────────────────────────────── */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#e1e2e3]">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#242424]">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
             Acara & Kepanitiaan
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-[#898989]">
+          <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
             Kelola agenda kegiatan, timeline kepanitiaan, dan anggota pelaksana organisasi.
           </p>
         </div>
@@ -328,7 +384,7 @@ function EventsManagement() {
               setSelectedEventMembers([]);
               setFormOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-lg bg-[#242424] hover:bg-[#141414] text-white shadow-2xs transition-all active:scale-[0.98] cursor-pointer shrink-0"
+            className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-none bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white shadow-none transition-all active:scale-[0.98] cursor-pointer shrink-0"
           >
             <Plus className="size-3.5" />
             <span>Tambah Acara</span>
@@ -346,10 +402,28 @@ function EventsManagement() {
         onDateFilterChange={setDateFilter}
       />
 
-      {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
-          {error}
+      {/* ── View Mode & Summary Bar ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Menampilkan <strong className="text-zinc-900 dark:text-zinc-100">{filteredEvents.length}</strong> dari {events.length} acara terdaftar
         </p>
+        <div className="hidden md:inline-flex">
+          <EventViewToggle value={isMobile ? "card" : viewMode} onChange={handleViewModeChange} />
+        </div>
+      </div>
+
+      {error ? (
+        <div className="flex flex-col items-start gap-3 rounded-none bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200 border border-red-200 dark:border-red-900 shadow-none">
+          <p>{error}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void loadEvents()}
+            className="rounded-none bg-white text-red-700 hover:bg-red-50 dark:bg-zinc-900 dark:text-red-200 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 shadow-none"
+          >
+            Muat ulang
+          </Button>
+        </div>
       ) : null}
 
       {loading ? (
@@ -369,13 +443,14 @@ function EventsManagement() {
                     setSelectedEventMembers([]);
                     setFormOpen(true);
                   }}
+                  className="rounded-none shadow-none"
                 >
                   <Plus className="h-4 w-4" />
-                  Tambah Acara di {activeOrmawa.short_name}
+                  <span>Tambah Acara di {activeOrmawa.short_name}</span>
                 </Button>
               ) : null}
               <Link href="/dashboard/workspace">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="rounded-none shadow-none">
                   Ganti Ruang Kerja
                 </Button>
               </Link>
@@ -397,36 +472,37 @@ function EventsManagement() {
                     setSelectedEventMembers([]);
                     setFormOpen(true);
                   }}
+                  className="rounded-none shadow-none"
                 >
                   <Plus className="h-4 w-4" />
-                  Tambah Acara
+                  <span>Tambah Acara</span>
                 </Button>
               ) : null}
               <Link href="/dashboard/workspace">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="rounded-none shadow-none">
                   Pilih Ruang Kerja Lain
                 </Button>
               </Link>
             </div>
           }
         />
-      ) : (
+      ) : !isMobile && viewMode === "table" ? (
         <EventsTable
           events={filteredEvents}
           usersById={usersById}
           memberCounts={memberCounts}
           userProfile={userProfile}
           userRoles={userRolesByEvent}
-          onEdit={async (event) => {
-            setSelectedEvent(event);
-            try {
-              const members = await getEventMembers(event.id);
-              setSelectedEventMembers(members);
-            } catch {
-              setSelectedEventMembers([]);
-            }
-            setFormOpen(true);
-          }}
+          onEdit={handleEditEvent}
+        />
+      ) : (
+        <EventCardGrid
+          events={filteredEvents}
+          usersById={usersById}
+          memberCounts={memberCounts}
+          userProfile={userProfile}
+          userRoles={userRolesByEvent}
+          onEdit={handleEditEvent}
         />
       )}
 
