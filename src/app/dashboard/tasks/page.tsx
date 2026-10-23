@@ -14,6 +14,7 @@ import { Plus, Building2, ArrowRight } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { ActiveWorkspaceBanner } from "@/components/workspace/active-workspace-banner";
 import { getEventsForProfile } from "@/lib/firebase/events";
 import { getMembers } from "@/lib/firebase/members";
 import { getDivisions } from "@/lib/firebase/divisions";
@@ -337,34 +338,7 @@ export default function TasksPage() {
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-16">
       {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-none">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="flex size-9 items-center justify-center rounded-none bg-zinc-900 text-white font-bold text-xs shrink-0 shadow-none">
-            {activeWorkspace.campus_code}
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">
-                {activeOrmawa.name}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-none bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
-                <span className="size-1.5 rounded-none bg-emerald-600 dark:bg-emerald-400 animate-pulse" />
-                Aktif
-              </span>
-            </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
-              {activeCampus.name} • Menampilkan job desk terfilter untuk ruang kerja ini
-            </p>
-          </div>
-        </div>
-        <Link
-          href="/dashboard/workspace"
-          className="text-xs font-semibold text-zinc-900 dark:text-zinc-200 hover:underline inline-flex items-center gap-1 shrink-0"
-        >
-          <span>Ganti Ruang Kerja</span>
-          <ArrowRight className="size-3" />
-        </Link>
-      </div>
+      <ActiveWorkspaceBanner description={`${activeCampus.name} • Menampilkan job desk terfilter untuk ruang kerja ini`} />
 
       {/* ── Header Section ──────────────────────────────────────────────────── */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800">

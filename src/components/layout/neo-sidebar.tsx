@@ -104,7 +104,7 @@ export function NeoSidebar({
           <button
             type="button"
             onClick={onToggle}
-            className="p-1.5 rounded-none border border-[#e1e2e3] dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-zinc-100 dark:hover:bg-slate-800/50 cursor-pointer shrink-0 transition-all shadow-none"
+            className="p-1.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 cursor-pointer shrink-0 transition-all shadow-none"
             title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -116,7 +116,7 @@ export function NeoSidebar({
           <button
             type="button"
             onClick={onCloseMobile}
-            className="p-1.5 rounded-none border border-[#e1e2e3] dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-zinc-100 dark:hover:bg-slate-800/50 cursor-pointer shrink-0 transition-all shadow-none"
+            className="p-1.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 cursor-pointer shrink-0 transition-all shadow-none"
             title="Tutup Menu"
           >
             <ChevronLeft size={14} />
@@ -126,35 +126,52 @@ export function NeoSidebar({
 
       {/* Active Workspace Indicator */}
       {(!isCollapsed || isMobile) ? (
-        <div className="mx-3 mt-3 mb-1 p-2.5 rounded-none border border-[#e1e2e3] dark:border-slate-800 bg-[#f7f7f8] dark:bg-slate-900/90 shadow-none">
+        <div className="mx-3 mt-3 mb-1 p-2.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shadow-none">
           <div className="flex items-center justify-between gap-1 mb-1">
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 dark:text-slate-400">
-              <span className="size-1.5 rounded-none bg-lime-600" />
-              Ruang Aktif
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-zinc-600 dark:text-zinc-400">
+              <span className="size-1.5 rounded-none bg-emerald-600 dark:bg-emerald-400" />
+              <span>Ruang Aktif</span>
             </span>
-            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-none bg-[#eaeaeb] dark:bg-slate-800 text-[#18181b] dark:text-slate-200">
-              {activeWorkspace.campus_code}
+            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-none bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-200 truncate max-w-[80px]">
+              {(activeWorkspace.campus_code || "UNDIKSHA").slice(0, 8)}
             </span>
           </div>
-          <Link
-            href="/dashboard/workspace"
-            className="block text-xs font-semibold text-[#18181b] dark:text-white truncate hover:underline"
-            title={`${activeWorkspace.org_name} (${activeWorkspace.campus_name})`}
-          >
-            {activeOrmawa.short_name || activeWorkspace.org_name}
-          </Link>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-            {activeWorkspace.campus_name}
-          </p>
+          <div className="flex items-center gap-2 mt-1.5">
+            <div className="size-7 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0 p-0.5 overflow-hidden flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://cdn.undiksha.ac.id/wp-content/uploads/2021/12/27081301/logo-undiksha.png"
+                alt="Logo Undiksha"
+                className="size-full object-contain"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <Link
+                href="/dashboard/workspace"
+                className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate hover:underline"
+                title={`${activeWorkspace.org_name} (${activeWorkspace.campus_name})`}
+              >
+                {activeOrmawa.short_name || activeWorkspace.org_name}
+              </Link>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                {activeWorkspace.campus_name}
+              </p>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="mx-auto mt-3 mb-1 flex justify-center">
           <Link
             href="/dashboard/workspace"
-            className="flex size-8 items-center justify-center rounded-none bg-[#f7f7f8] dark:bg-slate-800 text-indigo-600 dark:text-white font-bold text-xs border border-[#e1e2e3] dark:border-slate-700 hover:border-indigo-500 transition-all shadow-none"
+            className="flex size-8 items-center justify-center rounded-none bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 hover:border-indigo-500 transition-all shadow-none overflow-hidden"
             title={`Ruang Aktif: ${activeWorkspace.org_name} (${activeWorkspace.campus_code})`}
           >
-            {activeWorkspace.campus_code}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://cdn.undiksha.ac.id/wp-content/uploads/2021/12/27081301/logo-undiksha.png"
+              alt="Logo Undiksha"
+              className="size-full object-contain"
+            />
           </Link>
         </div>
       )}

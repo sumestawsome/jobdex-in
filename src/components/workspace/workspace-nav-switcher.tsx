@@ -107,8 +107,13 @@ export function WorkspaceNavSwitcher() {
         `}
         title="Beralih Ruang Kerja Kampus & Ormawa"
       >
-        <span className="flex size-6 items-center justify-center rounded-none bg-primary text-primary-foreground text-[10px] font-bold shrink-0">
-          {(activeWorkspace.campus_code || "UK").slice(0, 2).toUpperCase()}
+        <span className="flex size-6 items-center justify-center rounded-none bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-0.5 overflow-hidden shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://cdn.undiksha.ac.id/wp-content/uploads/2021/12/27081301/logo-undiksha.png"
+            alt="Logo Undiksha"
+            className="size-full object-contain"
+          />
         </span>
         <div className="flex flex-col text-left leading-none max-w-[130px] sm:max-w-[170px]">
           <span className="truncate font-bold text-zinc-900 dark:text-zinc-100 text-xs">
@@ -190,8 +195,19 @@ export function WorkspaceNavSwitcher() {
                     `}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="flex size-8 items-center justify-center rounded-none bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-bold text-xs shrink-0">
-                        {campus.code}
+                      <span className="flex size-8 items-center justify-center rounded-none bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 shrink-0 overflow-hidden">
+                        {campus.id === "univ-undiksha" || campus.code === "UNDIKSHA" ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src="https://cdn.undiksha.ac.id/wp-content/uploads/2021/12/27081301/logo-undiksha.png"
+                            alt={campus.name}
+                            className="size-full object-contain"
+                          />
+                        ) : (
+                          <span className="font-bold text-xs text-zinc-800 dark:text-zinc-200 truncate">
+                            {(campus.code || "UN").slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
                       </span>
                       <div className="min-w-0">
                         <h4 className="text-xs font-bold text-zinc-900 dark:text-white truncate">

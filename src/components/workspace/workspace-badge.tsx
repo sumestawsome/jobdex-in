@@ -53,12 +53,12 @@ export function WorkspaceBadge({
 
   return (
     <span
-      className={`inline-flex items-center font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/60 text-zinc-900 dark:text-zinc-200 shadow-none ${sizeClasses} ${className}`}
+      className={`inline-flex items-center font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/60 text-zinc-900 dark:text-zinc-200 shadow-none max-w-full overflow-hidden shrink-0 ${sizeClasses} ${className}`}
       title={`Kampus: ${campus?.name || campusText} • Ormawa: ${ormawa?.name || ormawaText}`}
     >
       {showIcon && <Building2 className="size-3 shrink-0 text-zinc-700 dark:text-zinc-400" />}
-      <span className="font-bold uppercase tracking-tight">{campusText}</span>
-      <span className="text-zinc-400 dark:text-zinc-500 font-normal">/</span>
+      <span className="font-bold uppercase tracking-tight truncate max-w-[80px]">{campusText}</span>
+      <span className="text-zinc-400 dark:text-zinc-500 font-normal shrink-0">/</span>
       <span className="truncate max-w-[120px] font-medium">{ormawaText}</span>
     </span>
   );

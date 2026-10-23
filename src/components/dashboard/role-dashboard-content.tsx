@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { ActiveWorkspaceBanner } from "@/components/workspace/active-workspace-banner";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -419,6 +420,9 @@ export function RoleDashboardContent() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-12">
+      {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
+      <ActiveWorkspaceBanner />
+
       {/* ── 1. Header & Topbar ───────────────────────────────────────────────── */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800">
         <div>

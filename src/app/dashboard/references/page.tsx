@@ -13,6 +13,7 @@ import { ReferenceBulkImportDialog } from "@/components/references/reference-bul
 import { ReferencesGrid } from "@/components/references/references-grid";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { ActiveWorkspaceBanner } from "@/components/workspace/active-workspace-banner";
 import {
   archiveDesignReference,
   canCreateDesignReference,
@@ -312,33 +313,7 @@ export default function ReferencesPage() {
   return (
     <div className="space-y-6">
       {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 px-4 rounded-none border border-border bg-card shadow-none">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="flex size-7 items-center justify-center rounded-none bg-primary text-primary-foreground font-bold text-xs shrink-0 shadow-none">
-            {activeWorkspace.campus_code}
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-xs text-foreground truncate">
-                {activeOrmawa.name}
-              </span>
-              <span className="rounded-none bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                Terisolasi
-              </span>
-            </div>
-            <p className="text-[11px] text-muted-foreground truncate">
-              {activeCampus.name} • Menampilkan referensi desain terfilter untuk ruang kerja ini
-            </p>
-          </div>
-        </div>
-        <Link
-          href="/dashboard/workspace"
-          className="text-xs font-semibold text-foreground hover:underline inline-flex items-center gap-1 shrink-0"
-        >
-          <span>Ganti Ruang Kerja</span>
-          <ArrowRight className="size-3" />
-        </Link>
-      </div>
+      <ActiveWorkspaceBanner description={`${activeCampus.name} • Menampilkan referensi desain terfilter untuk ruang kerja ini`} />
 
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>

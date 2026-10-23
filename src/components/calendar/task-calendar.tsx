@@ -5,16 +5,28 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import type { Task, UserProfile } from "@/types";
 import { getCalendarGrid, isSameDay } from "@/lib/calendar-utils";
-import { getRiskLevelFromTask, getRiskColor } from "@/lib/task-risk";
-import { Button } from "@/components/ui/button";
+import { getRiskLevelFromTask } from "@/lib/task-risk";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Calendar, Eye } from "lucide-react";
-
 import { useWorkspace } from "@/hooks/use-workspace";
 
 type TaskCalendarProps = {
   profile: UserProfile;
 };
+
+function getRiskDotClass(level: "none" | "yellow" | "orange" | "red"): string {
+  switch (level) {
+    case "red":
+      return "bg-rose-500";
+    case "orange":
+      return "bg-orange-500";
+    case "yellow":
+      return "bg-amber-500";
+    case "none":
+    default:
+      return "bg-emerald-500";
+  }
+}
 
 export function TaskCalendar({ profile }: TaskCalendarProps) {
   const { activeWorkspace } = useWorkspace();
@@ -186,7 +198,7 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
 
   const selectedDayTasks = selectedDate ? getTasksForDay(selectedDate) : [];
 
-  const statusLabels = {
+  const statusLabels: Record<string, string> = {
     belum_dimulai: "Belum Dimulai",
     sedang_dikerjakan: "Sedang Dikerjakan",
     butuh_bantuan: "Butuh Bantuan",
@@ -202,12 +214,12 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
-      {/* Calendar Grid Container */}
-      <div className="lg:col-span-2 space-y-4 bg-white border border-[#e1e2e3] rounded-xl p-5 sm:p-6 shadow-2xs">
+      {/* ── Left Column: Calendar Grid Container ── */}
+      <div className="lg:col-span-2 space-y-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none p-5 sm:p-6 shadow-none">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Calendar className="size-4.5 text-[#242424]" />
-            <h2 className="text-base sm:text-lg font-bold text-[#242424]">
+            <Calendar className="size-4.5 text-zinc-900 dark:text-zinc-100" />
+            <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
               {monthNames[currentMonth]} {currentYear}
             </h2>
           </div>
@@ -215,14 +227,15 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
             <button
               type="button"
               onClick={prevMonth}
-              className="size-8 rounded-lg border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] flex items-center justify-center transition-all shadow-2xs cursor-pointer"
+              className="size-8 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 flex items-center justify-center transition-all shadow-none cursor-pointer"
+              title="Bulan Sebelumnya"
             >
               <ChevronLeft className="size-4" />
             </button>
             <button
               type="button"
               onClick={setToday}
-              className="h-8 px-3 rounded-lg border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              className="h-8 px-3 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-none cursor-pointer"
             >
               <Calendar className="size-3.5" />
               <span>Hari Ini</span>
@@ -230,7 +243,8 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
             <button
               type="button"
               onClick={nextMonth}
-              className="size-8 rounded-lg border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] flex items-center justify-center transition-all shadow-2xs cursor-pointer"
+              className="size-8 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 flex items-center justify-center transition-all shadow-none cursor-pointer"
+              title="Bulan Berikutnya"
             >
               <ChevronRight className="size-4" />
             </button>
@@ -238,7 +252,7 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
         </div>
 
         {/* Days of Week Header */}
-        <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-[#898989] uppercase tracking-wider pb-2 border-b border-[#e1e2e3]">
+        <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pb-2 border-b border-zinc-200 dark:border-zinc-800">
           <div>Min</div>
           <div>Sen</div>
           <div>Sel</div>
@@ -256,8 +270,8 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
             const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
             const dayTasks = getTasksForDay(day);
 
-            // Determine highest risk level color for this day's tasks
-            let maxRiskColor = "";
+            // Determine highest risk level for this day's tasks
+            let maxRiskLevel: "none" | "yellow" | "orange" | "red" = "none";
             let maxRiskWeight = 0;
             const riskWeights = { red: 3, orange: 2, yellow: 1, none: 0 };
 
@@ -266,7 +280,7 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
               const w = riskWeights[r] || 0;
               if (w > maxRiskWeight) {
                 maxRiskWeight = w;
-                maxRiskColor = getRiskColor(r);
+                maxRiskLevel = r;
               }
             });
 
@@ -275,12 +289,12 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
                 key={idx}
                 type="button"
                 onClick={() => setSelectedDate(day)}
-                className={`relative h-16 p-1.5 rounded-lg border text-left flex flex-col justify-between transition-all duration-100 cursor-pointer ${
+                className={`relative h-16 p-1.5 rounded-none border text-left flex flex-col justify-between transition-all duration-100 cursor-pointer shadow-none ${
                   isSelected
-                    ? "bg-[#242424] border-[#242424] text-white shadow-xs z-10"
+                    ? "bg-indigo-600 border-indigo-600 text-white z-10 font-bold"
                     : isCurrentMonth
-                    ? "bg-white border-[#e1e2e3] text-[#242424] hover:bg-[#f7f7f8]"
-                    : "bg-[#f7f7f8] border-[#e1e2e3]/60 text-[#898989] opacity-60 hover:bg-[#f0f0f2]"
+                    ? "bg-white dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+                    : "bg-zinc-50/50 dark:bg-zinc-950/40 border-zinc-200/60 dark:border-zinc-800/60 text-zinc-300 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-850/60"
                 }`}
               >
                 {/* Date Number */}
@@ -289,8 +303,8 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
                     className={`text-xs font-semibold ${
                       isToday
                         ? isSelected
-                          ? "inline-flex items-center justify-center size-5 rounded-full bg-white text-[#242424] font-bold"
-                          : "inline-flex items-center justify-center size-5 rounded-full bg-[#242424] text-white"
+                          ? "inline-flex items-center justify-center size-5 rounded-none bg-white text-indigo-600 font-bold"
+                          : "inline-flex items-center justify-center size-5 rounded-none bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold"
                         : "text-inherit"
                     }`}
                   >
@@ -302,10 +316,9 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
                 {dayTasks.length > 0 && (
                   <div className="flex items-center gap-1 mt-auto text-[9px] font-semibold">
                     <span
-                      className="size-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: maxRiskColor || "#898989" }}
+                      className={`size-1.5 rounded-none shrink-0 ${getRiskDotClass(maxRiskLevel)}`}
                     />
-                    <span className={isSelected ? "text-white" : "text-[#898989]"}>
+                    <span className={isSelected ? "text-white" : "text-zinc-500 dark:text-zinc-400"}>
                       {dayTasks.length} Tugas
                     </span>
                   </div>
@@ -316,13 +329,13 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
         </div>
       </div>
 
-      {/* Selected Day Task List (Sidebar/Details) */}
-      <div className="border border-[#e1e2e3] rounded-xl bg-white shadow-2xs p-5 space-y-4">
+      {/* ── Right Column: Selected Day Task List (Sidebar/Details) ── */}
+      <div className="border border-zinc-200 dark:border-zinc-800 rounded-none bg-white dark:bg-zinc-900 shadow-none p-5 space-y-4">
         <div>
-          <h3 className="text-[11px] font-semibold text-[#898989] uppercase tracking-wider">
+          <h3 className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
             Tugas Deadline
           </h3>
-          <p className="text-base font-bold text-[#242424] mt-1">
+          <p className="text-base font-bold text-zinc-900 dark:text-zinc-100 mt-1">
             {selectedDate
               ? selectedDate.toLocaleDateString("id-ID", {
                   weekday: "long",
@@ -335,19 +348,18 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
         </div>
 
         {loading ? (
-          <div className="space-y-3 animate-pulse pt-2">
-            <div className="h-20 bg-[#f7f7f8] rounded-lg border border-[#e1e2e3]" />
-            <div className="h-20 bg-[#f7f7f8] rounded-lg border border-[#e1e2e3]" />
+          <div className="space-y-3 pt-2">
+            <div className="h-20 bg-zinc-50 dark:bg-zinc-800/50 rounded-none border border-zinc-200 dark:border-zinc-800 animate-pulse" />
+            <div className="h-20 bg-zinc-50 dark:bg-zinc-800/50 rounded-none border border-zinc-200 dark:border-zinc-800 animate-pulse" />
           </div>
         ) : selectedDayTasks.length === 0 ? (
-          <div className="py-10 px-4 text-center text-xs font-medium text-[#898989] bg-[#f7f7f8] border border-dashed border-[#e1e2e3] rounded-lg">
+          <div className="py-10 px-4 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-950/60 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-none">
             Tidak ada tugas deadline pada tanggal ini.
           </div>
         ) : (
           <div className="space-y-2.5 overflow-y-auto max-h-[380px] pr-1">
             {selectedDayTasks.map((task) => {
               const riskLevel = getRiskLevelFromTask(task);
-              const riskColor = getRiskColor(riskLevel);
               const picUser = task.pic_id ? usersMap.get(task.pic_id) || null : null;
 
               let divisionOrEventName = "-";
@@ -362,34 +374,35 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
               return (
                 <div
                   key={task.id}
-                  className="p-3.5 rounded-lg border border-[#e1e2e3] bg-[#f7f7f8] shadow-2xs hover:border-[#b0b2b5] transition-colors space-y-2.5 flex flex-col justify-between"
+                  className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:border-zinc-400 dark:hover:border-zinc-700 transition-colors space-y-2.5 flex flex-col justify-between shadow-none"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5">
                       <span
-                        className="size-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: riskColor }}
+                        className={`size-1.5 rounded-none shrink-0 ${getRiskDotClass(riskLevel)}`}
                       />
-                      <span className="text-[10px] font-semibold text-[#898989] uppercase tracking-wider">
+                      <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                         {divisionOrEventName}
                       </span>
                     </div>
-                    <h4 className="font-bold text-[#242424] text-xs line-clamp-2">
+                    <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs line-clamp-2">
                       {task.name}
                     </h4>
-                    <div className="flex justify-between items-center text-[11px] text-[#898989] pt-1">
-                      <span>PIC: <strong className="text-[#242424]">{picUser ? picUser.name : "-"}</strong></span>
-                      <span className="font-semibold text-[#242424]">
+                    <div className="flex justify-between items-center text-[11px] text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-200/60 dark:border-zinc-700/60">
+                      <span>
+                        PIC: <strong className="text-zinc-900 dark:text-zinc-100">{picUser ? picUser.name : "-"}</strong>
+                      </span>
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                         {statusLabels[task.status] || task.status}
                       </span>
                     </div>
                   </div>
-                  <div className="pt-2 border-t border-[#e1e2e3]">
+                  <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700">
                     <Link
                       href={`/dashboard/tasks/${task.id}`}
-                      className="w-full inline-flex items-center justify-center gap-1.5 h-7.5 px-3 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold shadow-2xs transition-all"
+                      className="w-full inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-none border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-semibold shadow-none transition-all cursor-pointer"
                     >
-                      <Eye className="size-3 text-[#898989]" />
+                      <Eye className="size-3.5 text-zinc-500 dark:text-zinc-400" />
                       <span>Buka Detail Tugas</span>
                     </Link>
                   </div>

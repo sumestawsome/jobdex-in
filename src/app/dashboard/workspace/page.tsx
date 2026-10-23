@@ -155,15 +155,26 @@ export default function WorkspaceManagementPage() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
           {/* Sisi Kiri: Info Workspace Aktif */}
           <div className="flex items-start sm:items-center gap-4">
-            {/* Avatar Inisial */}
-            <div className="size-13 sm:size-14 rounded-none bg-primary text-primary-foreground font-bold flex flex-col items-center justify-center shrink-0 shadow-none text-center">
-              <span className="text-base font-extrabold tracking-tight">
-                {currentWorkspaceItem.initials}
-              </span>
-              <span className="text-[9px] font-semibold opacity-80 uppercase tracking-wider -mt-0.5">
-                {currentWorkspaceItem.campusCode.slice(0, 4)}
-              </span>
-            </div>
+            {/* Avatar Inisial / Logo */}
+            {currentWorkspaceItem.campusCode.toUpperCase().includes("UNDIKSHA") ? (
+              <div className="size-13 sm:size-14 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden flex items-center justify-center shrink-0 shadow-none p-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://cdn.undiksha.ac.id/wp-content/uploads/2021/12/27081301/logo-undiksha.png"
+                  alt="Undiksha Logo"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="size-13 sm:size-14 rounded-none bg-primary text-primary-foreground font-bold flex flex-col items-center justify-center shrink-0 shadow-none text-center">
+                <span className="text-base font-extrabold tracking-tight">
+                  {currentWorkspaceItem.initials}
+                </span>
+                <span className="text-[9px] font-semibold opacity-80 uppercase tracking-wider -mt-0.5">
+                  {currentWorkspaceItem.campusCode.slice(0, 4)}
+                </span>
+              </div>
+            )}
 
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -330,9 +341,20 @@ export default function WorkspaceManagementPage() {
                   <div>
                     {/* Header Card: Avatar + Role Badge */}
                     <div className="flex items-start justify-between gap-3">
-                      <div className="size-11 rounded-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold text-sm flex items-center justify-center shrink-0">
-                        {workspace.initials}
-                      </div>
+                      {workspace.campusCode.toUpperCase().includes("UNDIKSHA") ? (
+                        <div className="size-11 rounded-none border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-1 flex items-center justify-center shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src="https://cdn.undiksha.ac.id/wp-content/uploads/2021/12/27081301/logo-undiksha.png"
+                            alt="Undiksha"
+                            className="size-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="size-11 rounded-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold text-sm flex items-center justify-center shrink-0">
+                          {workspace.initials}
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-1.5">
                         {isCurrent ? (
