@@ -36,8 +36,8 @@ export function AIInput({
   }
 
   return (
-    <form className="sticky bottom-0 bg-white/95 backdrop-blur-xs py-1" onSubmit={handleSubmit}>
-      <div className="flex items-center gap-2.5 rounded-xl border border-[#e1e2e3] bg-white px-3.5 py-2 shadow-2xs focus-within:border-[#242424] focus-within:ring-1 focus-within:ring-[#242424]/10 transition-all">
+    <form className="sticky bottom-0 bg-transparent py-0.5" onSubmit={handleSubmit}>
+      <div className="flex items-center gap-2.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3.5 py-2 shadow-none focus-within:border-zinc-400 dark:focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-zinc-400/20 transition-all">
         <textarea
           id="ai-question"
           rows={1}
@@ -46,12 +46,12 @@ export function AIInput({
           onChange={(event) => setQuestion(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="flex-1 max-h-32 min-h-[24px] resize-none bg-transparent py-1 text-xs sm:text-sm text-[#242424] outline-none disabled:cursor-not-allowed placeholder:text-[#898989] overflow-y-auto"
+          className="flex-1 max-h-32 min-h-[26px] resize-none bg-transparent py-1 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 outline-none disabled:cursor-not-allowed placeholder:text-zinc-400 dark:placeholder:text-zinc-500 overflow-y-auto"
         />
         <button
           type="submit"
           disabled={disabled || !question.trim()}
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#242424] hover:bg-[#141414] text-white shadow-2xs transition-all active:scale-[0.98] shrink-0 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+          className="flex h-8 w-8 items-center justify-center rounded-none bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white shadow-none transition-all shrink-0 cursor-pointer disabled:opacity-40 disabled:pointer-events-none border border-indigo-700 dark:border-indigo-500"
           title="Kirim pertanyaan"
         >
           <Send className="h-3.5 w-3.5" />

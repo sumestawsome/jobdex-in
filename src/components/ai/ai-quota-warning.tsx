@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { AlertTriangle, Clock, Sparkles, AlertCircle, ArrowRight, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Clock, AlertCircle, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getDateFromValue } from "@/lib/date-utils";
 import type { AILog } from "@/types";
@@ -50,12 +50,12 @@ export function AIQuotaWarning({
   if (isExhausted) {
     return (
       <div
-        className={`rounded-xl border-2 border-rose-500 bg-rose-50/90 dark:bg-rose-950/40 p-4 shadow-sm text-rose-950 dark:text-rose-200 transition-all ${className}`}
+        className={`rounded-none border-2 border-rose-500 bg-rose-50/90 dark:bg-rose-950/40 p-4 shadow-none text-rose-950 dark:text-rose-200 transition-all ${className}`}
         role="alert"
         aria-live="assertive"
       >
         <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-rose-500 p-2 text-white shrink-0 shadow-sm mt-0.5">
+          <div className="rounded-none bg-rose-500 p-2 text-white shrink-0 shadow-none mt-0.5">
             <AlertTriangle className="h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
@@ -79,9 +79,9 @@ export function AIQuotaWarning({
 
             {/* Quota Progress Bar */}
             <div className="mt-3">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-rose-200 dark:bg-rose-900">
+              <div className="h-2 w-full overflow-hidden rounded-none bg-rose-200 dark:bg-rose-900">
                 <div
-                  className="h-full bg-rose-600 transition-all duration-300 rounded-full"
+                  className="h-full bg-rose-600 transition-all duration-300 rounded-none"
                   style={{ width: "100%" }}
                 />
               </div>
@@ -95,7 +95,7 @@ export function AIQuotaWarning({
                 href="/dashboard/references"
                 className="inline-flex items-center gap-1 text-xs font-semibold text-rose-900 dark:text-rose-100 underline hover:no-underline transition-colors"
               >
-                Katalog Referensi Desain
+                <span>Katalog Referensi Desain</span>
                 <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
@@ -108,11 +108,11 @@ export function AIQuotaWarning({
   if (isLow) {
     return (
       <div
-        className={`rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/30 p-3 shadow-xs text-amber-950 dark:text-amber-200 transition-all ${className}`}
+        className={`rounded-none border border-amber-300 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/30 p-3 shadow-none text-amber-950 dark:text-amber-200 transition-all ${className}`}
         role="alert"
       >
         <div className="flex items-start gap-2.5">
-          <div className="rounded-md bg-amber-500 p-1.5 text-white shrink-0 mt-0.5">
+          <div className="rounded-none bg-amber-500 p-1.5 text-white shrink-0 mt-0.5 shadow-none">
             <AlertCircle className="h-4 w-4" />
           </div>
           <div className="flex-1 min-w-0">
@@ -132,9 +132,9 @@ export function AIQuotaWarning({
               Gunakan kuota tersisa secara optimal dengan mengajukan pertanyaan spesifik seputar tugas atau kegiatan.
             </p>
 
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-amber-200 dark:bg-amber-900">
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-none bg-amber-200 dark:bg-amber-900">
               <div
-                className="h-full bg-amber-500 transition-all duration-300 rounded-full"
+                className="h-full bg-amber-500 transition-all duration-300 rounded-none"
                 style={{ width: `${percentUsed}%` }}
               />
             </div>
@@ -145,32 +145,5 @@ export function AIQuotaWarning({
   }
 
   // Normal Status Header / Indicator
-  return (
-    <div className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/50 text-xs text-slate-600 dark:text-slate-400 ${className}`}>
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-3.5 w-3.5 text-sky-500" />
-        <span className="font-medium text-slate-800 dark:text-slate-200">
-          Kuota Harian AI:
-        </span>
-        <span className="font-semibold text-slate-950 dark:text-slate-50">
-          {remaining} tersisa
-        </span>
-        <span className="text-[11px] text-slate-400">
-          ({effectiveUsed}/{dailyLimit})
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700 hidden sm:block">
-          <div
-            className="h-full bg-sky-500 rounded-full transition-all duration-300"
-            style={{ width: `${percentUsed}%` }}
-          />
-        </div>
-        <Badge variant="success" className="text-[10px] py-0 px-1.5 font-normal">
-          <ShieldCheck className="h-3 w-3 mr-0.5 inline" />
-          Aktif
-        </Badge>
-      </div>
-    </div>
-  );
+  return null;
 }

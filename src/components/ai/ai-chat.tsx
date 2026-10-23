@@ -8,7 +8,7 @@ import { AIMessage } from "@/components/ai/ai-message";
 import { AIQuickPrompts } from "@/components/ai/ai-quick-prompts";
 import { AIQuotaWarning, countUserQuestionsToday, DEFAULT_AI_DAILY_LIMIT } from "@/components/ai/ai-quota-warning";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Sparkles, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { getRecentAILogs } from "@/lib/firebase/ai-logs";
@@ -42,19 +42,19 @@ function ToastList({ toasts, onDismiss }: { toasts: ToastEntry[]; onDismiss: (id
           key={t.id}
           onClick={() => onDismiss(t.id)}
           className={`
-            pointer-events-auto flex items-start gap-3 rounded-xl shadow-lg border px-4 py-3 min-w-[260px] max-w-xs
-            animate-in slide-in-from-right-5 fade-in duration-200 cursor-pointer
+            pointer-events-auto flex items-start gap-3 rounded-none shadow-none border px-4 py-3 min-w-[260px] max-w-xs
+            animate-in slide-in-from-right-5 fade-in duration-200 cursor-pointer bg-white dark:bg-zinc-900
             ${t.type === "success"
-              ? "bg-white border-emerald-200 text-slate-800"
-              : "bg-white border-red-200 text-slate-800"}
+              ? "border-emerald-500 text-zinc-900 dark:text-zinc-100"
+              : "border-rose-500 text-zinc-900 dark:text-zinc-100"}
           `}
         >
           {t.type === "success"
-            ? <CheckCircle2 className="size-5 text-emerald-500 mt-0.5 shrink-0" />
-            : <XCircle className="size-5 text-red-500 mt-0.5 shrink-0" />}
+            ? <CheckCircle2 className="size-4 text-emerald-500 mt-0.5 shrink-0" />
+            : <XCircle className="size-4 text-rose-500 mt-0.5 shrink-0" />}
           <div className="min-w-0">
-            <p className="text-sm font-semibold leading-tight">{t.title}</p>
-            <p className="text-xs text-slate-500 mt-0.5 leading-snug">{t.message}</p>
+            <p className="text-xs font-bold leading-tight">{t.title}</p>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-snug">{t.message}</p>
           </div>
         </div>
       ))}
@@ -76,11 +76,13 @@ export function AIChat() {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   const currentUserId = userProfile?.id || user?.uid;
+  const isSuperAdmin = userProfile?.role === "super_admin";
   const usedToday = useMemo(
     () => countUserQuestionsToday(logs, currentUserId),
     [logs, currentUserId],
   );
   const isQuotaExhausted = usedToday >= DEFAULT_AI_DAILY_LIMIT || isRateLimited;
+  const remainingQuota = Math.max(0, DEFAULT_AI_DAILY_LIMIT - usedToday);
 
   const showToast = useCallback((type: ToastEntry["type"], title: string, message: string) => {
     const id = crypto.randomUUID();
@@ -138,7 +140,7 @@ export function AIChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, historyLoading, loading]);
 
-  // Scroll when new messages arrive — instant so user doesn't see long animation from top
+  // Scroll when new messages arrive
   useEffect(() => {
     scrollToBottom("instant");
   }, [logs, loading, scrollToBottom]);
@@ -240,6 +242,11 @@ export function AIChat() {
       return;
     }
 
+    if (!isSuperAdmin) {
+      showToast("error", "Akses Dibatasi", "Hanya admin yang memiliki izin meneruskan jawaban ke WhatsApp.");
+      return;
+    }
+
     setError("");
     setSendingWhatsApp(true);
 
@@ -270,23 +277,54 @@ export function AIChat() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 relative">
-      {/* Toast notifications (fixed position, outside scroll) */}
+    <div className="flex flex-col flex-1 h-full min-h-0 w-full relative">
+      {/* Toast notifications */}
       <ToastList toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Quota Status & Warning (Always First) */}
+      {/* Minimal Header with Title & Quota Indicator */}
+      <header className="flex items-center justify-between gap-3 pb-2.5 border-b border-zinc-200 dark:border-zinc-800 shrink-0 mb-2.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="size-7 rounded-none bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-none">
+            <Sparkles className="size-3.5" />
+          </div>
+          <h1 className="text-base sm:text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 truncate">
+            AI Assistant
+          </h1>
+        </div>
+
+        {/* Minimal Quota Indicator & Refresh */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs shadow-none">
+            <span className="text-zinc-500 dark:text-zinc-400">Sisa Kuota:</span>
+            <span className={`font-bold ${isQuotaExhausted ? "text-rose-600 dark:text-rose-400" : "text-zinc-900 dark:text-zinc-100"}`}>
+              {remainingQuota} / {DEFAULT_AI_DAILY_LIMIT}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={loadHistory}
+            disabled={historyLoading}
+            title="Refresh riwayat chat"
+            className="flex size-7 items-center justify-center rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-none cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`size-3.5 ${historyLoading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+      </header>
+
+      {/* Quota Exhausted Warning (Only shown when depleted or rate limited) */}
       <AIQuotaWarning
         logs={logs}
         userId={currentUserId}
         dailyLimit={DEFAULT_AI_DAILY_LIMIT}
         isRateLimited={isRateLimited}
-        className="mb-3 shrink-0"
+        className="mb-2.5 shrink-0"
       />
 
       {/* Scrollable Chat Area */}
-      <section className="flex-1 min-h-0 overflow-y-auto space-y-3 rounded-xl border border-[#e1e2e3] bg-white p-4 sm:p-5 mb-3 shadow-2xs">
+      <section className="flex-1 min-h-0 overflow-y-auto space-y-3 rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 p-4 sm:p-5 mb-2.5 shadow-none">
         {historyLoading ? (
-          <div className="rounded-lg border border-[#e1e2e3] p-4 text-xs font-medium text-[#898989] bg-[#f7f7f8] text-center">
+          <div className="rounded-none border border-zinc-200 dark:border-zinc-800 p-4 text-xs font-medium text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 text-center shadow-none">
             Memuat riwayat chat...
           </div>
         ) : groupedLogs.length ? (
@@ -312,6 +350,7 @@ export function AIChat() {
                     onCopy={copyAnswer}
                     onSendWhatsApp={sendAnswerToWhatsApp}
                     sendingWhatsApp={sendingWhatsApp}
+                    canSendWhatsApp={isSuperAdmin}
                   />
                 </div>
               ))}
@@ -320,7 +359,7 @@ export function AIChat() {
         ) : (
           <EmptyState
             title="Belum ada percakapan"
-            description="Tanyakan progress, deadline, atau referensi desain."
+            description="Tanyakan progress, deadline, atau referensi desain ormawa."
           />
         )}
         {loading ? <AILoadingMessage /> : null}
@@ -328,33 +367,31 @@ export function AIChat() {
       </section>
 
       {/* Sticky Bottom Composer */}
-      <div className="bg-transparent pt-1 space-y-2 shrink-0 sticky bottom-0 z-10 pb-1">
-        {/* Error alert (inline, above input) */}
+      <div className="bg-transparent space-y-2 shrink-0 sticky bottom-0 z-10 pb-0.5">
+        {/* Error alert */}
         {error ? (
-          <div className="flex items-center gap-2 rounded-lg bg-[#feebe8] border border-[#fecaca] px-3 py-2 text-xs font-medium text-[#e94235]">
+          <div className="flex items-center gap-2 rounded-none bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 px-3 py-2 text-xs font-medium text-rose-700 dark:text-rose-200 shadow-none">
             <XCircle className="size-3.5 shrink-0" />
-            {error}
+            <span>{error}</span>
           </div>
         ) : null}
 
-        {/* Quick Prompts Header */}
-        <div className="flex items-center justify-between px-0.5">
-          <span className="text-[11px] font-semibold text-[#898989] uppercase tracking-wider">Pertanyaan Cepat</span>
-          <button
-            type="button"
-            onClick={loadHistory}
-            disabled={historyLoading}
-            className="text-[11px] font-semibold text-[#242424] hover:underline transition-colors cursor-pointer"
-          >
-            {historyLoading ? "Memuat..." : "Refresh Riwayat"}
-          </button>
+        {/* Quick Prompts (Hidden on Mobile, Displayed on Desktop) */}
+        <div className="hidden md:block space-y-1.5">
+          <div className="flex items-center justify-between px-0.5">
+            <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+              Pertanyaan Cepat
+            </span>
+          </div>
+          <AIQuickPrompts disabled={loading || isQuotaExhausted} onSelect={ask} />
         </div>
-        <AIQuickPrompts disabled={loading || isQuotaExhausted} onSelect={ask} />
+
+        {/* Message Input */}
         <AIInput
           disabled={loading || isQuotaExhausted}
           placeholder={
             isQuotaExhausted
-              ? "Batas kuota harian tercapai (20/20). Coba lagi besok."
+              ? `Batas kuota harian tercapai (${DEFAULT_AI_DAILY_LIMIT}/${DEFAULT_AI_DAILY_LIMIT}). Coba lagi besok.`
               : "Tanyakan progress, deadline, atau referensi desain..."
           }
           onSubmit={ask}
