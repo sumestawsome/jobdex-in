@@ -331,7 +331,7 @@ function EventsManagement() {
             className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-lg bg-[#242424] hover:bg-[#141414] text-white shadow-2xs transition-all active:scale-[0.98] cursor-pointer shrink-0"
           >
             <Plus className="size-3.5" />
-            <span>+ Tambah Acara</span>
+            <span>Tambah Acara</span>
           </button>
         )}
       </header>

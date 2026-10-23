@@ -46,16 +46,38 @@ export default function TasksPage() {
   const [picFilter, setPicFilter] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
   const [deadlineFilter, setDeadlineFilter] = useState<TaskDeadlineFilter>("all");
-  const [viewMode, setViewMode] = useState<TaskViewMode>("table");
+  const [viewMode, setViewMode] = useState<TaskViewMode>("card");
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      const timer = setTimeout(() => {
-        setViewMode("card");
-      }, 0);
-      return () => clearTimeout(timer);
-    }
+    const updateMobileStatus = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        try {
+          const savedMode = localStorage.getItem("jobdex_task_view_mode") as TaskViewMode | null;
+          if (savedMode === "table" || savedMode === "card") {
+            setViewMode(savedMode);
+          }
+        } catch {
+          // ignore localStorage error
+        }
+      }
+    };
+
+    updateMobileStatus();
+    window.addEventListener("resize", updateMobileStatus);
+    return () => window.removeEventListener("resize", updateMobileStatus);
   }, []);
+
+  const handleViewModeChange = (mode: TaskViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("jobdex_task_view_mode", mode);
+    } catch {
+      // ignore localStorage error
+    }
+  };
   const [formOpen, setFormOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [userEventRoles, setUserEventRoles] = useState<Map<string, string>>(new Map());
@@ -155,7 +177,9 @@ export default function TasksPage() {
   const eventsById = useMemo(() => new Map(events.map((event) => [event.id, event])), [events]);
 
   const filteredTasks = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const rawQuery = search.trim().toLowerCase();
+    const queryTokens = rawQuery ? rawQuery.split(/\s+/).filter(Boolean) : [];
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const weekAhead = new Date(today);
@@ -163,7 +187,26 @@ export default function TasksPage() {
 
     return tasks.filter((task) => {
       const deadline = getDeadlineDate(task.deadline);
-      const matchesSearch = !query || task.name.toLowerCase().includes(query);
+
+      // Word-based tokenized search matching task name, description, PIC name, or event/division name
+      let matchesSearch = true;
+      if (queryTokens.length > 0) {
+        const picName = usersById.get(task.pic_id)?.name?.toLowerCase() || "";
+        const eventName = (
+          task.type === "acara"
+            ? eventsById.get(task.event_id || "")?.name
+            : task.division_id || "humas & media kreatif"
+        )?.toLowerCase() || "";
+        const taskName = (task.name || "").toLowerCase();
+        const taskDesc = (task.description || "").toLowerCase();
+
+        // Combined searchable text corpus for this task
+        const corpus = `${taskName} ${taskDesc} ${picName} ${eventName}`;
+
+        // Every token word typed by the user must be found in the corpus (flexible order)
+        matchesSearch = queryTokens.every((token) => corpus.includes(token));
+      }
+
       const matchesType = typeFilter === "all" || task.type === typeFilter;
       const matchesStatus = statusFilter === "all" || task.status === statusFilter;
       const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
@@ -197,12 +240,14 @@ export default function TasksPage() {
     activeWorkspace.org_id,
     deadlineFilter,
     eventFilter,
+    eventsById,
     picFilter,
     priorityFilter,
     search,
     statusFilter,
     tasks,
     typeFilter,
+    usersById,
   ]);
 
   async function handleSaveTask(input: TaskInput, taskId?: string) {
@@ -292,29 +337,29 @@ export default function TasksPage() {
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-16">
       {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-[#e1e2e3] bg-white shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-none">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-[#242424] text-white font-bold text-xs shrink-0 shadow-xs">
+          <span className="flex size-9 items-center justify-center rounded-none bg-zinc-900 text-white font-bold text-xs shrink-0 shadow-none">
             {activeWorkspace.campus_code}
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-[#242424] truncate">
+              <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">
                 {activeOrmawa.name}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#e8f7f0] border border-[#a3e6cd] px-2 py-0.5 text-[10px] font-semibold text-[#19a874]">
-                <span className="size-1.5 rounded-full bg-[#19a874] animate-pulse" />
+              <span className="inline-flex items-center gap-1 rounded-none bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                <span className="size-1.5 rounded-none bg-emerald-600 dark:bg-emerald-400 animate-pulse" />
                 Aktif
               </span>
             </div>
-            <p className="text-xs text-[#898989] truncate mt-0.5">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
               {activeCampus.name} • Menampilkan job desk terfilter untuk ruang kerja ini
             </p>
           </div>
         </div>
         <Link
           href="/dashboard/workspace"
-          className="text-xs font-semibold text-[#242424] hover:underline inline-flex items-center gap-1 shrink-0"
+          className="text-xs font-semibold text-zinc-900 dark:text-zinc-200 hover:underline inline-flex items-center gap-1 shrink-0"
         >
           <span>Ganti Ruang Kerja</span>
           <ArrowRight className="size-3" />
@@ -322,12 +367,12 @@ export default function TasksPage() {
       </div>
 
       {/* ── Header Section ──────────────────────────────────────────────────── */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#e1e2e3]">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#242424]">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
             Job Desk & Daftar Tugas
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-[#898989]">
+          <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
             Kelola pembagian tugas divisi dan kepanitiaan acara secara terstruktur.
           </p>
         </div>
@@ -338,10 +383,10 @@ export default function TasksPage() {
               setSelectedTask(null);
               setFormOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-lg bg-[#242424] hover:bg-[#141414] text-white shadow-2xs transition-all active:scale-[0.98] cursor-pointer shrink-0"
+            className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-none bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white shadow-none transition-all active:scale-[0.98] cursor-pointer shrink-0"
           >
             <Plus className="size-3.5" />
-            <span>+ Tambah Job Desk</span>
+            <span>Tambah Job Desk</span>
           </button>
         ) : null}
       </header>
@@ -368,10 +413,12 @@ export default function TasksPage() {
 
       {/* ── View Mode & Summary Bar ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 pt-1">
-        <p className="text-xs font-medium text-[#898989]">
-          Menampilkan <strong className="text-[#242424]">{filteredTasks.length}</strong> dari {tasks.length} job desk terdaftar
+        <p className="text-xs font-medium text-[#898989] dark:text-zinc-400">
+          Menampilkan <strong className="text-[#242424] dark:text-zinc-100">{filteredTasks.length}</strong> dari {tasks.length} job desk terdaftar
         </p>
-        <TaskViewToggle value={viewMode} onChange={setViewMode} />
+        <div className="hidden md:inline-flex">
+          <TaskViewToggle value={isMobile ? "card" : viewMode} onChange={handleViewModeChange} />
+        </div>
       </div>
 
       {error ? (
@@ -425,7 +472,7 @@ export default function TasksPage() {
             </div>
           }
         />
-      ) : viewMode === "table" ? (
+      ) : (!isMobile && viewMode === "table") ? (
         <TasksTable
           tasks={filteredTasks}
           usersById={usersById}

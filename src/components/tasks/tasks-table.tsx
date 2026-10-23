@@ -34,24 +34,24 @@ export function TasksTable({
   const [refDialogOpen, setRefDialogOpen] = useState(false);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[#e1e2e3] bg-white shadow-2xs">
+    <div className="overflow-hidden rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-none">
       <div className="overflow-x-auto">
         <table className="w-full table-auto border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-[#e1e2e3] bg-[#f7f7f8]">
-              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Nama Tugas</th>
-              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Ruang Kerja</th>
-              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">PIC</th>
-              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Acara / Divisi</th>
-              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Deadline</th>
-              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Prioritas</th>
-              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Status</th>
-              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Risiko</th>
-              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Referensi</th>
-              <th className="px-4 py-3 font-semibold text-[#898989] uppercase tracking-wider text-[11px]">Aksi</th>
+            <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/90">
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Nama Tugas</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Ruang Kerja</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">PIC</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Acara / Divisi</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Deadline</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Prioritas</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Status</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Risiko</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Referensi</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Aksi</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#e1e2e3]">
+          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {tasks.map((task) => {
               const eventName =
                 task.type === "acara"
@@ -70,19 +70,19 @@ export function TasksTable({
                   : "neutral";
 
               return (
-                <tr key={task.id} className="align-middle hover:bg-[#f7f7f8] transition-colors">
-                  <td className="px-4 py-3 font-semibold text-[#242424]">{task.name}</td>
+                <tr key={task.id} className="align-middle hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                  <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{task.name}</td>
                   <td className="px-4 py-3">
                     <WorkspaceBadge
                       campusId={task.campus_id || task.univ_id}
                       orgId={task.org_id || task.organization_id}
                     />
                   </td>
-                  <td className="px-4 py-3 text-[#6b7280]">
+                  <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
                     {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
                   </td>
-                  <td className="px-4 py-3 text-[#6b7280]">{eventName}</td>
-                  <td className="px-4 py-3 text-[#6b7280]">{formatTaskDate(task.deadline)}</td>
+                  <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{eventName}</td>
+                  <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{formatTaskDate(task.deadline)}</td>
                   <td className="px-4 py-3">
                     <TaskPriorityBadge priority={task.priority} />
                   </td>
@@ -101,9 +101,9 @@ export function TasksTable({
                         setSelectedTask(task);
                         setRefDialogOpen(true);
                       }}
-                      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-[11px] font-semibold transition-all shadow-2xs cursor-pointer"
+                      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-none bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white text-[11px] font-semibold transition-all shadow-none border border-purple-700 dark:border-purple-500 cursor-pointer"
                     >
-                      <Sparkles className="size-3 text-[#6349ea]" />
+                      <Sparkles className="size-3 text-white/90" />
                       <span>Lihat Solusi</span>
                     </button>
                   </td>
@@ -111,9 +111,9 @@ export function TasksTable({
                     <div className="flex items-center gap-1.5">
                       <Link
                         href={`/dashboard/tasks/${task.id}`}
-                        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-[11px] font-semibold transition-all shadow-2xs"
+                        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-[11px] font-semibold transition-all shadow-none border border-indigo-700 dark:border-indigo-500"
                       >
-                        <Eye className="size-3 text-[#898989]" />
+                        <Eye className="size-3 text-white/90" />
                         <span>Detail</span>
                       </Link>
 
@@ -122,17 +122,17 @@ export function TasksTable({
                           <button
                             type="button"
                             onClick={() => onEdit(task)}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-[11px] font-semibold transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-zinc-950 text-[11px] font-semibold transition-all shadow-none border border-amber-600 dark:border-amber-400 cursor-pointer"
                           >
-                            <Pencil className="size-3 text-[#898989]" />
+                            <Pencil className="size-3 text-zinc-950/80" />
                             <span>Edit</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => onArchive(task)}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#e94235] hover:bg-[#feebe8] text-[11px] font-semibold transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-[11px] font-semibold transition-all shadow-none border border-rose-700 dark:border-rose-500 cursor-pointer"
                           >
-                            <Archive className="size-3 text-[#e94235]" />
+                            <Archive className="size-3 text-white/90" />
                             <span>Arsip</span>
                           </button>
                         </>

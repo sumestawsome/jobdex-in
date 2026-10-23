@@ -49,7 +49,7 @@ export function TaskCard({
       : "neutral";
 
   return (
-    <div className="flex flex-col justify-between rounded-xl border border-[#e1e2e3] bg-white p-5 shadow-2xs transition-all hover:border-[#b0b2b5] gap-4">
+    <div className="flex flex-col justify-between rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-none transition-all hover:border-zinc-400 dark:hover:border-zinc-700 gap-4">
       <div>
         {/* Badges Bar */}
         <div className="flex flex-wrap items-center gap-1.5">
@@ -62,32 +62,32 @@ export function TaskCard({
         </div>
 
         {/* Task Title */}
-        <h3 className="mt-3 text-base font-bold text-[#242424] leading-snug">
+        <h3 className="mt-3 text-base font-bold text-zinc-900 dark:text-zinc-100 leading-snug">
           {task.name}
         </h3>
 
         {/* Task Meta List */}
-        <dl className="mt-3 space-y-2 text-xs border-t border-[#e1e2e3] pt-3">
+        <dl className="mt-3 space-y-2 text-xs border-t border-zinc-200 dark:border-zinc-800 pt-3">
           <div className="flex justify-between gap-2">
-            <dt className="text-[#898989]">PIC</dt>
-            <dd className="font-semibold text-[#242424]">
+            <dt className="text-zinc-500 dark:text-zinc-400">PIC</dt>
+            <dd className="font-semibold text-zinc-900 dark:text-zinc-100">
               {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
             </dd>
           </div>
           <div className="flex justify-between gap-2">
-            <dt className="text-[#898989]">Deadline</dt>
-            <dd className="font-semibold text-[#242424]">
+            <dt className="text-zinc-500 dark:text-zinc-400">Deadline</dt>
+            <dd className="font-semibold text-zinc-900 dark:text-zinc-100">
               {formatTaskDate(task.deadline)}
             </dd>
           </div>
           <div className="flex justify-between gap-2">
-            <dt className="text-[#898989]">Acara/Divisi</dt>
-            <dd className="text-right font-semibold text-[#242424]">
+            <dt className="text-zinc-500 dark:text-zinc-400">Acara/Divisi</dt>
+            <dd className="text-right font-semibold text-zinc-900 dark:text-zinc-100">
               {eventName}
             </dd>
           </div>
           <div className="flex justify-between gap-2 items-center">
-            <dt className="text-[#898989]">Risiko</dt>
+            <dt className="text-zinc-500 dark:text-zinc-400">Risiko</dt>
             <dd>
               <Badge variant={riskVariant} className="text-[10px] font-medium">
                 {riskLabel}
@@ -98,21 +98,21 @@ export function TaskCard({
       </div>
 
       {/* Action Buttons */}
-      <div className="pt-3 border-t border-[#e1e2e3] flex flex-wrap items-center gap-1.5">
+      <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center gap-1.5">
         <Link
           href={`/dashboard/tasks/${task.id}`}
-          className="inline-flex items-center gap-1 h-7.5 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold shadow-2xs transition-all"
+          className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-semibold shadow-none transition-all border border-indigo-700 dark:border-indigo-500"
         >
-          <Eye className="size-3 text-[#898989]" />
+          <Eye className="size-3 text-white/90" />
           <span>Detail</span>
         </Link>
 
         <button
           type="button"
           onClick={() => setRefDialogOpen(true)}
-          className="inline-flex items-center gap-1 h-7.5 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white text-xs font-semibold shadow-none transition-all border border-purple-700 dark:border-purple-500 cursor-pointer"
         >
-          <Sparkles className="size-3 text-[#6349ea]" />
+          <Sparkles className="size-3 text-white/90" />
           <span>Solusi</span>
         </button>
 
@@ -121,17 +121,17 @@ export function TaskCard({
             <button
               type="button"
               onClick={() => onEdit(task)}
-              className="inline-flex items-center gap-1 h-7.5 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#242424] hover:bg-[#f7f7f8] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-zinc-950 text-xs font-semibold shadow-none transition-all border border-amber-600 dark:border-amber-400 cursor-pointer"
             >
-              <Pencil className="size-3 text-[#898989]" />
+              <Pencil className="size-3 text-zinc-950/80" />
               <span>Edit</span>
             </button>
             <button
               type="button"
               onClick={() => onArchive(task)}
-              className="inline-flex items-center gap-1 h-7.5 px-2.5 rounded-md border border-[#e1e2e3] bg-white text-[#e94235] hover:bg-[#feebe8] text-xs font-semibold shadow-2xs transition-all cursor-pointer ml-auto"
+              className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-xs font-semibold shadow-none transition-all border border-rose-700 dark:border-rose-500 cursor-pointer ml-auto"
             >
-              <Archive className="size-3" />
+              <Archive className="size-3 text-white/90" />
               <span>Arsip</span>
             </button>
           </>
