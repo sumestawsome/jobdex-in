@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
-import { Plus, Building2, ArrowRight } from "lucide-react";
+import { Plus, Building2, ArrowRight, Mic } from "lucide-react";
+import { VoiceTaskDialog, type ExtractedVoiceTaskData } from "@/components/tasks/voice-task-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -85,6 +86,33 @@ export default function TasksPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [userEventRoles, setUserEventRoles] = useState<Map<string, string>>(new Map());
+  const [voiceDialogOpen, setVoiceDialogOpen] = useState(false);
+  const [formInitialValues, setFormInitialValues] = useState<Partial<TaskInput> | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("voice") === "1") {
+        setVoiceDialogOpen(true);
+      }
+    }
+  }, []);
+
+  const handleVoiceTaskExtracted = (data: ExtractedVoiceTaskData) => {
+    setSelectedTask(null);
+    setFormInitialValues({
+      course_name: data.course_name,
+      name: data.name,
+      title: data.name,
+      description: data.description,
+      deadline: data.deadline ? data.deadline.slice(0, 10) : "",
+      submission_url: data.submission_url,
+      submission_link: data.submission_url,
+      type: "tugas_kuliah",
+    });
+    setVoiceDialogOpen(false);
+    setFormOpen(true);
+  };
 
   const loadData = useCallback(async () => {
     if (!userProfile) {
@@ -424,17 +452,31 @@ export default function TasksPage() {
           </p>
         </div>
         {canCreate ? (
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedTask(null);
-              setFormOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-none bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white shadow-none transition-all active:scale-[0.98] cursor-pointer shrink-0"
-          >
-            <Plus className="size-3.5" />
-            <span>{isClassWorkspace ? "Tambah Tugas" : "Tambah Job Desk"}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {isClassWorkspace && (
+              <button
+                type="button"
+                onClick={() => setVoiceDialogOpen(true)}
+                title="Input Tugas via Suara"
+                className="inline-flex items-center justify-center size-9 rounded-none border border-zinc-300 dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-none transition-colors active:scale-95 cursor-pointer shrink-0"
+              >
+                <Mic className="size-4 text-primary" />
+                <span className="sr-only">Input Tugas via Suara</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTask(null);
+                setFormInitialValues(null);
+                setFormOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-none bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white shadow-none transition-all active:scale-[0.98] cursor-pointer shrink-0"
+            >
+              <Plus className="size-3.5" />
+              <span>{isClassWorkspace ? "Tambah Tugas" : "Tambah Job Desk"}</span>
+            </button>
+          </div>
         ) : null}
       </header>
 
@@ -560,12 +602,23 @@ export default function TasksPage() {
       <TaskFormDialog
         open={formOpen}
         task={selectedTask}
+        initialValues={formInitialValues}
         users={users.filter((user) => user.is_active)}
         events={events}
         divisions={divisions}
         fallbackCoordinatorId={userProfile.id}
-        onClose={() => setFormOpen(false)}
+        onClose={() => {
+          setFormOpen(false);
+          setSelectedTask(null);
+          setFormInitialValues(null);
+        }}
         onSave={handleSaveTask}
+      />
+
+      <VoiceTaskDialog
+        open={voiceDialogOpen}
+        onClose={() => setVoiceDialogOpen(false)}
+        onTaskExtracted={handleVoiceTaskExtracted}
       />
     </div>
   );

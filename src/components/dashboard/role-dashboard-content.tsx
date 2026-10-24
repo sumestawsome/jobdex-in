@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Download,
   Plus,
+  Mic,
   ArrowRight,
   CheckCircle2,
   Check,
@@ -482,6 +483,18 @@ export function RoleDashboardContent() {
               <Download className="size-3.5" />
               <span>Ekspor PDF</span>
             </button>
+          )}
+
+          {/* Tombol Input Tugas via Suara Khusus Mode Kelas */}
+          {isClassWorkspace && (
+            <Link
+              href="/dashboard/tasks?voice=1"
+              title="Input Tugas via Suara"
+              className="inline-flex items-center justify-center size-9 rounded-none border border-zinc-300 dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-none transition-colors active:scale-95 cursor-pointer shrink-0"
+            >
+              <Mic className="size-4 text-primary" />
+              <span className="sr-only">Input Tugas via Suara</span>
+            </Link>
           )}
 
           {/* Tombol Tambah Tugas / Job Desk Baru (Bersih dari simbol dobel) */}

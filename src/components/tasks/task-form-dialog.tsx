@@ -68,6 +68,7 @@ function formatDetectionReason(result: DetectJobdeskCategoryResult): string {
 type TaskFormDialogProps = {
   open: boolean;
   task: Task | null;
+  initialValues?: Partial<TaskInput> | null;
   users: UserProfile[];
   events: Event[];
   divisions?: Division[];
@@ -85,11 +86,16 @@ export function TaskFormDialog(props: TaskFormDialogProps) {
     return null;
   }
 
-  return <TaskForm key={props.task?.id ?? props.defaultEventId ?? "new"} {...props} />;
+  const key =
+    props.task?.id ??
+    (props.initialValues ? JSON.stringify(props.initialValues) : props.defaultEventId ?? "new");
+
+  return <TaskForm key={key} {...props} />;
 }
 
 function TaskForm({
   task,
+  initialValues,
   users,
   events,
   divisions,
@@ -145,17 +151,35 @@ function TaskForm({
     task?.type ?? (isClassWorkspace ? "tugas_kuliah" : defaultEventId ? "acara" : "divisi")
   );
   const [courseName, setCourseName] = useState(
-    task?.course_name ?? task?.subject_name ?? ""
+    task?.course_name ?? task?.subject_name ?? initialValues?.course_name ?? ""
   );
   const [submissionUrl, setSubmissionUrl] = useState(
-    task?.submission_url ?? task?.submission_link ?? ""
+    task?.submission_url ?? task?.submission_link ?? initialValues?.submission_url ?? ""
   );
   const [eventId, setEventId] = useState(task?.event_id ?? defaultEventId ?? "");
-  const [name, setName] = useState(task?.name ?? "");
-  const [description, setDescription] = useState(task?.description ?? "");
+  const [name, setName] = useState(
+    task?.name ?? initialValues?.name ?? (initialValues as Record<string, unknown> | undefined)?.title as string ?? ""
+  );
+  const [description, setDescription] = useState(
+    task?.description ?? initialValues?.description ?? ""
+  );
   const [picId, setPicId] = useState(task?.pic_id ?? users[0]?.id ?? "");
   const [coordinatorId, setCoordinatorId] = useState(task?.coordinator_id ?? fallbackCoordinatorId);
-  const [deadline, setDeadline] = useState(task ? getTaskDateInputValue(task.deadline) : "");
+  const [deadline, setDeadline] = useState(() => {
+    if (task?.deadline) {
+      const fromFn = getTaskDateInputValue(task.deadline);
+      if (fromFn) return fromFn;
+      if (typeof task.deadline === "string") return task.deadline.slice(0, 10);
+    }
+    if (initialValues?.deadline) {
+      if (typeof initialValues.deadline === "string") {
+        return initialValues.deadline.slice(0, 10);
+      }
+      const fromFn = getTaskDateInputValue(initialValues.deadline);
+      if (fromFn) return fromFn;
+    }
+    return "";
+  });
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? "belum_dimulai");
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "sedang");
   const [copywriting, setCopywriting] = useState(task?.copywriting ?? "");
