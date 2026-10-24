@@ -25,10 +25,11 @@ export interface ExtractedVoiceTask {
 }
 
 const AUDIO_EXT_REGEX = /\.(ogg|opus|oga|mp3|m4a|wav|aac|wma|webm|flac)(\?.*)?$/i;
+const AUDIO_FORMAT_REGEX = /^(ogg|opus|oga|mp3|m4a|wav|aac|wma|webm|flac)$/i;
 
 /**
  * Checks if incoming WhatsApp message is an audio file or voice note.
- * Inspects url, mediaUrl, filename, messageType/filetype, and raw payload.
+ * Inspects url, mediaUrl, attachment, filename, messageType/filetype, extension, and raw payload.
  */
 export function isAudioVoiceNote(
   incoming: NormalizedIncomingWhatsAppMessage,
@@ -43,6 +44,7 @@ export function isAudioVoiceNote(
   const pickCandidate = (...vals: unknown[]): string => {
     for (const v of vals) {
       if (typeof v === "string" && v.trim()) return v.trim();
+      if (typeof v === "number") return String(v).trim();
     }
     return "";
   };
@@ -50,22 +52,31 @@ export function isAudioVoiceNote(
   const candidateUrl = pickCandidate(
     incoming.url,
     incoming.mediaUrl,
+    incoming.attachment,
     firstChoice.url,
     firstChoice.file,
+    firstChoice.attachment,
     firstChoice.media,
     firstChoice.audio,
+    firstChoice.voice,
+    firstChoice.link,
     root.url,
     root.file,
+    root.attachment,
     root.media,
-    root.audio
+    root.audio,
+    root.voice,
+    root.link
   );
 
   const candidateFilename = pickCandidate(
     incoming.filename,
     firstChoice.filename,
     firstChoice.name_file,
+    firstChoice.fileName,
     root.filename,
-    root.name_file
+    root.name_file,
+    root.fileName
   );
 
   const candidateType = pickCandidate(
@@ -73,11 +84,30 @@ export function isAudioVoiceNote(
     incoming.messageType,
     firstChoice.filetype,
     firstChoice.type,
+    firstChoice.fileType,
+    firstChoice.mime,
+    firstChoice.mimetype,
     root.filetype,
-    root.type
+    root.type,
+    root.fileType,
+    root.mime,
+    root.mimetype
   );
 
-  // 1. Check direct URL extension
+  const candidateExt = pickCandidate(
+    incoming.extension,
+    firstChoice.extension,
+    firstChoice.ext,
+    root.extension,
+    root.ext
+  );
+
+  const messageText = (incoming.message || pickCandidate(firstChoice.message, root.message) || "").trim();
+  const isNonTextMessage =
+    messageText.toLowerCase() === "non-text message" ||
+    messageText.toLowerCase().includes("non-text message");
+
+  // 1. Check direct URL extension (.ogg, .opus, .mp3, .m4a, .wav, etc.)
   if (candidateUrl && AUDIO_EXT_REGEX.test(candidateUrl)) {
     return { isAudio: true, audioUrl: candidateUrl };
   }
@@ -87,19 +117,28 @@ export function isAudioVoiceNote(
     return { isAudio: true, audioUrl: candidateUrl };
   }
 
-  // 3. Check MIME type or messageType (audio / voice / ptt)
+  // 3. Check extension field
+  if (candidateExt && (AUDIO_FORMAT_REGEX.test(candidateExt) || AUDIO_EXT_REGEX.test(candidateExt)) && candidateUrl) {
+    return { isAudio: true, audioUrl: candidateUrl };
+  }
+
+  // 4. Check MIME type or messageType (audio / voice / ptt)
   const isAudioType = /(audio|voice|ptt)/i.test(candidateType);
   if (isAudioType && candidateUrl) {
     return { isAudio: true, audioUrl: candidateUrl };
   }
 
-  // 4. Check if message itself is an audio URL
-  const trimmedMsg = (incoming.message || "").trim();
-  if (/^https?:\/\/[^\s]+$/i.test(trimmedMsg) && AUDIO_EXT_REGEX.test(trimmedMsg)) {
-    return { isAudio: true, audioUrl: trimmedMsg };
+  // 5. Check if message itself is 'non-text message' and has a media URL payload
+  if (isNonTextMessage && candidateUrl) {
+    return { isAudio: true, audioUrl: candidateUrl };
   }
 
-  return { isAudio: false, audioUrl: null };
+  // 6. Check if message itself is an audio URL
+  if (/^https?:\/\/[^\s]+$/i.test(messageText) && AUDIO_EXT_REGEX.test(messageText)) {
+    return { isAudio: true, audioUrl: messageText };
+  }
+
+  return { isAudio: false, audioUrl: candidateUrl || null };
 }
 
 /**
@@ -452,6 +491,7 @@ export async function handleWhatsAppVoiceTask(
 
     await newTaskRef.set(taskData);
     console.log(`[VoiceTaskProcessor] Successfully created task ${newTaskRef.id} from voice note!`);
+    console.log(`[whatsapp audio] task successfully created from voice note: "${taskTitle}" (${courseName}) with id: ${newTaskRef.id}`);
 
     // 6. Broadcast Instan jika tenggat mepet (<= 3 hari) ke Grup Pengumuman
     let broadcastResult = null;
@@ -485,6 +525,7 @@ export async function handleWhatsAppVoiceTask(
 
     return NextResponse.json({
       ok: true,
+      stopFurtherProcessing: true,
       taskId: newTaskRef.id,
       courseName,
       taskTitle,
@@ -503,7 +544,14 @@ export async function handleWhatsAppVoiceTask(
 
     return NextResponse.json({
       ok: false,
+      stopFurtherProcessing: true,
       error: err instanceof Error ? err.message : "voice_processing_failed",
     });
   }
 }
+
+/**
+ * Alias exported as requested for voice task processor.
+ */
+export const processVoiceNoteAcademicTask = handleWhatsAppVoiceTask;
+

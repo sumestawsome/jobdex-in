@@ -662,9 +662,11 @@ export type NormalizedIncomingWhatsAppMessage = {
   timestamp?: string | number;
   url?: string;
   mediaUrl?: string;
+  attachment?: string;
   filename?: string;
   filetype?: string;
   messageType?: string;
+  extension?: string;
 };
 
 export interface WhatsAppSystemSettings {

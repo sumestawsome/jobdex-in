@@ -140,20 +140,32 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
       : undefined;
 
 
-  // Read media URL / file URL (e.g. for voice notes / audio)
+  // Read media URL / file URL / attachment (e.g. for voice notes / audio)
   const mediaUrl = pickString(
     data.url,
     data.file,
+    data.attachment,
     data.media,
     data.audio,
     data.voice,
     data.link,
     root.url,
     root.file,
+    root.attachment,
     root.media,
     root.audio,
     root.voice,
     root.link
+  );
+
+  // Read media extension / format
+  const extension = pickString(
+    data.extension,
+    data.ext,
+    data.filetype,
+    root.extension,
+    root.ext,
+    root.filetype
   );
 
   const filename = pickString(
@@ -178,6 +190,19 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
     root.mimetype
   );
 
+  // Warning jika pesan non-text tapi URL media kosong
+  const isNonTextMessage =
+    message.trim().toLowerCase() === "non-text message" ||
+    filetype.toLowerCase().includes("audio") ||
+    filetype.toLowerCase().includes("voice");
+  if (isNonTextMessage && !mediaUrl) {
+    console.warn("[whatsapp audio] received non-text message but mediaUrl is empty", {
+      sender: finalSender,
+      message,
+      filetype,
+    });
+  }
+
   const keys = Object.keys(root);
   const effectiveMessage = message || mediaUrl || "";
   if (!effectiveMessage) {
@@ -196,8 +221,10 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
     timestamp: (typeof timestamp === "string" || typeof timestamp === "number") ? timestamp : undefined,
     url: mediaUrl || undefined,
     mediaUrl: mediaUrl || undefined,
+    attachment: mediaUrl || undefined,
     filename: filename || undefined,
     filetype: filetype || undefined,
     messageType: filetype || undefined,
+    extension: extension || undefined,
   } satisfies NormalizedIncomingWhatsAppMessage;
 }

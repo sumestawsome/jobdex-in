@@ -2,6 +2,10 @@
 .env
 .env.local
 .env.*.local
+.env.local.backup
+.env.production.clean
+.env*.backup
+.env*.clean
 
 # firebase admin/service account
 serviceAccountKey.json

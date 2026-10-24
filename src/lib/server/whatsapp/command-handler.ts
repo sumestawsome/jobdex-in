@@ -76,6 +76,7 @@ import {
 import {
   isAudioVoiceNote,
   handleWhatsAppVoiceTask,
+  processVoiceNoteAcademicTask,
 } from "@/lib/server/voice-task-processor";
 
 export { findFaqMatch } from "@/lib/server/faq-matcher";
@@ -591,13 +592,44 @@ export async function executeWhatsAppWebhook(
   incoming: NormalizedIncomingWhatsAppMessage,
   payload: unknown
 ): Promise<NextResponse> {
+  const messagePreview = incoming.message?.slice(0, 40) || "";
   console.log("[whatsapp command] incoming", {
     provider: incoming.provider,
     isGroup: incoming.isGroup,
     groupId: incoming.groupId,
     hasSender: Boolean(incoming.sender),
-    messagePreview: incoming.message?.slice(0, 40),
+    messagePreview,
   });
+
+  // ============================================================================
+  // PRIORITY INTERCEPTOR: AUDIO / VOICE NOTE (VN)
+  // Letakkan di BARIS PALING AWAL, SEBELUM text parser & SEBELUM empty_or_no_question
+  // ============================================================================
+  const audioCheck = isAudioVoiceNote(incoming, payload);
+  if (audioCheck.isAudio && audioCheck.audioUrl) {
+    console.log("[whatsapp audio] voice note detected from:", incoming.sender, "url:", audioCheck.audioUrl);
+
+    // Langsung arahkan ke processVoiceNoteAcademicTask di voice-task-processor.ts
+    // (Fungsi ini memverifikasi hak akses admin, tolak grup pengumuman, ekstraksi Gemini, simpan tugas, dan kirim konfirmasi)
+    const voiceRes = await processVoiceNoteAcademicTask(incoming, audioCheck.audioUrl);
+    console.log("[whatsapp audio] voice note processing completed", {
+      status: voiceRes.status,
+      stopFurtherProcessing: true,
+    });
+    return voiceRes;
+  } else if (!audioCheck.isAudio) {
+    const isNonText =
+      messagePreview.toLowerCase().includes("non-text message") ||
+      (incoming.message || "").toLowerCase().includes("non-text message") ||
+      /(audio|voice|ptt)/i.test(incoming.filetype || "") ||
+      /(audio|voice|ptt)/i.test(incoming.messageType || "");
+    if (isNonText && !audioCheck.audioUrl) {
+      console.warn("[whatsapp audio] received non-text message but mediaUrl is empty", {
+        sender: incoming.sender,
+        message: incoming.message,
+      });
+    }
+  }
 
   const message = incoming.message || "";
   const trimmed = message.trim();
@@ -620,18 +652,6 @@ export async function executeWhatsAppWebhook(
       ignored: true,
       reason: "announcement_group_is_broadcast_only",
     });
-  }
-
-  // 1B. DETEKSI PESAN SUARA / VOICE NOTE (VN)
-  const audioCheck = isAudioVoiceNote(incoming, payload);
-  if (audioCheck.isAudio && audioCheck.audioUrl) {
-    console.log("[whatsapp command] step: process_voice_note", {
-      sender: incoming.sender,
-      isGroup: incoming.isGroup,
-      groupId: incoming.groupId,
-      audioUrl: audioCheck.audioUrl.slice(0, 60),
-    });
-    return await handleWhatsAppVoiceTask(incoming, audioCheck.audioUrl);
   }
 
   // 2. CEK PERINTAH TUGAS KELAS AKADEMIK (!tugas ...)
