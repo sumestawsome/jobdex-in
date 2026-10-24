@@ -34,7 +34,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 export default function TasksPage() {
   const { user, userProfile } = useAuth();
-  const { activeWorkspace, activeCampus, activeOrmawa } = useWorkspace();
+  const { activeWorkspace, activeCampus, activeOrmawa, isClassWorkspace } = useWorkspace();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -201,9 +201,11 @@ export default function TasksPage() {
         )?.toLowerCase() || "";
         const taskName = (task.name || "").toLowerCase();
         const taskDesc = (task.description || "").toLowerCase();
+        const courseName = (task.course_name || task.subject_name || "").toLowerCase();
+        const subLink = (task.submission_url || task.submission_link || "").toLowerCase();
 
         // Combined searchable text corpus for this task
-        const corpus = `${taskName} ${taskDesc} ${picName} ${eventName}`;
+        const corpus = `${taskName} ${taskDesc} ${courseName} ${subLink} ${picName} ${eventName}`;
 
         // Every token word typed by the user must be found in the corpus (flexible order)
         matchesSearch = queryTokens.every((token) => corpus.includes(token));
@@ -382,10 +384,12 @@ export default function TasksPage() {
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Job Desk & Daftar Tugas
+            {isClassWorkspace ? "Daftar Tugas Kuliah" : "Job Desk & Daftar Tugas"}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-            Kelola pembagian tugas divisi dan kepanitiaan acara secara terstruktur.
+            {isClassWorkspace
+              ? "Kelola jadwal tugas, mata kuliah, dan tenggat pengumpulan kelas."
+              : "Kelola pembagian tugas divisi dan kepanitiaan acara secara terstruktur."}
           </p>
         </div>
         {canCreate ? (
@@ -398,7 +402,7 @@ export default function TasksPage() {
             className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-none bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white shadow-none transition-all active:scale-[0.98] cursor-pointer shrink-0"
           >
             <Plus className="size-3.5" />
-            <span>Tambah Job Desk</span>
+            <span>{isClassWorkspace ? "Tambah Tugas" : "Tambah Job Desk"}</span>
           </button>
         ) : null}
       </header>
@@ -414,6 +418,7 @@ export default function TasksPage() {
         deadline={deadlineFilter}
         users={users}
         events={events}
+        isClassWorkspace={isClassWorkspace}
         onSearchChange={setSearch}
         onTypeChange={setTypeFilter}
         onStatusChange={setStatusFilter}
@@ -426,7 +431,7 @@ export default function TasksPage() {
       {/* ── View Mode & Summary Bar ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 pt-1">
         <p className="text-xs font-medium text-[#898989] dark:text-zinc-400">
-          Menampilkan <strong className="text-[#242424] dark:text-zinc-100">{filteredTasks.length}</strong> dari {tasks.length} job desk terdaftar
+          Menampilkan <strong className="text-[#242424] dark:text-zinc-100">{filteredTasks.length}</strong> dari {tasks.length} {isClassWorkspace ? "tugas kuliah" : "job desk"} terdaftar
         </p>
         <div className="hidden md:inline-flex">
           <TaskViewToggle value={isMobile ? "card" : viewMode} onChange={handleViewModeChange} />

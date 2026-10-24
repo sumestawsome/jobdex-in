@@ -70,15 +70,34 @@ export const dashboardNavigation: DashboardNavConfig[] = [
   },
 ];
 
-export function getDashboardNavigation(profile: UserProfile | null) {
+export function getDashboardNavigation(
+  profile: UserProfile | null,
+  options?: { isClassWorkspace?: boolean }
+) {
+  const isClass = options?.isClassWorkspace;
+
   return dashboardNavigation
-    .filter((item) => item.visible(profile))
+    .filter((item) => {
+      if (!item.visible(profile)) return false;
+      if (isClass && (item.href === "/dashboard/events" || item.href === "/dashboard/references")) {
+        return false;
+      }
+      return true;
+    })
     .map((item) => {
-      if (item.href === "/dashboard/tasks" && isAnggota(profile)) {
-        return {
-          ...item,
-          label: "Job Desk Saya",
-        };
+      if (item.href === "/dashboard/tasks") {
+        if (isClass) {
+          return {
+            ...item,
+            label: "Tugas Kuliah",
+          };
+        }
+        if (isAnggota(profile)) {
+          return {
+            ...item,
+            label: "Job Desk Saya",
+          };
+        }
       }
 
       return item;

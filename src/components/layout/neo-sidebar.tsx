@@ -53,8 +53,8 @@ export function NeoSidebar({
 }: NeoSidebarProps) {
   const pathname = usePathname();
   const { userProfile } = useAuth();
-  const { activeWorkspace, activeOrmawa } = useWorkspace();
-  const navItems = getDashboardNavigation(userProfile);
+  const { activeWorkspace, activeOrmawa, isClassWorkspace } = useWorkspace();
+  const navItems = getDashboardNavigation(userProfile, { isClassWorkspace });
   const [fetchedDivisionName, setFetchedDivisionName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -71,6 +71,8 @@ export function NeoSidebar({
 
   const divisionName = userProfile?.role === "super_admin"
     ? "JobDex.in Workspace"
+    : isClassWorkspace
+    ? activeWorkspace.org_name || "Kelas Ilmu Komputer"
     : (fetchedDivisionName || "Humas & Media Kreatif");
 
   const sidebarContent = (isMobile: boolean) => (

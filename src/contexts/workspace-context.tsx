@@ -21,8 +21,23 @@ import {
 
 const STORAGE_KEY = "jobdex_active_workspace";
 
+/**
+ * Helper to identify if active workspace is a class workspace (e.g. ws_ilkom_2024 or type 'kelas')
+ */
+export function isClassWorkspace(workspace?: ActiveWorkspace | null): boolean {
+  if (!workspace) return false;
+  return (
+    workspace.workspace_type === "kelas" ||
+    workspace.org_type?.toLowerCase() === "kelas" ||
+    (workspace as unknown as Record<string, unknown>).type === "kelas" ||
+    workspace.org_id === "ws_ilkom_2024" ||
+    (workspace as unknown as Record<string, unknown>).id === "ws_ilkom_2024"
+  );
+}
+
 export interface WorkspaceContextType {
   activeWorkspace: ActiveWorkspace;
+  isClassWorkspace: boolean;
   activeCampus: Campus;
   activeOrmawa: Ormawa;
   campuses: Campus[];
@@ -74,6 +89,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!campus || !ormawa) return false;
 
     const newWorkspace: ActiveWorkspace = {
+      id: ormawa.id,
+      type: ormawa.type,
       campus_id: campus.id,
       campusId: campus.id,
       univ_id: campus.id,
@@ -132,6 +149,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const value = useMemo<WorkspaceContextType>(
     () => ({
       activeWorkspace,
+      isClassWorkspace: isClassWorkspace(activeWorkspace),
       activeCampus,
       activeOrmawa,
       campuses: DUMMY_CAMPUSES,

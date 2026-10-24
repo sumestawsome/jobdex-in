@@ -59,7 +59,7 @@ function formatIndonesianDate(): string {
 
 export function RoleDashboardContent() {
   const { userProfile } = useAuth();
-  const { activeWorkspace } = useWorkspace();
+  const { activeWorkspace, isClassWorkspace } = useWorkspace();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -418,6 +418,18 @@ export function RoleDashboardContent() {
       ? `${stuckCount} butuh bantuan, ${approvalCount} approval, ${revisionCount} revisi`
       : "Semua tugas berjalan lancar";
 
+  const classUrgentTasksCount = useMemo(() => {
+    if (!data?.allTasks) return 0;
+    return data.allTasks.filter((t) => {
+      if (t.status === "approved") return false;
+      if (!t.deadline) return false;
+      const d = toJsDate(t.deadline);
+      if (!d) return false;
+      const diff = diffDaysFromToday(d);
+      return diff <= 3;
+    }).length;
+  }, [data]);
+
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-12">
       {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
@@ -427,7 +439,7 @@ export function RoleDashboardContent() {
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Ringkasan Divisi &amp; Progres Job Desk
+            {isClassWorkspace ? "Ringkasan Tugas Kuliah ILKOM 24" : "Ringkasan Divisi & Progres Job Desk"}
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
             {formatIndonesianDate()}
@@ -435,11 +447,13 @@ export function RoleDashboardContent() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Label Statis Divisi Humas & Media Kreatif */}
-          <div className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 shadow-none">
-            <span className="size-2 rounded-none bg-primary shrink-0" />
-            <span>Divisi Humas &amp; Media Kreatif</span>
-          </div>
+          {/* Label Statis Divisi Humas & Media Kreatif (Hanya untuk Ormawa) */}
+          {!isClassWorkspace && (
+            <div className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 shadow-none">
+              <span className="size-2 rounded-none bg-primary shrink-0" />
+              <span>Divisi Humas &amp; Media Kreatif</span>
+            </div>
+          )}
 
           {/* Tombol Segarkan */}
           <button
@@ -449,121 +463,196 @@ export function RoleDashboardContent() {
               showToast("Data dashboard berhasil dimuat ulang");
             }}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-none transition-colors disabled:opacity-50 active:translate-y-px"
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-none transition-colors disabled:opacity-50 active:translate-y-px cursor-pointer"
           >
             <RefreshCw className={`size-3.5 text-zinc-600 dark:text-zinc-400 ${loading ? "animate-spin" : ""}`} />
             <span>Segarkan</span>
           </button>
 
-          {/* Tombol Ekspor PDF */}
-          <button
-            type="button"
-            onClick={() => {
-              window.print();
-              showToast("Mempersiapkan dokumen cetak...");
-            }}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-none transition-colors active:translate-y-px"
-          >
-            <Download className="size-3.5" />
-            <span>Ekspor PDF</span>
-          </button>
+          {/* Tombol Ekspor PDF (Hanya untuk Ormawa) */}
+          {!isClassWorkspace && (
+            <button
+              type="button"
+              onClick={() => {
+                window.print();
+                showToast("Mempersiapkan dokumen cetak...");
+              }}
+              className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-none transition-colors active:translate-y-px cursor-pointer"
+            >
+              <Download className="size-3.5" />
+              <span>Ekspor PDF</span>
+            </button>
+          )}
 
-          {/* Tombol + Buat Job Desk Baru */}
+          {/* Tombol Tambah Tugas / Job Desk Baru (Bersih dari simbol dobel) */}
           <Link
             href="/dashboard/tasks"
             className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-none bg-primary hover:bg-primary-hover text-primary-foreground shadow-none transition-colors active:translate-y-px"
           >
             <Plus className="size-3.5" />
-            <span>+ Buat Job Desk Baru</span>
+            <span>{isClassWorkspace ? "Tambah Tugas" : "Buat Job Desk Baru"}</span>
           </Link>
         </div>
       </header>
 
-      {/* ── 2. Bar Metrik KPI 4 Kolom ────────────────────────────────────────── */}
-      <section
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none"
-        aria-label="Statistik Kunci"
-      >
-        {/* Kartu 1: Total Acara Aktif */}
-        <div className="p-5 border-b sm:border-b-0 sm:border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              Total Acara Aktif
-            </span>
-            <span className="font-semibold text-[10px] px-2 py-0.5 rounded-none bg-indigo-50 dark:bg-indigo-950/40 text-primary border border-indigo-200 dark:border-indigo-900">
-              {activeEventsCount} Aktif
-            </span>
-          </div>
-          <div>
-            <div className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
-              {activeEventsCount}
+      {/* ── 2. Bar Metrik KPI ────────────────────────────────────────────────── */}
+      {isClassWorkspace ? (
+        <section
+          className="grid grid-cols-1 sm:grid-cols-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none"
+          aria-label="Statistik Tugas Kuliah"
+        >
+          {/* Kartu 1: Tugas Aktif */}
+          <div className="p-5 border-b sm:border-b-0 sm:border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Tugas Aktif
+              </span>
+              <span className="font-semibold text-[10px] px-2 py-0.5 rounded-none bg-indigo-50 dark:bg-indigo-950/40 text-primary border border-indigo-200 dark:border-indigo-900">
+                {activeJobsCount} Berjalan
+              </span>
             </div>
-            <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={activeEventsSubtext}>
-              {activeEventsSubtext}
-            </p>
+            <div>
+              <div className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
+                {activeJobsCount}
+              </div>
+              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                Tugas kuliah sedang aktif / perlu dikerjakan
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Kartu 2: Total Job Desk Aktif */}
-        <div className="p-5 border-b sm:border-b-0 lg:border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              Total Job Desk Aktif
-            </span>
-            <span className="font-semibold text-[10px] px-2 py-0.5 rounded-none bg-indigo-50 dark:bg-indigo-950/40 text-primary border border-indigo-200 dark:border-indigo-900">
-              {activeJobsCount} Tugas
-            </span>
-          </div>
-          <div>
-            <div className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
-              {activeJobsCount}
+          {/* Kartu 2: Deadline Mendesak (< 3 Hari) */}
+          <div className="p-5 border-b sm:border-b-0 sm:border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Deadline Mendesak (&lt; 3 Hari)
+              </span>
+              <span className={`font-semibold text-[10px] px-2 py-0.5 rounded-none border ${
+                classUrgentTasksCount > 0
+                  ? "bg-red-50 dark:bg-red-950/40 text-danger border-red-200 dark:border-red-900"
+                  : "bg-emerald-50 dark:bg-emerald-950/40 text-success border-emerald-200 dark:border-emerald-900"
+              }`}>
+                {classUrgentTasksCount > 0 ? "Perlu Tindakan" : "Aman"}
+              </span>
             </div>
-            <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={activeJobsSubtext}>
-              {activeJobsSubtext}
-            </p>
+            <div>
+              <div className={`text-[28px] font-bold tracking-tight leading-none ${
+                classUrgentTasksCount > 0 ? "text-danger" : "text-zinc-900 dark:text-white"
+              }`}>
+                {classUrgentTasksCount}
+              </div>
+              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                Tenggat pengumpulan dalam 3 hari ke depan
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Kartu 3: Perlu Tindakan Segera */}
-        <div className="p-5 border-b sm:border-b-0 sm:border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              Perlu Tindakan Segera
-            </span>
-            <span className="font-semibold text-[10px] px-2 py-0.5 rounded-none bg-amber-50 dark:bg-amber-950/40 text-warning border border-amber-200 dark:border-amber-900">
-              Perhatian
-            </span>
-          </div>
-          <div>
-            <div className="text-[28px] font-bold tracking-tight text-danger leading-none">
-              {needsAttentionCount}
+          {/* Kartu 3: Tugas Selesai */}
+          <div className="p-5 flex flex-col justify-between gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Tugas Selesai
+              </span>
+              <span className="font-semibold text-[10px] px-2 py-0.5 rounded-none bg-emerald-50 dark:bg-emerald-950/40 text-success border border-emerald-200 dark:border-emerald-900">
+                +{completedTotalCount} Selesai
+              </span>
             </div>
-            <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={needsAttentionSubtext}>
-              {needsAttentionSubtext}
-            </p>
+            <div>
+              <div className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
+                {completedTotalCount}
+              </div>
+              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                Tugas kuliah yang telah diselesaikan
+              </p>
+            </div>
           </div>
-        </div>
+        </section>
+      ) : (
+        <section
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none"
+          aria-label="Statistik Kunci"
+        >
+          {/* Kartu 1: Total Acara Aktif */}
+          <div className="p-5 border-b sm:border-b-0 sm:border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Total Acara Aktif
+              </span>
+              <span className="font-semibold text-[10px] px-2 py-0.5 rounded-none bg-indigo-50 dark:bg-indigo-950/40 text-primary border border-indigo-200 dark:border-indigo-900">
+                {activeEventsCount} Aktif
+              </span>
+            </div>
+            <div>
+              <div className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
+                {activeEventsCount}
+              </div>
+              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={activeEventsSubtext}>
+                {activeEventsSubtext}
+              </p>
+            </div>
+          </div>
 
-        {/* Kartu 4: Selesai */}
-        <div className="p-5 flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              Selesai
-            </span>
-            <span className="font-semibold text-[10px] px-2 py-0.5 rounded-none bg-emerald-50 dark:bg-emerald-950/40 text-success border border-emerald-200 dark:border-emerald-900">
-              +{completedTotalCount} Selesai
-            </span>
-          </div>
-          <div>
-            <div className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
-              {completedTotalCount}
+          {/* Kartu 2: Total Job Desk Aktif */}
+          <div className="p-5 border-b sm:border-b-0 lg:border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Total Job Desk Aktif
+              </span>
+              <span className="font-semibold text-[10px] px-2 py-0.5 rounded-none bg-indigo-50 dark:bg-indigo-950/40 text-primary border border-indigo-200 dark:border-indigo-900">
+                {activeJobsCount} Tugas
+              </span>
             </div>
-            <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
-              Total job desk telah disetujui &amp; terarsip
-            </p>
+            <div>
+              <div className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
+                {activeJobsCount}
+              </div>
+              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={activeJobsSubtext}>
+                {activeJobsSubtext}
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+
+          {/* Kartu 3: Perlu Tindakan Segera */}
+          <div className="p-5 border-b sm:border-b-0 sm:border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Perlu Tindakan Segera
+              </span>
+              <span className="font-semibold text-[10px] px-2 py-0.5 rounded-none bg-amber-50 dark:bg-amber-950/40 text-warning border border-amber-200 dark:border-amber-900">
+                Perhatian
+              </span>
+            </div>
+            <div>
+              <div className="text-[28px] font-bold tracking-tight text-danger leading-none">
+                {needsAttentionCount}
+              </div>
+              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={needsAttentionSubtext}>
+                {needsAttentionSubtext}
+              </p>
+            </div>
+          </div>
+
+          {/* Kartu 4: Selesai */}
+          <div className="p-5 flex flex-col justify-between gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Selesai
+              </span>
+              <span className="font-semibold text-[10px] px-2 py-0.5 rounded-none bg-emerald-50 dark:bg-emerald-950/40 text-success border border-emerald-200 dark:border-emerald-900">
+                +{completedTotalCount} Selesai
+              </span>
+            </div>
+            <div>
+              <div className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
+                {completedTotalCount}
+              </div>
+              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                Total job desk telah disetujui &amp; terarsip
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── 3. Split Grid Konten Utama (1fr vs 380px) ────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] 2xl:grid-cols-[1fr_380px] gap-6 items-start">
@@ -576,7 +665,7 @@ export function RoleDashboardContent() {
               <div className="flex items-center gap-2.5">
                 <AlertCircle className="size-4 text-danger shrink-0" />
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Antrean Tindakan &amp; Job Desk Mendesak
+                  {isClassWorkspace ? "Antrean Tugas Kuliah Mendesak" : "Antrean Tindakan & Job Desk Mendesak"}
                 </h2>
               </div>
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-none bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
@@ -745,61 +834,63 @@ export function RoleDashboardContent() {
             </div>
           </section>
 
-          {/* Panel 2: Progres Acara & Pembagian Beban Kerja */}
-          <section className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none">
-            <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <Calendar className="size-4 text-zinc-900 dark:text-zinc-100 shrink-0" />
-                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Progres Acara &amp; Pembagian Beban Kerja
-                </h2>
-              </div>
-              <Link
-                href="/dashboard/events"
-                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
-              >
-                <span>Kelola Acara</span>
-                <ArrowRight className="size-3" />
-              </Link>
-            </div>
-
-            <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-              {eventsList.length === 0 ? (
-                <div className="p-8 text-center text-xs text-zinc-500 dark:text-zinc-400">
-                  Belum ada acara aktif terdaftar.
+          {/* Panel 2: Progres Acara & Pembagian Beban Kerja (Hanya untuk Ormawa) */}
+          {!isClassWorkspace && (
+            <section className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none">
+              <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Calendar className="size-4 text-zinc-900 dark:text-zinc-100 shrink-0" />
+                  <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Progres Acara &amp; Pembagian Beban Kerja
+                  </h2>
                 </div>
-              ) : (
-                eventsList.map((evt, i) => (
-                  <div
-                    key={i}
-                    className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
-                        {evt.name}
-                      </h3>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {evt.coordinator} • {evt.totalTasks} Job Desk Terdaftar
-                      </p>
-                    </div>
-                    <div className="w-full sm:w-[150px] flex flex-col items-end gap-1.5 shrink-0">
-                      <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
-                        {evt.ratio}
-                      </span>
-                      <div className="w-full h-1.5 rounded-none bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                        <div
-                          className="h-full rounded-none bg-primary transition-all duration-300"
-                          style={{
-                            width: `${Math.min(100, Math.max(0, evt.percentage))}%`,
-                          }}
-                        />
+                <Link
+                  href="/dashboard/events"
+                  className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                >
+                  <span>Kelola Acara</span>
+                  <ArrowRight className="size-3" />
+                </Link>
+              </div>
+
+              <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                {eventsList.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-zinc-500 dark:text-zinc-400">
+                    Belum ada acara aktif terdaftar.
+                  </div>
+                ) : (
+                  eventsList.map((evt, i) => (
+                    <div
+                      key={i}
+                      className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                          {evt.name}
+                        </h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {evt.coordinator} • {evt.totalTasks} Job Desk Terdaftar
+                        </p>
+                      </div>
+                      <div className="w-full sm:w-[150px] flex flex-col items-end gap-1.5 shrink-0">
+                        <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+                          {evt.ratio}
+                        </span>
+                        <div className="w-full h-1.5 rounded-none bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                          <div
+                            className="h-full rounded-none bg-primary transition-all duration-300"
+                            style={{
+                              width: `${Math.min(100, Math.max(0, evt.percentage))}%`,
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
+                  ))
+                )}
+              </div>
+            </section>
+          )}
         </div>
 
         {/* ════ KOLOM KANAN (380px) ════ */}
@@ -810,7 +901,7 @@ export function RoleDashboardContent() {
               <div className="flex items-center gap-2">
                 <Clock className="size-4 text-zinc-900 dark:text-zinc-100" />
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Jadwal Rilis &amp; Publikasi
+                  {isClassWorkspace ? "Jadwal Deadline & Tugas Kuliah" : "Jadwal Rilis & Publikasi"}
                 </h2>
               </div>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-none bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">

@@ -122,6 +122,8 @@ export interface OrmawaInput {
 }
 
 export interface ActiveWorkspace {
+  id?: string;
+  type?: string;
   campus_id: string;
   campus_name: string;
   campus_code: string;

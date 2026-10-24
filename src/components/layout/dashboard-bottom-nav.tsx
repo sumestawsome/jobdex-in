@@ -4,39 +4,51 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getDashboardNavigation } from "@/lib/navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { useWorkspace } from "@/hooks/use-workspace";
 import { 
   LayoutDashboard, 
   ClipboardList, 
   CalendarDays, 
   Images, 
-  Bot 
+  Bot,
+  User 
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "/dashboard": LayoutDashboard,
   "/dashboard/tasks": ClipboardList,
+  "/dashboard/calendar": CalendarDays,
   "/dashboard/events": CalendarDays,
   "/dashboard/references": Images,
   "/dashboard/ai": Bot,
+  "/dashboard/profile": User,
 };
 
 export function DashboardBottomNav() {
   const pathname = usePathname();
   const { userProfile } = useAuth();
+  const { isClassWorkspace } = useWorkspace();
   
   if (!userProfile) return null;
   
-  const navItems = getDashboardNavigation(userProfile);
-  const bottomPaths = [
-    "/dashboard",
-    "/dashboard/tasks",
-    "/dashboard/events",
-    "/dashboard/references",
-    "/dashboard/ai"
-  ];
+  const navItems = getDashboardNavigation(userProfile, { isClassWorkspace });
   
-  // Filter only valid paths that this user's role has permission to access
-  const activeBottomItems = navItems.filter((item) => bottomPaths.includes(item.href));
+  const activeBottomItems = isClassWorkspace
+    ? [
+        { label: "Ringkasan", href: "/dashboard" },
+        { label: "Tugas", href: "/dashboard/tasks" },
+        { label: "Kalender", href: "/dashboard/calendar" },
+        { label: "Profil", href: "/dashboard/profile" },
+      ]
+    : navItems.filter((item) =>
+        [
+          "/dashboard",
+          "/dashboard/tasks",
+          "/dashboard/events",
+          "/dashboard/references",
+          "/dashboard/ai",
+        ].includes(item.href)
+      );
 
   return (
     <nav className="jd-bottom-nav md:hidden">

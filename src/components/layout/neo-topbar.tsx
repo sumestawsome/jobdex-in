@@ -12,13 +12,15 @@ import { Sun, Moon, LogOut, User, Home, ChevronDown, Menu, AlertTriangle } from 
 import { subscribeWhatsAppSystemSettings } from "@/lib/firebase/system-settings";
 import type { WhatsAppSystemSettings } from "@/types";
 import { WorkspaceNavSwitcher } from "@/components/workspace/workspace-nav-switcher";
+import { useWorkspace } from "@/hooks/use-workspace";
 
-function getPageTitle(pathname: string): string {
-  if (pathname === "/dashboard") return "Ringkasan";
+function getPageTitle(pathname: string, isClass?: boolean): string {
+  if (pathname === "/dashboard") return isClass ? "Ringkasan Tugas Kuliah" : "Ringkasan";
   if (pathname.startsWith("/dashboard/workspace")) return "Ruang Kerja";
-  if (pathname.startsWith("/dashboard/tasks")) return "Job Desk";
+  if (pathname.startsWith("/dashboard/tasks")) return isClass ? "Tugas Kuliah" : "Job Desk";
+  if (pathname.startsWith("/dashboard/calendar")) return "Kalender";
   if (pathname.startsWith("/dashboard/events")) return "Acara";
-  if (pathname.startsWith("/dashboard/members")) return "Anggota";
+  if (pathname.startsWith("/dashboard/members")) return isClass ? "Anggota Kelas" : "Anggota";
   if (pathname.startsWith("/dashboard/references")) return "Referensi";
   if (pathname.startsWith("/dashboard/ai")) return "AI Assistant";
   if (pathname.startsWith("/dashboard/setup")) return "Setup";
@@ -43,6 +45,7 @@ export function NeoTopbar(props: {
   const router = useRouter();
   const pathname = usePathname();
   const { user, userProfile } = useAuth();
+  const { isClassWorkspace } = useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -70,7 +73,7 @@ export function NeoTopbar(props: {
   }
 
   const isDark = theme === "dark";
-  const pageTitle = getPageTitle(pathname);
+  const pageTitle = getPageTitle(pathname, isClassWorkspace);
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 rounded-none shadow-none">

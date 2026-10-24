@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { WorkspaceBadge } from "@/components/workspace/workspace-badge";
 import type { Event, Task, UserProfile } from "@/types";
 
+import { useWorkspace } from "@/hooks/use-workspace";
 import { Eye, Pencil, Archive, Sparkles } from "lucide-react";
 
 type TasksTableProps = {
@@ -30,6 +31,7 @@ export function TasksTable({
   onEdit,
   onArchive,
 }: TasksTableProps) {
+  const { isClassWorkspace } = useWorkspace();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [refDialogOpen, setRefDialogOpen] = useState(false);
 
@@ -41,8 +43,12 @@ export function TasksTable({
             <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/90">
               <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Nama Tugas</th>
               <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Ruang Kerja</th>
-              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">PIC</th>
-              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Acara / Divisi</th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                {isClassWorkspace ? "Mata Kuliah" : "PIC"}
+              </th>
+              <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                {isClassWorkspace ? "Tempat Pengumpulan" : "Acara / Divisi"}
+              </th>
               <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Deadline</th>
               <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Prioritas</th>
               <th className="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">Status</th>
@@ -79,9 +85,23 @@ export function TasksTable({
                     />
                   </td>
                   <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
-                    {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
+                    {isClassWorkspace ? (
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                        {task.course_name || task.subject_name || "Umum"}
+                      </span>
+                    ) : (
+                      usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{eventName}</td>
+                  <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
+                    {isClassWorkspace ? (
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate max-w-[180px] inline-block">
+                        {task.submission_url || task.submission_link || "E-Learning Undiksha"}
+                      </span>
+                    ) : (
+                      eventName
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{formatTaskDate(task.deadline)}</td>
                   <td className="px-4 py-3">
                     <TaskPriorityBadge priority={task.priority} />

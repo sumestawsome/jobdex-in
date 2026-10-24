@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { WorkspaceBadge } from "@/components/workspace/workspace-badge";
 import type { Event, Task, UserProfile } from "@/types";
 
+import { useWorkspace } from "@/hooks/use-workspace";
 import { Eye, Pencil, Archive, Sparkles } from "lucide-react";
 
 type TaskCardProps = {
@@ -30,6 +31,8 @@ export function TaskCard({
   onEdit,
   onArchive,
 }: TaskCardProps) {
+  const { isClassWorkspace } = useWorkspace();
+  const isClass = isClassWorkspace || task.type === "tugas_kuliah";
   const [refDialogOpen, setRefDialogOpen] = useState(false);
 
   const riskLevel = getRiskLevelFromTask(task);
@@ -55,10 +58,16 @@ export function TaskCard({
         <div className="flex flex-wrap items-center gap-1.5">
           <TaskStatusBadge status={task.status} />
           <TaskPriorityBadge priority={task.priority} />
-          <WorkspaceBadge
-            campusId={task.campus_id || task.univ_id}
-            orgId={task.org_id || task.organization_id}
-          />
+          {isClass ? (
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-none bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-none uppercase tracking-wide">
+              📚 {task.course_name || task.subject_name || "Mata Kuliah"}
+            </span>
+          ) : (
+            <WorkspaceBadge
+              campusId={task.campus_id || task.univ_id}
+              orgId={task.org_id || task.organization_id}
+            />
+          )}
         </div>
 
         {/* Task Title */}
@@ -68,24 +77,43 @@ export function TaskCard({
 
         {/* Task Meta List */}
         <dl className="mt-3 space-y-2 text-xs border-t border-zinc-200 dark:border-zinc-800 pt-3">
-          <div className="flex justify-between gap-2">
-            <dt className="text-zinc-500 dark:text-zinc-400">PIC</dt>
-            <dd className="font-semibold text-zinc-900 dark:text-zinc-100">
-              {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt className="text-zinc-500 dark:text-zinc-400">Deadline</dt>
-            <dd className="font-semibold text-zinc-900 dark:text-zinc-100">
-              {formatTaskDate(task.deadline)}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt className="text-zinc-500 dark:text-zinc-400">Acara/Divisi</dt>
-            <dd className="text-right font-semibold text-zinc-900 dark:text-zinc-100">
-              {eventName}
-            </dd>
-          </div>
+          {isClass ? (
+            <>
+              <div className="flex justify-between gap-2">
+                <dt className="text-zinc-500 dark:text-zinc-400">Tempat Pengumpulan</dt>
+                <dd className="font-semibold text-zinc-900 dark:text-zinc-100 truncate max-w-[200px]" title={task.submission_url || task.submission_link || "E-Learning Undiksha"}>
+                  {task.submission_url || task.submission_link || "E-Learning Undiksha"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-zinc-500 dark:text-zinc-400">Tenggat Waktu</dt>
+                <dd className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {formatTaskDate(task.deadline)}
+                </dd>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between gap-2">
+                <dt className="text-zinc-500 dark:text-zinc-400">PIC</dt>
+                <dd className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-zinc-500 dark:text-zinc-400">Deadline</dt>
+                <dd className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {formatTaskDate(task.deadline)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-zinc-500 dark:text-zinc-400">Acara/Divisi</dt>
+                <dd className="text-right font-semibold text-zinc-900 dark:text-zinc-100">
+                  {eventName}
+                </dd>
+              </div>
+            </>
+          )}
           <div className="flex justify-between gap-2 items-center">
             <dt className="text-zinc-500 dark:text-zinc-400">Risiko</dt>
             <dd>

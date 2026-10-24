@@ -1,1 +1,1 @@
-export { useWorkspace } from "@/contexts/workspace-context";
+export { useWorkspace, isClassWorkspace } from "@/contexts/workspace-context";

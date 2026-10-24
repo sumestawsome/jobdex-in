@@ -6,6 +6,8 @@ import { getDashboardNavigation } from "@/lib/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { RoleBadge } from "@/components/ui/role-badge";
 
+import { useWorkspace } from "@/hooks/use-workspace";
+
 function getNavItemClass(isActive: boolean) {
   const base = "px-3 py-2.5 text-sm font-semibold transition-colors";
 
@@ -19,7 +21,8 @@ function getNavItemClass(isActive: boolean) {
 export function DashboardSidebar() {
   const pathname = usePathname();
   const { user, userProfile } = useAuth();
-  const navItems = getDashboardNavigation(userProfile);
+  const { isClassWorkspace } = useWorkspace();
+  const navItems = getDashboardNavigation(userProfile, { isClassWorkspace });
 
   return (
     <aside className="hidden w-64 shrink-0 border-r lg:flex lg:flex-col jd-sidebar">
