@@ -2,6 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { canTriggerTaskNotification, getServerAuthContext } from "@/lib/server/auth";
 import { getAdminDb } from "@/lib/server/firebase-admin";
 import { notifyTaskEvent } from "@/lib/server/notifications";
+import {
+  isAcademicClassTask,
+  handleAcademicTaskCreated,
+  handleAcademicTaskUpdated,
+} from "@/lib/server/academic-broadcast";
 import type { Task, TaskStatus } from "@/types";
 
 export const runtime = "nodejs";
@@ -18,6 +23,14 @@ export async function POST(request: NextRequest) {
       revisionNotes?: string;
       uploadUrl?: string;
       thumbnailUrl?: string;
+      changes?: {
+        deadlineChanged?: boolean;
+        descriptionChanged?: boolean;
+        oldDeadline?: unknown;
+        newDeadline?: unknown;
+        oldDescription?: string;
+        newDescription?: string;
+      };
     };
 
     if (!body.taskId || !body.eventType) {
@@ -29,6 +42,7 @@ export async function POST(request: NextRequest) {
 
     const allowedEvents = [
       "task_created",
+      "task_updated",
       "task_status_changed",
       "task_help_needed",
       "task_result_uploaded",
@@ -65,6 +79,30 @@ export async function POST(request: NextRequest) {
         { error: "Anda tidak punya akses untuk task ini." },
         { status: 403 },
       );
+    }
+
+    // --- Khusus Ruang Kerja Kelas / Akademik ---
+    if (isAcademicClassTask(task)) {
+      if (body.eventType === "task_created") {
+        const academicRes = await handleAcademicTaskCreated(body.taskId, profile.id);
+        return NextResponse.json({
+          ok: true,
+          whatsappSent: academicRes.sent,
+          reason: academicRes.reason,
+          diffDays: academicRes.diffDays,
+          isAcademic: true,
+        });
+      }
+
+      if (body.eventType === "task_updated") {
+        const academicRes = await handleAcademicTaskUpdated(body.taskId, profile.id, body.changes);
+        return NextResponse.json({
+          ok: true,
+          whatsappSent: academicRes.sent,
+          reason: academicRes.reason,
+          isAcademic: true,
+        });
+      }
     }
 
     const result = await notifyTaskEvent({

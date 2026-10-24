@@ -378,6 +378,19 @@ export async function createTask(input: TaskInput, createdBy: string) {
     created_by: createdBy,
     created_at: serverTimestamp(),
     updated_at: serverTimestamp(),
+    workspace_id: input.workspace_id || orgId,
+    course_name: input.course_name || input.subject_name || "",
+    subject_name: input.subject_name || input.course_name || "",
+    submission_url: input.submission_url || input.submission_link || "",
+    submission_link: input.submission_link || input.submission_url || "",
+    reminders_sent: input.reminders_sent || [],
+    notification_tracker: input.notification_tracker || {
+      instant_created_sent: false,
+      milestones_sent: [],
+      last_sent_at: null,
+      last_edit_broadcast_at: null,
+      edit_count: 0,
+    },
     category_key: input.category_key || "",
     category_label: input.category_label || "",
     subcategory_key: input.subcategory_key || "",
@@ -508,6 +521,22 @@ export async function updateTask(
     design_ref_links: input.design_ref_links || [],
     drive_ref_links: input.drive_ref_links || [],
     design_kit_source: input.design_kit_source ?? null,
+    // Academic / Class task fields
+    ...(input.workspace_id ? { workspace_id: input.workspace_id } : {}),
+    ...(input.course_name || input.subject_name
+      ? {
+          course_name: input.course_name || input.subject_name,
+          subject_name: input.subject_name || input.course_name,
+        }
+      : {}),
+    ...(input.submission_url || input.submission_link
+      ? {
+          submission_url: input.submission_url || input.submission_link,
+          submission_link: input.submission_link || input.submission_url,
+        }
+      : {}),
+    ...(input.reminders_sent ? { reminders_sent: input.reminders_sent } : {}),
+    ...(input.notification_tracker ? { notification_tracker: input.notification_tracker } : {}),
   });
 
   if (oldData && oldData.type === "acara" && oldData.event_id) {

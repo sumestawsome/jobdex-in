@@ -109,6 +109,26 @@ export async function resolveTaskNotificationTarget(
 ): Promise<TaskNotificationTarget | null> {
   const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as "fonnte" | "wablas";
   const defaultGroupId = getDefaultGroupId();
+
+  // Support Academic / Class Workspaces
+  const isClassTask =
+    task.type === ("tugas_kuliah" as Task["type"]) ||
+    task.workspace_id === "ws_ilkom_2024" ||
+    task.org_id === "ws_ilkom_2024" ||
+    task.organization_id === "ws_ilkom_2024";
+
+  if (isClassTask) {
+    const classGroupId = "120363411033795051@g.us";
+    const target = {
+      targetType: "default_group",
+      recipient: normalizeWhatsAppGroupId(classGroupId, provider),
+      reason: "class workspace announcement community",
+      groupName: "Kelas Ilmu Komputer 2024",
+    } satisfies TaskNotificationTarget;
+    logNotificationRouting(task, undefined, target);
+    return target;
+  }
+
   const isEventTask = Boolean(task.event_id || task.type === "acara");
   const event = await getEventForTask(task, eventsCache);
 

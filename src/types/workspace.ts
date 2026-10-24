@@ -1,4 +1,35 @@
-export type OrmawaType = "BEM" | "DPM" | "HMJ" | "UKM" | "LAINNYA";
+export type WorkspaceType = "ormawa" | "kelas";
+export type OrmawaType = "BEM" | "DPM" | "HMJ" | "UKM" | "LAINNYA" | "KELAS" | "kelas";
+
+export interface WorkspaceWhatsAppSettings {
+  group_id: string;
+  channel_type?: "community_announcement" | "group";
+  enabled: boolean;
+}
+
+export interface WorkspaceReminderRules {
+  milestones_days: number[]; // [5, 3, 1]
+  urgent_threshold_days: number; // 3
+  cron_hour_wita: number; // 12
+}
+
+export interface WorkspaceDoc {
+  id: string;
+  name: string;
+  short_name: string;
+  institution?: string;
+  campus_id?: string;
+  campus_code?: string;
+  type: WorkspaceType;
+  status: "aktif" | "nonaktif";
+  whatsapp_settings?: WorkspaceWhatsAppSettings;
+  reminder_rules?: WorkspaceReminderRules;
+  created_at?: unknown;
+  created_by?: string;
+  korti_id?: string;
+  korti_name?: string;
+  korti_email?: string;
+}
 
 export interface Campus {
   id: string;
@@ -44,6 +75,7 @@ export interface Ormawa {
   short_name: string;
   slug?: string;
   type: OrmawaType;
+  workspace_type?: WorkspaceType;
   faculty?: string;
   description: string;
   member_count: number;
@@ -54,6 +86,8 @@ export interface Ormawa {
   contact_email?: string;
   contact_whatsapp?: string;
   whatsapp_group_id?: string;
+  whatsapp_settings?: WorkspaceWhatsAppSettings;
+  reminder_rules?: WorkspaceReminderRules;
   created_at?: unknown;
   updated_at?: unknown;
 }
@@ -69,6 +103,7 @@ export interface OrmawaInput {
   short_name: string;
   slug?: string;
   type: OrmawaType;
+  workspace_type?: WorkspaceType;
   faculty?: string;
   description?: string;
   logo_url?: string;
@@ -76,6 +111,8 @@ export interface OrmawaInput {
   contact_email?: string;
   contact_whatsapp?: string;
   whatsapp_group_id?: string;
+  whatsapp_settings?: WorkspaceWhatsAppSettings;
+  reminder_rules?: WorkspaceReminderRules;
 }
 
 export interface ActiveWorkspace {
@@ -84,11 +121,13 @@ export interface ActiveWorkspace {
   campus_code: string;
   org_id: string;
   org_name: string;
-  org_type: OrmawaType;
+  org_type: OrmawaType | "kelas";
+  workspace_type?: WorkspaceType;
   campusId?: string;
   univ_id?: string;
   univId?: string;
   orgId?: string;
+  whatsapp_group_id?: string;
 }
 
 export interface WorkspaceHierarchy {

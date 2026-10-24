@@ -53,10 +53,29 @@ export function TaskDetail({
 
   const eventName = task.event_id ? eventsById.get(task.event_id)?.name ?? "" : "";
 
-  const rows = [
-    ["Tipe task", task.type],
-    ["Acara", task.event_id ? eventName || "Acara tidak ditemukan" : "-"],
-    ["Divisi", task.division_id || "-"],
+  const rows: Array<[string, React.ReactNode]> = [
+    ["Tipe task", task.type === "tugas_kuliah" ? "Tugas Kuliah" : task.type],
+    ...(task.course_name || task.subject_name
+      ? [["Mata Kuliah", task.course_name || task.subject_name] as [string, React.ReactNode]]
+      : []),
+    ...(task.submission_url || task.submission_link
+      ? [
+          [
+            "Tautan Pengumpulan",
+            <a
+              key="sub_link"
+              href={task.submission_url || task.submission_link}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sky-600 dark:text-sky-400 underline break-all font-medium hover:text-sky-800"
+            >
+              {task.submission_url || task.submission_link}
+            </a>,
+          ] as [string, React.ReactNode],
+        ]
+      : []),
+    ...(task.type === "acara" ? [["Acara", task.event_id ? eventName || "Acara tidak ditemukan" : "-"] as [string, React.ReactNode]] : []),
+    ...(task.type === "divisi" ? [["Divisi", task.division_id || "-"] as [string, React.ReactNode]] : []),
     ["PIC", usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"],
     ["Koordinator", usersById.get(task.coordinator_id)?.name ?? "User tidak ditemukan"],
     ["Deadline", formatTaskDate(task.deadline)],

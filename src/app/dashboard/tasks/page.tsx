@@ -23,6 +23,7 @@ import {
   createTask,
   getTasksForProfile,
   getTasksByEvent,
+  getTaskDateInputValue,
   updateTask,
 } from "@/lib/firebase/tasks";
 import { canCreateTask, canManageTask } from "@/lib/permissions";
@@ -263,18 +264,55 @@ export default function TasksPage() {
 
     try {
       if (taskId) {
+        const oldDeadline = selectedTask?.deadline ? getTaskDateInputValue(selectedTask.deadline) : "";
+        const newDeadline = input.deadline || "";
+        const oldDesc = selectedTask?.description || "";
+        const newDesc = input.description || "";
+        const deadlineChanged = Boolean(oldDeadline && newDeadline && oldDeadline !== newDeadline);
+        const descriptionChanged = Boolean(oldDesc !== newDesc);
+
         await updateTask(taskId, input);
         void showSuccess("Job desk berhasil diperbarui!");
+
+        if (user && (deadlineChanged || descriptionChanged)) {
+          void (async () => {
+            try {
+              const token = await user.getIdToken();
+              await fetch("/api/notifications/whatsapp", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  taskId,
+                  eventType: "task_updated",
+                  changes: {
+                    deadlineChanged,
+                    descriptionChanged,
+                    oldDeadline,
+                    newDeadline,
+                    oldDescription: oldDesc,
+                    newDescription: newDesc,
+                  },
+                }),
+              });
+            } catch {
+              // Notification failure doesn't block task update
+            }
+          })();
+        }
       } else {
         const inputWithTenant = {
           ...input,
-          organization_id: activeWorkspace.org_id,
-          org_id: activeWorkspace.org_id,
-          orgId: activeWorkspace.org_id,
-          campus_id: activeWorkspace.campus_id,
-          campusId: activeWorkspace.campus_id,
-          univ_id: activeWorkspace.campus_id,
-          univId: activeWorkspace.campus_id,
+          workspace_id: input.workspace_id || activeWorkspace.org_id,
+          organization_id: input.organization_id || activeWorkspace.org_id,
+          org_id: input.org_id || activeWorkspace.org_id,
+          orgId: input.orgId || activeWorkspace.org_id,
+          campus_id: input.campus_id || activeWorkspace.campus_id,
+          campusId: input.campusId || activeWorkspace.campus_id,
+          univ_id: input.univ_id || activeWorkspace.campus_id,
+          univId: input.univId || activeWorkspace.campus_id,
         };
         const newTaskId = await createTask(inputWithTenant as TaskInput, userProfile.id);
         void showSuccess("Job desk baru berhasil ditambahkan!");

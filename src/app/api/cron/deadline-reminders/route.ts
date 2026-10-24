@@ -20,6 +20,7 @@ import {
 import { groupTasksByTarget } from "@/lib/server/group-routing";
 import type { GroupRouteTarget } from "@/lib/server/group-routing";
 import type { ReminderDigest } from "@/lib/server/deadline-reminders";
+import { processAcademicCronReminders } from "@/lib/server/academic-broadcast";
 import type { Task, UserProfile, Event } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -714,11 +715,24 @@ async function handleCron(request: Request) {
 
     await Promise.allSettled([...groupPromises, ...emptyEventPromises]);
 
+    // 5. Process Academic / Class Task Reminders (Skenario 2: H-5, H-3, H-1)
+    let academicCronResult = { checked: 0, sent: 0, skipped: 0, errors: [] as string[], tasks: [] as Array<{ id: string; milestone: string; status: string; taskName: string }> };
+    if (!targetGroupIdParam || targetGroupIdParam === "120363411033795051@g.us") {
+      try {
+        academicCronResult = await processAcademicCronReminders(db, { force, dryRun });
+      } catch (acadErr) {
+        console.error("Failed to process academic cron reminders:", acadErr);
+        const errMsg = acadErr instanceof Error ? acadErr.message : "unknown error";
+        academicCronResult.errors.push(errMsg);
+        errors.push(`Academic Reminders: ${errMsg}`);
+      }
+    }
+
     skipped.alreadyInDigestToday = alreadyInDigestToday;
 
-    const totalSent = smartSent + digestSentCount;
-    const totalFailed = smartFailed + digestFailedCount;
-    const allErrors = [...smartErrors, ...digestErrors];
+    const totalSent = smartSent + digestSentCount + academicCronResult.sent;
+    const totalFailed = smartFailed + digestFailedCount + academicCronResult.errors.length;
+    const allErrors = [...smartErrors, ...digestErrors, ...academicCronResult.errors];
     const durationMs = Date.now() - startTime;
 
     return NextResponse.json({
@@ -734,9 +748,11 @@ async function handleCron(request: Request) {
       eligibleTasks: eligibleTasksCount,
       groupsChecked: taskGroups.size + emptyEventsToProcess.length,
       groups: groupResults,
+      academicReminders: academicCronResult,
       digestSent:
         digestSentCount > 0 ||
-        (dryRun && (eligibleTasksCount > 0 || emptyEventsToProcess.length > 0)),
+        academicCronResult.sent > 0 ||
+        (dryRun && (eligibleTasksCount > 0 || emptyEventsToProcess.length > 0 || academicCronResult.tasks.length > 0)),
       digestTaskCount,
       newTaskIdsInDigest,
       categories: categoriesSum,

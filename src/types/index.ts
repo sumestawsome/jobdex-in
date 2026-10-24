@@ -31,7 +31,8 @@ export type UserRole =
   | "super_admin"
   | "koordinator_divisi"
   | "koordinator_acara"
-  | "anggota";
+  | "anggota"
+  | "korti";
 
 export type UserProfile = {
   id: string;
@@ -54,6 +55,7 @@ export type UserProfile = {
   whatsapp_command_pin?: string;
   aliases?: string[];
   nickname?: string;
+  workspace_roles?: Record<string, string>;
 };
 
 export type EventStatus =
@@ -150,7 +152,7 @@ export type EventInput = {
   division_id?: string;
 };
 
-export type TaskType = "divisi" | "acara";
+export type TaskType = "divisi" | "acara" | "tugas_kuliah";
 
 export type TaskStatus =
   | "belum_dimulai"
@@ -169,6 +171,14 @@ export type TaskPriority = "rendah" | "sedang" | "tinggi" | "kritis";
 
 export type ApprovalStatus = "pending" | "approved" | "need_revision";
 
+export type TaskNotificationTracker = {
+  instant_created_sent?: boolean;
+  milestones_sent?: string[];
+  last_sent_at?: unknown;
+  last_edit_broadcast_at?: unknown;
+  edit_count?: number;
+};
+
 export type Task = {
   id: string;
   organization_id: string;
@@ -178,10 +188,12 @@ export type Task = {
   univId?: string;
   campus_id?: string;
   campusId?: string;
+  workspace_id?: string;
   type: TaskType;
   division_id?: string;
   event_id?: string;
   name: string;
+  title?: string;
   description: string;
   pic_id: string;
   coordinator_id: string;
@@ -189,6 +201,13 @@ export type Task = {
   status: TaskStatus;
   priority: TaskPriority;
   copywriting: string;
+  // Academic / Class task fields
+  course_name?: string;
+  subject_name?: string;
+  submission_url?: string;
+  submission_link?: string;
+  reminders_sent?: string[];
+  notification_tracker?: TaskNotificationTracker;
   // Legacy single-URL fields (dipertahankan untuk backward compat)
   copywriting_docs_url: string;
   design_reference_url: string;
@@ -469,10 +488,12 @@ export type TaskInput = {
   campusId?: string;
   univ_id?: string;
   univId?: string;
+  workspace_id?: string;
   type: TaskType;
-  event_id: string;
+  event_id?: string;
   division_id?: string;
   name: string;
+  title?: string;
   description: string;
   pic_id: string;
   coordinator_id: string;
@@ -480,6 +501,13 @@ export type TaskInput = {
   status: TaskStatus;
   priority: TaskPriority;
   copywriting: string;
+  // Academic / Class task fields
+  course_name?: string;
+  subject_name?: string;
+  submission_url?: string;
+  submission_link?: string;
+  reminders_sent?: string[];
+  notification_tracker?: TaskNotificationTracker;
   // Legacy single-URL fields
   copywriting_docs_url: string;
   design_reference_url: string;

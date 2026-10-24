@@ -25,10 +25,24 @@ export function isKoordinatorAcara(
   return getRole(input) === USER_ROLES.KOORDINATOR_ACARA;
 }
 
+export function isKorti(
+  input: UserProfile | UserRole | null | undefined,
+  workspaceId?: string,
+) {
+  if (!input) return false;
+  const role = getRole(input);
+  if (role === "korti") return true;
+  if (typeof input === "object" && workspaceId && input.workspace_roles?.[workspaceId] === "korti") {
+    return true;
+  }
+  return false;
+}
+
 export function isKoordinator(
   input: UserProfile | UserRole | null | undefined,
+  workspaceId?: string,
 ) {
-  return isSuperAdmin(input) || isKoordinatorDivisi(input) || isKoordinatorAcara(input);
+  return isSuperAdmin(input) || isKoordinatorDivisi(input) || isKoordinatorAcara(input) || isKorti(input, workspaceId);
 }
 
 export function isAnggota(input: UserProfile | UserRole | null | undefined) {
@@ -79,12 +93,17 @@ export function canManageEvent(
 export function canCreateTask(
   profile: UserProfile | UserRole | null | undefined,
   eventRole?: string,
+  workspaceId?: string,
 ) {
   if (!profile) return false;
   const role = getRole(profile);
   const normalizedRole = eventRole?.toLowerCase().replace(/\s+/g, "_");
 
-  if (role === "super_admin") return true;
+  if (role === "super_admin" || role === "korti") return true;
+
+  if (typeof profile === "object" && workspaceId && (profile.workspace_roles?.[workspaceId] === "korti" || profile.workspace_roles?.[workspaceId] === "super_admin")) {
+    return true;
+  }
 
   if (normalizedRole === "koordinator_acara" || normalizedRole === "sekretaris_acara") {
     return true;
@@ -110,6 +129,16 @@ export function canManageTask(
   const normalizedRole = eventRole?.toLowerCase().replace(/\s+/g, "_");
 
   if (role === "super_admin") return true;
+
+  if (task.type === ("tugas_kuliah" as Task["type"])) {
+    if (role === "korti") return true;
+    if (task.coordinator_id === profile.id || task.created_by === profile.id) return true;
+    const taskWs = task.workspace_id || task.org_id || task.organization_id;
+    if (taskWs && (profile.workspace_roles?.[taskWs] === "korti" || profile.workspace_roles?.[taskWs] === "super_admin")) {
+      return true;
+    }
+    return false;
+  }
 
   if (task.type === "acara") {
     if (normalizedRole === "koordinator_acara" || normalizedRole === "sekretaris_acara" || task.coordinator_id === profile.id) {

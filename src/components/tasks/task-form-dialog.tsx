@@ -131,7 +131,22 @@ function TaskForm({
     reason: string;
   } | null>(null);
 
-  const [type, setType] = useState<TaskType>(task?.type ?? (defaultEventId ? "acara" : "divisi"));
+  const isClassWorkspace =
+    activeWorkspace.org_type === "KELAS" ||
+    activeWorkspace.org_type === "kelas" ||
+    activeWorkspace.workspace_type === "kelas" ||
+    activeWorkspace.org_id === "ws_ilkom_2024" ||
+    task?.type === "tugas_kuliah";
+
+  const [type, setType] = useState<TaskType>(
+    task?.type ?? (isClassWorkspace ? "tugas_kuliah" : defaultEventId ? "acara" : "divisi")
+  );
+  const [courseName, setCourseName] = useState(
+    task?.course_name ?? task?.subject_name ?? ""
+  );
+  const [submissionUrl, setSubmissionUrl] = useState(
+    task?.submission_url ?? task?.submission_link ?? ""
+  );
   const [eventId, setEventId] = useState(task?.event_id ?? defaultEventId ?? "");
   const [name, setName] = useState(task?.name ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
@@ -554,6 +569,11 @@ function TaskForm({
     try {
       await onSave(
         {
+          workspace_id: task?.workspace_id || activeWorkspace.org_id,
+          course_name: courseName.trim(),
+          subject_name: courseName.trim(),
+          submission_url: submissionUrl.trim(),
+          submission_link: submissionUrl.trim(),
           organization_id: task?.organization_id || activeWorkspace.org_id || "default_org",
           org_id: task?.org_id || activeWorkspace.org_id || "default_org",
           orgId: task?.orgId || activeWorkspace.org_id || "default_org",
@@ -647,11 +667,37 @@ function TaskForm({
                 value={type}
                 onChange={(event) => setType(event.target.value as TaskType)}
               >
-                <option value="divisi">Divisi</option>
-                <option value="acara">Acara</option>
+                {isClassWorkspace ? (
+                  <option value="tugas_kuliah">Tugas Kuliah / Akademik</option>
+                ) : (
+                  <>
+                    <option value="divisi">Divisi</option>
+                    <option value="acara">Acara</option>
+                    <option value="tugas_kuliah">Tugas Kuliah</option>
+                  </>
+                )}
               </select>
             </Field>
           </div>
+
+          {type === "tugas_kuliah" ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Mata Kuliah (Course)">
+                <Input
+                  placeholder="Contoh: Pemrograman Web, Basis Data Lanjut"
+                  value={courseName}
+                  onChange={(event) => setCourseName(event.target.value)}
+                />
+              </Field>
+              <Field label="Tautan Pengumpulan (LMS / Drive / Form)">
+                <Input
+                  placeholder="https://undiksha.id/... atau Google Drive link"
+                  value={submissionUrl}
+                  onChange={(event) => setSubmissionUrl(event.target.value)}
+                />
+              </Field>
+            </div>
+          ) : null}
 
           {type === "acara" ? (
             <Field label="Event">

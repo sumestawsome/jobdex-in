@@ -44,6 +44,18 @@ const INITIAL_USER_WORKSPACES: UserWorkspaceItem[] = [
     activeTasks: 4,
     totalMembers: 48,
   },
+  {
+    id: "ws_ilkom_2024",
+    campusId: "univ-undiksha",
+    name: "Ilmu Komputer Undiksha 2024",
+    campusName: "Universitas Pendidikan Ganesha",
+    campusCode: "UNDIKSHA",
+    initials: "IK",
+    type: "KELAS",
+    role: "Korti",
+    activeTasks: 1,
+    totalMembers: 35,
+  },
 ];
 
 export default function WorkspaceManagementPage() {
