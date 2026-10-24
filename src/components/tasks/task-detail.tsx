@@ -61,16 +61,26 @@ export function TaskDetail({
     ...(task.submission_url || task.submission_link
       ? [
           [
-            "Tautan Pengumpulan",
-            <a
-              key="sub_link"
-              href={task.submission_url || task.submission_link}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sky-600 dark:text-sky-400 underline break-all font-medium hover:text-sky-800"
-            >
-              {task.submission_url || task.submission_link}
-            </a>,
+            "Link / Tempat Pengumpulan",
+            (() => {
+              const val = (task.submission_url || task.submission_link || "").trim();
+              const isUrl = /^https?:\/\//i.test(val);
+              return isUrl ? (
+                <a
+                  key="sub_link"
+                  href={val}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sky-600 dark:text-sky-400 underline break-all font-medium hover:text-sky-800"
+                >
+                  {val}
+                </a>
+              ) : (
+                <span key="sub_text" className="font-medium text-zinc-800 dark:text-zinc-200">
+                  {val}
+                </span>
+              );
+            })(),
           ] as [string, React.ReactNode],
         ]
       : []),

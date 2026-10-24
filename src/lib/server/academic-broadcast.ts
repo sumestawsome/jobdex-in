@@ -117,6 +117,34 @@ export async function getClassWorkspaceConfig(
   };
 }
 
+export const DEFAULT_SUBMISSION_PLACE = "E-Learning Undiksha";
+export const OFFICIAL_APP_URL = "https://jobdexin.sumestawsome.xyz";
+
+/**
+ * Resolves the application base URL, strictly avoiding localhost in WhatsApp broadcasts.
+ */
+export function resolveAppBaseUrl(overrideUrl?: string): string {
+  if (overrideUrl && !overrideUrl.includes("localhost")) {
+    return overrideUrl.replace(/\/+$/, "");
+  }
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "";
+  if (envUrl && !envUrl.includes("localhost")) {
+    return envUrl.replace(/\/+$/, "");
+  }
+  return OFFICIAL_APP_URL;
+}
+
+/**
+ * Resolves the submission text or link, defaulting to "E-Learning Undiksha" if empty or "-".
+ */
+export function resolveSubmissionText(rawSubmission?: string): string {
+  const trimmed = rawSubmission?.trim();
+  if (!trimmed || trimmed === "-") {
+    return DEFAULT_SUBMISSION_PLACE;
+  }
+  return trimmed;
+}
+
 /**
  * Skenario 1 - Format pesan pengumuman tugas baru (Deadline Mepet <= 3 Hari)
  */
@@ -129,8 +157,8 @@ export function buildNewClassTaskMessage(params: {
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = params.appUrl || process.env.NEXT_PUBLIC_APP_URL || "https://jobdexin.sumestawsome.xyz";
-  const subLink = params.submissionUrl && params.submissionUrl.trim() ? params.submissionUrl.trim() : "-";
+  const appBase = resolveAppBaseUrl(params.appUrl);
+  const subLink = resolveSubmissionText(params.submissionUrl);
   const descText = params.description && params.description.trim() ? params.description.trim() : "Tidak ada catatan khusus.";
 
   return [
@@ -165,8 +193,8 @@ export function buildH5ClassReminderMessage(params: {
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = params.appUrl || process.env.NEXT_PUBLIC_APP_URL || "https://jobdexin.sumestawsome.xyz";
-  const subLink = params.submissionUrl && params.submissionUrl.trim() ? params.submissionUrl.trim() : "-";
+  const appBase = resolveAppBaseUrl(params.appUrl);
+  const subLink = resolveSubmissionText(params.submissionUrl);
 
   return [
     "⏳ *PENGINGAT TUGAS KULIAH (H-5)* 📚",
@@ -196,8 +224,8 @@ export function buildH3ClassReminderMessage(params: {
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = params.appUrl || process.env.NEXT_PUBLIC_APP_URL || "https://jobdexin.sumestawsome.xyz";
-  const subLink = params.submissionUrl && params.submissionUrl.trim() ? params.submissionUrl.trim() : "-";
+  const appBase = resolveAppBaseUrl(params.appUrl);
+  const subLink = resolveSubmissionText(params.submissionUrl);
 
   return [
     "⚠️ *PENGINGAT PROGRES TUGAS (H-3)* 📌",
@@ -227,8 +255,8 @@ export function buildH1ClassReminderMessage(params: {
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = params.appUrl || process.env.NEXT_PUBLIC_APP_URL || "https://jobdexin.sumestawsome.xyz";
-  const subLink = params.submissionUrl && params.submissionUrl.trim() ? params.submissionUrl.trim() : "-";
+  const appBase = resolveAppBaseUrl(params.appUrl);
+  const subLink = resolveSubmissionText(params.submissionUrl);
 
   return [
     "⏰ *PENGINGAT DEADLINE BESOK!* 🔥",
@@ -258,8 +286,8 @@ export function buildDeadlineChangedMessage(params: {
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = params.appUrl || process.env.NEXT_PUBLIC_APP_URL || "https://jobdexin.sumestawsome.xyz";
-  const subLink = params.submissionUrl && params.submissionUrl.trim() ? params.submissionUrl.trim() : "-";
+  const appBase = resolveAppBaseUrl(params.appUrl);
+  const subLink = resolveSubmissionText(params.submissionUrl);
 
   return [
     "⚠️ *INFO PERUBAHAN DEADLINE KULIAH* ⏰",
@@ -293,8 +321,8 @@ export function buildDescriptionChangedMessage(params: {
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = params.appUrl || process.env.NEXT_PUBLIC_APP_URL || "https://jobdexin.sumestawsome.xyz";
-  const subLink = params.submissionUrl && params.submissionUrl.trim() ? params.submissionUrl.trim() : "-";
+  const appBase = resolveAppBaseUrl(params.appUrl);
+  const subLink = resolveSubmissionText(params.submissionUrl);
 
   return [
     "📝 *UPDATE KETENTUAN TUGAS KULIAH* 💡",

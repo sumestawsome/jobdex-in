@@ -689,9 +689,9 @@ function TaskForm({
                   onChange={(event) => setCourseName(event.target.value)}
                 />
               </Field>
-              <Field label="Tautan Pengumpulan (LMS / Drive / Form)">
+              <Field label="Link / Tempat Pengumpulan (LMS / Drive / Teks)">
                 <Input
-                  placeholder="https://undiksha.id/... atau Google Drive link"
+                  placeholder="Contoh: E-learning Undiksha, https://..., atau Google Drive"
                   value={submissionUrl}
                   onChange={(event) => setSubmissionUrl(event.target.value)}
                 />

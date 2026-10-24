@@ -184,7 +184,7 @@ export async function handleCreateAcademicTaskFromWhatsApp(
   }
 
   // 3. Format Perintah:
-  // !tugas tambah [Mata Kuliah] | [Deskripsi/Ketentuan] | [Tenggat DD/MM/YYYY HH:mm atau YYYY-MM-DD]
+  // !tugas tambah [Mata Kuliah] | [Deskripsi/Ketentuan] | [Tenggat DD/MM/YYYY HH:mm atau YYYY-MM-DD] | [Link/Tempat Pengumpulan (opsional)]
   const cleanCmd = rawText.replace(/^[!/](?:jobde[xs]\s+)?tugas\s+tambah\s*/i, "").trim();
   const parts = cleanCmd.split("|").map((p) => p.trim());
 
@@ -192,10 +192,13 @@ export async function handleCreateAcademicTaskFromWhatsApp(
     const usageMsg = [
       "⚠️ *Format Perintah Tidak Sesuai*",
       "Gunakan format berikut:",
-      "*!tugas tambah [Mata Kuliah] | [Deskripsi/Ketentuan] | [Tenggat DD/MM/YYYY HH:mm]*",
+      "*!tugas tambah [Mata Kuliah] | [Deskripsi/Ketentuan] | [Tenggat DD/MM/YYYY HH:mm] | [Link/Tempat Pengumpulan (opsional)]*",
       "",
-      "*Contoh:*",
-      "`!tugas tambah Pemrograman Web | Bikin REST API Next.js & push ke GitHub | 28/10/2026 23:59`",
+      "*Contoh (dengan tempat pengumpulan):*",
+      "`!tugas tambah Pemrograman Web | Bikin REST API Next.js & push ke GitHub | 28/10/2026 23:59 | E-learning Undiksha`",
+      "",
+      "*Contoh (default E-Learning Undiksha):*",
+      "`!tugas tambah Basis Data | Praktikum Query SQL | 29/10/2026 23:59`",
     ].join("\n");
 
     await sendWhatsAppMessage({
@@ -211,7 +214,8 @@ export async function handleCreateAcademicTaskFromWhatsApp(
   const courseName = parts[0];
   const description = parts[1];
   const deadlineRaw = parts[2];
-  const submissionUrl = parts[3] || "";
+  const submissionInput = parts[3] ? parts[3].trim() : "";
+  const submissionUrl = submissionInput || "E-Learning Undiksha";
 
   // Parse tenggat
   const deadlineDate = parseAcademicDeadline(deadlineRaw);
@@ -286,7 +290,11 @@ export async function handleCreateAcademicTaskFromWhatsApp(
   }
 
   // 6. Kirim pesan balasan konfirmasi ke tempat perintah diketik (japri / grup kelas)
-  const confirmationMsg = `✅ *Tugas Berhasil Disimpan!*\nTugas *${courseName}* telah dicatat dan dijadwalkan pengingatnya.`;
+  const confirmationMsg = [
+    "✅ *Tugas Berhasil Disimpan!*",
+    `Tugas *${courseName}* telah dicatat dan dijadwalkan pengingatnya.`,
+    `🔗 *Tempat Pengumpulan:* ${submissionUrl}`,
+  ].join("\n");
 
   await sendWhatsAppMessage({
     target: replyTarget,
