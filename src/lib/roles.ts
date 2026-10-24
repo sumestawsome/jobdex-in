@@ -6,6 +6,7 @@ export const USER_ROLES = {
   KOORDINATOR_ACARA: "koordinator_acara",
   ANGGOTA: "anggota",
   KORTI: "korti",
+  ADMIN_KOMUNITAS: "admin_komunitas",
 } as const satisfies Record<string, UserRole>;
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
@@ -13,7 +14,8 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   koordinator_divisi: "Koordinator Divisi",
   koordinator_acara: "Koordinator Acara",
   anggota: "Anggota",
-  korti: "Korti (Koordinator Tingkat)",
+  korti: "Admin Komunitas",
+  admin_komunitas: "Admin Komunitas",
 };
 
 export const USER_ROLE_OPTIONS: Array<{

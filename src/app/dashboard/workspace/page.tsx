@@ -52,7 +52,7 @@ const INITIAL_USER_WORKSPACES: UserWorkspaceItem[] = [
     campusCode: "UNDIKSHA",
     initials: "IK",
     type: "KELAS",
-    role: "Korti",
+    role: "Admin Komunitas",
     activeTasks: 1,
     totalMembers: 35,
   },
@@ -336,7 +336,17 @@ export default function WorkspaceManagementPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredWorkspaces.map((workspace) => {
-              const isCurrent = workspace.id === activeWorkspace.org_id || workspace.id === "main_org";
+              const activeId = activeWorkspace.org_id || activeWorkspace.orgId || "main_org";
+              const isForkomKipActive =
+                activeId === "main_org" ||
+                activeId === "org-undiksha-forkom-kip" ||
+                activeId === "org-undiksha-bem";
+              const isForkomKipCard =
+                workspace.id === "main_org" ||
+                workspace.id === "org-undiksha-forkom-kip" ||
+                workspace.id === "org-undiksha-bem";
+
+              const isCurrent = isForkomKipCard ? isForkomKipActive : workspace.id === activeId;
 
               return (
                 <div
@@ -430,7 +440,7 @@ export default function WorkspaceManagementPage() {
                         ${
                           isCurrent
                             ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-200 dark:border-zinc-700 cursor-default"
-                            : "border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
+                            : "bg-zinc-900 text-zinc-50 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 border border-transparent cursor-pointer"
                         }
                       `}
                     >
@@ -441,8 +451,8 @@ export default function WorkspaceManagementPage() {
                         </>
                       ) : (
                         <>
-                          <span>Masuk Ruang Kerja</span>
-                          <ArrowRight className="size-3.5 text-zinc-400" />
+                          <span>Pilih Ruang Kerja</span>
+                          <ArrowRight className="size-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
                         </>
                       )}
                     </button>

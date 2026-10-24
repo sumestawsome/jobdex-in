@@ -3,6 +3,8 @@ export type OrmawaType = "BEM" | "DPM" | "HMJ" | "UKM" | "LAINNYA" | "KELAS" | "
 
 export interface WorkspaceWhatsAppSettings {
   group_id: string;
+  announcement_group_id?: string;
+  discussion_group_id?: string;
   channel_type?: "community_announcement" | "group";
   enabled: boolean;
 }
@@ -86,6 +88,8 @@ export interface Ormawa {
   contact_email?: string;
   contact_whatsapp?: string;
   whatsapp_group_id?: string;
+  whatsapp_announcement_group_id?: string;
+  whatsapp_discussion_group_id?: string;
   whatsapp_settings?: WorkspaceWhatsAppSettings;
   reminder_rules?: WorkspaceReminderRules;
   created_at?: unknown;
@@ -111,6 +115,8 @@ export interface OrmawaInput {
   contact_email?: string;
   contact_whatsapp?: string;
   whatsapp_group_id?: string;
+  whatsapp_announcement_group_id?: string;
+  whatsapp_discussion_group_id?: string;
   whatsapp_settings?: WorkspaceWhatsAppSettings;
   reminder_rules?: WorkspaceReminderRules;
 }
@@ -128,6 +134,8 @@ export interface ActiveWorkspace {
   univId?: string;
   orgId?: string;
   whatsapp_group_id?: string;
+  whatsapp_announcement_group_id?: string;
+  whatsapp_discussion_group_id?: string;
 }
 
 export interface WorkspaceHierarchy {

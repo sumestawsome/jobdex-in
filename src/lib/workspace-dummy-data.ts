@@ -37,8 +37,12 @@ export const DUMMY_ORMAWAS: Ormawa[] = [
     active_task_count: 0,
     is_active: true,
     whatsapp_group_id: "120363411033795051@g.us",
+    whatsapp_announcement_group_id: "120363411033795051@g.us",
+    whatsapp_discussion_group_id: "120363432766465224@g.us",
     whatsapp_settings: {
       group_id: "120363411033795051@g.us",
+      announcement_group_id: "120363411033795051@g.us",
+      discussion_group_id: "120363432766465224@g.us",
       channel_type: "community_announcement",
       enabled: true,
     },

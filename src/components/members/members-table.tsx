@@ -3,7 +3,7 @@
 import { Eye, Pencil, UserCheck, UserX } from "lucide-react";
 import { MemberStatusBadge } from "@/components/members/member-status-badge";
 import { WorkspaceBadge } from "@/components/workspace/workspace-badge";
-import { getDivisionRoleLabel, getInitials } from "@/components/members/member-card";
+import { getDivisionRoleLabel, getInitials, getRoleBadgeStyle } from "@/components/members/member-card";
 import type { UserProfile } from "@/types";
 
 type MembersTableProps = {
@@ -86,7 +86,7 @@ export function MembersTable({
                   <td className="px-4 py-3">
                     <div className="flex flex-col gap-1.5 items-start">
                       {/* Badge 1 (Divisi Permanen) */}
-                      <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-none bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 whitespace-nowrap shadow-none">
+                      <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-none border whitespace-nowrap shadow-none ${getRoleBadgeStyle(member.role)}`}>
                         {getDivisionRoleLabel(member.role)}
                       </span>
                       {/* Badge 2 (Kepanitiaan Acara Aktif) */}

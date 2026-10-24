@@ -86,6 +86,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       org_type: ormawa.type,
       workspace_type: ormawa.workspace_type || (ormawa.type.toLowerCase() === "kelas" ? "kelas" : "ormawa"),
       whatsapp_group_id: ormawa.whatsapp_group_id,
+      whatsapp_announcement_group_id: (ormawa as unknown as Record<string, unknown>).whatsapp_announcement_group_id as string | undefined || ormawa.whatsapp_group_id,
+      whatsapp_discussion_group_id: (ormawa as unknown as Record<string, unknown>).whatsapp_discussion_group_id as string | undefined,
     };
 
     setActiveWorkspace(newWorkspace);

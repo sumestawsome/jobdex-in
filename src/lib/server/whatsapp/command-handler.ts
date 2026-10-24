@@ -56,6 +56,7 @@ import {
   handleSiapaBelumUpdateCommand,
 } from "@/lib/server/whatsapp-task-command-executor";
 import type { UserProfile, Event, Task, NormalizedIncomingWhatsAppMessage } from "@/types";
+import { handleCreateAcademicTaskFromWhatsApp } from "@/lib/server/whatsapp-academic-task-creator";
 import { USER_ROLE_LABELS } from "@/lib/roles";
 import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 import {
@@ -81,9 +82,9 @@ function isGroupAllowedByVariants(incomingGroupId: string, allowedGroupIds: stri
 async function isGroupAllowedForJobDex(groupId: string): Promise<boolean> {
   if (!groupId) return false;
 
-  // 1. Sandbox Group is always allowed
+  // 1. Sandbox Group & Class Discussion Group are always allowed
   const variants = getGroupIdVariants(groupId);
-  if (variants.some((v) => v.includes("120363406824082148"))) {
+  if (variants.some((v) => v.includes("120363406824082148") || v.includes("120363432766465224"))) {
     return true;
   }
 
@@ -591,6 +592,38 @@ export async function executeWhatsAppWebhook(
   const message = incoming.message || "";
   const trimmed = message.trim();
   const stripped = trimmed.replace(/^[*_~`]+|[*_~`]+$/g, "").trim();
+
+  // 1. BLOKIR GRUP PENGUMUMAN KOMUNITAS (Broadcast Only)
+  // Target: 120363411033795051@g.us (Coba JobdexIn)
+  // Jalur ini pasif: Dilarang mengeksekusi perintah bot di grup ini.
+  const ANNOUNCEMENT_GROUP_ID = "120363411033795051@g.us";
+  const incomingGroupId = incoming.groupId ? incoming.groupId.replace(/\D/g, "") : "";
+  const announcementClean = ANNOUNCEMENT_GROUP_ID.replace(/\D/g, "");
+
+  if (incoming.isGroup && incomingGroupId && incomingGroupId === announcementClean) {
+    console.log("[whatsapp command] step: announcement_group_command_blocked", {
+      groupId: incoming.groupId,
+      messagePreview: trimmed.slice(0, 30),
+    });
+    return NextResponse.json({
+      ok: true,
+      ignored: true,
+      reason: "announcement_group_is_broadcast_only",
+    });
+  }
+
+  // 2. CEK PERINTAH INPUT TUGAS AKADEMIK KELAS (!tugas tambah)
+  // Format: !tugas tambah [Mata Kuliah] | [Deskripsi/Ketentuan] | [Tenggat DD/MM/YYYY HH:mm atau YYYY-MM-DD]
+  const isTugasTambahCommand = /^[!/](?:jobde[xs]\s+)?tugas\s+tambah\b/i.test(stripped);
+  if (isTugasTambahCommand) {
+    console.log("[whatsapp command] step: process_academic_task_tambah", {
+      sender: incoming.sender,
+      isGroup: incoming.isGroup,
+      groupId: incoming.groupId,
+    });
+    return await handleCreateAcademicTaskFromWhatsApp(incoming, stripped);
+  }
+
   const isJobdexPrefixed = /^[!/]jobde[xs]/i.test(stripped);
 
   // Di grup WhatsApp, abaikan pesan yang bukan untuk bot (tidak berawalan !jobdex) agar tidak spam obrolan panitia

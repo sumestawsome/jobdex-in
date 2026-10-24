@@ -5,7 +5,8 @@ import { sendWhatsAppMessage } from "@/lib/server/whatsapp";
 import type { Task, UserProfile } from "@/types";
 import { getTaskDeadlineDiffDays } from "@/lib/task-risk";
 
-export const DEFAULT_CLASS_GROUP_ID = "120363411033795051@g.us";
+export const DEFAULT_CLASS_GROUP_ID = "120363411033795051@g.us"; // Coba JobdexIn (Broadcast Only)
+export const DEFAULT_CLASS_DISCUSSION_GROUP_ID = "120363432766465224@g.us"; // CONTOH KELAS (Diskusi & Command)
 export const DEFAULT_CLASS_WORKSPACE_ID = "ws_ilkom_2024";
 export const DEFAULT_CLASS_WORKSPACE_NAME = "Kelas Ilmu Komputer 2024";
 
@@ -76,18 +77,32 @@ export async function getClassWorkspaceConfig(
   id: string;
   name: string;
   groupId: string;
+  announcementGroupId: string;
+  discussionGroupId: string;
 }> {
   const db = customDb || getAdminDb();
   try {
     const wsDoc = await db.collection("workspaces").doc(workspaceId).get();
     if (wsDoc.exists) {
       const data = wsDoc.data();
-      const groupId =
+      const announcementGroupId =
+        data?.whatsapp_announcement_group_id ||
+        data?.whatsapp_settings?.announcement_group_id ||
         data?.whatsapp_settings?.group_id ||
         data?.whatsapp_group_id ||
         DEFAULT_CLASS_GROUP_ID;
+      const discussionGroupId =
+        data?.whatsapp_discussion_group_id ||
+        data?.whatsapp_settings?.discussion_group_id ||
+        DEFAULT_CLASS_DISCUSSION_GROUP_ID;
       const name = data?.name || DEFAULT_CLASS_WORKSPACE_NAME;
-      return { id: workspaceId, name, groupId };
+      return {
+        id: workspaceId,
+        name,
+        groupId: announcementGroupId,
+        announcementGroupId,
+        discussionGroupId,
+      };
     }
   } catch (err) {
     console.warn(`[AcademicBroadcast] Failed to read workspace ${workspaceId}:`, err);
@@ -97,6 +112,8 @@ export async function getClassWorkspaceConfig(
     id: workspaceId,
     name: DEFAULT_CLASS_WORKSPACE_NAME,
     groupId: DEFAULT_CLASS_GROUP_ID,
+    announcementGroupId: DEFAULT_CLASS_GROUP_ID,
+    discussionGroupId: DEFAULT_CLASS_DISCUSSION_GROUP_ID,
   };
 }
 
@@ -120,7 +137,7 @@ export function buildNewClassTaskMessage(params: {
     "📢 *PENGUMUMAN TUGAS KULIAH* ✨",
     `Halo rekan-rekan *${params.workspaceName}*!`,
     "",
-    "Ada tugas baru yang baru saja diinput oleh Korti:",
+    "Ada tugas baru yang baru saja diinput oleh Admin Komunitas:",
     `📚 *Mata Kuliah:* ${params.courseName || "Umum"}`,
     `📝 *Tugas:* ${params.taskName}`,
     `⏰ *Tenggat:* ${params.deadlineFormatted}`,
@@ -255,7 +272,7 @@ export function buildDeadlineChangedMessage(params: {
     ...(params.oldDeadlineFormatted ? [`⏳ *Jadwal Sebelumnya:* ${params.oldDeadlineFormatted}`] : []),
     "",
     "📌 *Catatan:*",
-    "Jadwal pengumpulan telah diperbarui oleh dosen/Korti. Jangan sampai terlewat ya! 🙌",
+    "Jadwal pengumpulan telah diperbarui oleh dosen/Admin Komunitas. Jangan sampai terlewat ya! 🙌",
     "",
     "🔗 *Link Pengumpulan / LMS:*",
     subLink,
@@ -283,7 +300,7 @@ export function buildDescriptionChangedMessage(params: {
     "📝 *UPDATE KETENTUAN TUGAS KULIAH* 💡",
     `Halo rekan-rekan *${params.workspaceName}*!`,
     "",
-    "Ada pembaruan ketentuan/instruksi tugas dari dosen/Korti:",
+    "Ada pembaruan ketentuan/instruksi tugas dari dosen/Admin Komunitas:",
     `📚 *Mata Kuliah:* ${params.courseName || "Umum"}`,
     `📝 *Tugas:* ${params.taskName}`,
     `⏰ *Tenggat:* ${params.deadlineFormatted}`,

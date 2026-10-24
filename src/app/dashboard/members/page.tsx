@@ -177,10 +177,19 @@ function MembersManagement() {
       const memberOrgId = member.orgId || member.org_id || member.organization_id;
       const memberCampusId = member.univId || member.campusId || member.campus_id || member.univ_id;
 
+      const hasWorkspaceRole = Boolean(
+        activeWorkspace.org_id && member.workspace_roles && member.workspace_roles[activeWorkspace.org_id]
+      );
+      const hasWorkspaceList = Boolean(
+        activeWorkspace.org_id && member.workspaces && Array.isArray(member.workspaces) && member.workspaces.includes(activeWorkspace.org_id)
+      );
+
       const matchesOrg =
         !activeWorkspace.org_id ||
         !memberOrgId ||
         memberOrgId === activeWorkspace.org_id ||
+        hasWorkspaceRole ||
+        hasWorkspaceList ||
         ((memberOrgId === "main_org" || memberOrgId === "org-undiksha-forkom-kip" || memberOrgId === "org-undiksha-bem") &&
          (activeWorkspace.org_id === "org-undiksha-forkom-kip" || activeWorkspace.org_id === "org-undiksha-bem" || activeWorkspace.org_id === "main_org"));
       const matchesCampus =
@@ -279,9 +288,7 @@ function MembersManagement() {
         <div className="rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-2 text-right shadow-none">
           <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block">Total Anggota</span>
           <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-            {(activeWorkspace.org_id === "org-undiksha-forkom-kip" || activeWorkspace.org_id === "org-undiksha-bem" || activeWorkspace.org_id === "org-ui-bem")
-              ? filteredMembers.length
-              : activeOrmawa.member_count}
+            {filteredMembers.length}
           </span>
         </div>
       </header>

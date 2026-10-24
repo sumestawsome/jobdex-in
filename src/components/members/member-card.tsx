@@ -17,12 +17,31 @@ export function getDivisionRoleLabel(role?: string): string {
   switch (role) {
     case "super_admin":
       return "Super Admin";
+    case "korti":
+    case "admin_komunitas":
+      return "Admin Komunitas";
     case "koordinator_divisi":
       return "Koordinator Divisi";
     case "koordinator_acara":
       return "Koordinator Acara";
     default:
       return "Anggota";
+  }
+}
+
+export function getRoleBadgeStyle(role?: string): string {
+  switch (role) {
+    case "super_admin":
+      return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800";
+    case "korti":
+    case "admin_komunitas":
+      return "bg-teal-50 text-teal-800 border-teal-300 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800";
+    case "koordinator_divisi":
+      return "bg-lime-50 text-lime-800 border-lime-300 dark:bg-lime-950/40 dark:text-lime-300 dark:border-lime-800";
+    case "koordinator_acara":
+      return "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800";
+    default:
+      return "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700";
   }
 }
 
@@ -83,7 +102,7 @@ export function MemberCard({
 
         {/* Dual-Role Badges & Workspace */}
         <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-none bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 shadow-none">
+          <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-none border shadow-none ${getRoleBadgeStyle(member.role)}`}>
             {getDivisionRoleLabel(member.role)}
           </span>
           {eventRole && (

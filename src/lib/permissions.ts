@@ -31,12 +31,19 @@ export function isKorti(
 ) {
   if (!input) return false;
   const role = getRole(input);
-  if (role === "korti") return true;
-  if (typeof input === "object" && workspaceId && input.workspace_roles?.[workspaceId] === "korti") {
+  if (role === "korti" || role === "admin_komunitas") return true;
+  if (
+    typeof input === "object" &&
+    workspaceId &&
+    (input.workspace_roles?.[workspaceId] === "korti" ||
+      input.workspace_roles?.[workspaceId] === "admin_komunitas")
+  ) {
     return true;
   }
   return false;
 }
+
+export const isAdminKomunitas = isKorti;
 
 export function isKoordinator(
   input: UserProfile | UserRole | null | undefined,
@@ -99,9 +106,15 @@ export function canCreateTask(
   const role = getRole(profile);
   const normalizedRole = eventRole?.toLowerCase().replace(/\s+/g, "_");
 
-  if (role === "super_admin" || role === "korti") return true;
+  if (role === "super_admin" || role === "korti" || role === "admin_komunitas") return true;
 
-  if (typeof profile === "object" && workspaceId && (profile.workspace_roles?.[workspaceId] === "korti" || profile.workspace_roles?.[workspaceId] === "super_admin")) {
+  if (
+    typeof profile === "object" &&
+    workspaceId &&
+    (profile.workspace_roles?.[workspaceId] === "korti" ||
+      profile.workspace_roles?.[workspaceId] === "admin_komunitas" ||
+      profile.workspace_roles?.[workspaceId] === "super_admin")
+  ) {
     return true;
   }
 
@@ -131,10 +144,15 @@ export function canManageTask(
   if (role === "super_admin") return true;
 
   if (task.type === ("tugas_kuliah" as Task["type"])) {
-    if (role === "korti") return true;
+    if (role === "korti" || role === "admin_komunitas") return true;
     if (task.coordinator_id === profile.id || task.created_by === profile.id) return true;
     const taskWs = task.workspace_id || task.org_id || task.organization_id;
-    if (taskWs && (profile.workspace_roles?.[taskWs] === "korti" || profile.workspace_roles?.[taskWs] === "super_admin")) {
+    if (
+      taskWs &&
+      (profile.workspace_roles?.[taskWs] === "korti" ||
+        profile.workspace_roles?.[taskWs] === "admin_komunitas" ||
+        profile.workspace_roles?.[taskWs] === "super_admin")
+    ) {
       return true;
     }
     return false;

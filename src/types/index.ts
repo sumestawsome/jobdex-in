@@ -32,7 +32,8 @@ export type UserRole =
   | "koordinator_divisi"
   | "koordinator_acara"
   | "anggota"
-  | "korti";
+  | "korti"
+  | "admin_komunitas";
 
 export type UserProfile = {
   id: string;
@@ -56,6 +57,7 @@ export type UserProfile = {
   aliases?: string[];
   nickname?: string;
   workspace_roles?: Record<string, string>;
+  workspaces?: string[];
 };
 
 export type EventStatus =

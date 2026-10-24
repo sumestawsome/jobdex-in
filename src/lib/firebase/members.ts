@@ -31,35 +31,35 @@ export async function getMembers(organizationId?: string, campusId?: string): Pr
   const usersRef = collection(db, "users");
   let snapshot;
 
-  if (organizationId) {
-    try {
-      const orgIds = [organizationId];
-      if (organizationId === "org-undiksha-forkom-kip" || organizationId === "main_org" || organizationId === "org-undiksha-bem") {
-        orgIds.push("main_org", "org-undiksha-forkom-kip", "org-undiksha-bem");
-      }
-      const uniqueOrgs = [...new Set(orgIds)];
-      snapshot = await getDocs(query(usersRef, where("organization_id", "in", uniqueOrgs)));
-    } catch {
-      try {
-        snapshot = await getDocs(query(usersRef, where("organization_id", "==", organizationId)));
-      } catch {
-        snapshot = await getDocs(query(usersRef, orderBy("name", "asc")));
-      }
-    }
-  } else {
+  try {
     snapshot = await getDocs(query(usersRef, orderBy("name", "asc")));
+  } catch {
+    snapshot = await getDocs(usersRef);
   }
 
-  let results = snapshot.docs.map((item) => item.data() as UserProfile);
+  let results = snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as UserProfile));
 
   if (organizationId) {
     results = results.filter((item) => {
       const itemOrg = item.orgId || item.org_id || item.organization_id || "main_org";
-      return (
-        itemOrg === organizationId ||
-        ((itemOrg === "main_org" || itemOrg === "org-undiksha-forkom-kip" || itemOrg === "org-undiksha-bem") &&
-         (organizationId === "org-undiksha-forkom-kip" || organizationId === "org-undiksha-bem" || organizationId === "main_org"))
-      );
+      const hasWorkspaceRole = Boolean(item.workspace_roles && item.workspace_roles[organizationId]);
+      const hasWorkspace = Boolean(item.workspaces && Array.isArray(item.workspaces) && item.workspaces.includes(organizationId));
+      const isForkomKip =
+        (itemOrg === "main_org" || itemOrg === "org-undiksha-forkom-kip" || itemOrg === "org-undiksha-bem") &&
+        (organizationId === "org-undiksha-forkom-kip" || organizationId === "org-undiksha-bem" || organizationId === "main_org");
+
+      return itemOrg === organizationId || hasWorkspaceRole || hasWorkspace || isForkomKip;
+    });
+
+    // Map effective role if user has a specific workspace_roles assignment for this workspace
+    results = results.map((item) => {
+      if (item.workspace_roles && item.workspace_roles[organizationId]) {
+        return {
+          ...item,
+          role: item.workspace_roles[organizationId] as UserRole,
+        };
+      }
+      return item;
     });
   }
 
