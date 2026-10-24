@@ -52,7 +52,15 @@ export function DashboardSidebar() {
             {userProfile?.name ?? user?.displayName ?? "Anggota"}
           </p>
           <div className="mt-2">
-            <RoleBadge role={userProfile?.role} />
+            <RoleBadge
+              role={
+                isClassWorkspace &&
+                (userProfile?.role === "admin_komunitas" ||
+                  userProfile?.email === "agus.sumerta@student.undiksha.ac.id")
+                  ? "admin_komunitas"
+                  : userProfile?.role
+              }
+            />
           </div>
           <Link
             href="/dashboard/profile"

@@ -126,45 +126,66 @@ export function TaskCard({
       </div>
 
       {/* Action Buttons */}
-      <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center gap-1.5">
-        <Link
-          href={`/dashboard/tasks/${task.id}`}
-          className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-semibold shadow-none transition-all border border-indigo-700 dark:border-indigo-500"
-        >
-          <Eye className="size-3 text-white/90" />
-          <span>Detail</span>
-        </Link>
+      {isClass ? (
+        <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+          <button
+            type="button"
+            onClick={() => onEdit(task)}
+            className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-none bg-amber-500 hover:bg-amber-600 text-zinc-950 font-medium text-xs shadow-none transition-all cursor-pointer border border-amber-600 dark:border-amber-400"
+          >
+            <Pencil className="size-3 text-zinc-950" />
+            <span>Edit</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onArchive(task)}
+            className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-none bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs shadow-none transition-all cursor-pointer border border-rose-700 dark:border-rose-500"
+          >
+            <Archive className="size-3 text-white" />
+            <span>Arsip</span>
+          </button>
+        </div>
+      ) : (
+        <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center gap-1.5">
+          <Link
+            href={`/dashboard/tasks/${task.id}`}
+            className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-semibold shadow-none transition-all border border-indigo-700 dark:border-indigo-500"
+          >
+            <Eye className="size-3 text-white/90" />
+            <span>Detail</span>
+          </Link>
 
-        <button
-          type="button"
-          onClick={() => setRefDialogOpen(true)}
-          className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white text-xs font-semibold shadow-none transition-all border border-purple-700 dark:border-purple-500 cursor-pointer"
-        >
-          <Sparkles className="size-3 text-white/90" />
-          <span>Solusi</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setRefDialogOpen(true)}
+            className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white text-xs font-semibold shadow-none transition-all border border-purple-700 dark:border-purple-500 cursor-pointer"
+          >
+            <Sparkles className="size-3 text-white/90" />
+            <span>Solusi</span>
+          </button>
 
-        {canEdit && (
-          <>
-            <button
-              type="button"
-              onClick={() => onEdit(task)}
-              className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-zinc-950 text-xs font-semibold shadow-none transition-all border border-amber-600 dark:border-amber-400 cursor-pointer"
-            >
-              <Pencil className="size-3 text-zinc-950/80" />
-              <span>Edit</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onArchive(task)}
-              className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-xs font-semibold shadow-none transition-all border border-rose-700 dark:border-rose-500 cursor-pointer ml-auto"
-            >
-              <Archive className="size-3 text-white/90" />
-              <span>Arsip</span>
-            </button>
-          </>
-        )}
-      </div>
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                onClick={() => onEdit(task)}
+                className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-zinc-950 text-xs font-semibold shadow-none transition-all border border-amber-600 dark:border-amber-400 cursor-pointer"
+              >
+                <Pencil className="size-3 text-zinc-950/80" />
+                <span>Edit</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onArchive(task)}
+                className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-xs font-semibold shadow-none transition-all border border-rose-700 dark:border-rose-500 cursor-pointer ml-auto"
+              >
+                <Archive className="size-3 text-white/90" />
+                <span>Arsip</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {refDialogOpen && (
         <SuggestedReferencesDialog

@@ -17,8 +17,13 @@ export function ActiveWorkspaceBanner({
   description,
   className = "",
 }: ActiveWorkspaceBannerProps) {
-  const { activeWorkspace, activeCampus, activeOrmawa } = useWorkspace();
+  const { activeWorkspace, activeCampus, activeOrmawa, isClassWorkspace } = useWorkspace();
   const [logoError, setLogoError] = useState(false);
+
+  // Sembunyikan banner di mode kelas / admin komunitas
+  if (isClassWorkspace || activeWorkspace.org_id === "ws_ilkom_2024") {
+    return null;
+  }
 
   const fallbackInitial = (activeWorkspace.campus_code || "UN").slice(0, 2).toUpperCase();
 

@@ -289,7 +289,7 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
                 key={idx}
                 type="button"
                 onClick={() => setSelectedDate(day)}
-                className={`relative h-16 p-1.5 rounded-none border text-left flex flex-col justify-between transition-all duration-100 cursor-pointer shadow-none ${
+                className={`relative aspect-square p-1 sm:p-1.5 rounded-none border text-left flex flex-col justify-between transition-all duration-100 cursor-pointer shadow-none overflow-hidden ${
                   isSelected
                     ? "bg-indigo-600 border-indigo-600 text-white z-10 font-bold"
                     : isCurrentMonth
@@ -297,29 +297,32 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
                     : "bg-zinc-50/50 dark:bg-zinc-950/40 border-zinc-200/60 dark:border-zinc-800/60 text-zinc-300 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-850/60"
                 }`}
               >
-                {/* Date Number */}
-                <div className="flex justify-between items-center w-full">
+                {/* Date Number Top Corner */}
+                <div className="flex justify-between items-start w-full leading-none">
                   <span
-                    className={`text-xs font-semibold ${
+                    className={`text-[11px] sm:text-xs font-semibold ${
                       isToday
                         ? isSelected
-                          ? "inline-flex items-center justify-center size-5 rounded-none bg-white text-indigo-600 font-bold"
-                          : "inline-flex items-center justify-center size-5 rounded-none bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold"
+                          ? "inline-flex items-center justify-center size-4.5 sm:size-5 rounded-none bg-white text-indigo-600 font-bold"
+                          : "inline-flex items-center justify-center size-4.5 sm:size-5 rounded-none bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold"
                         : "text-inherit"
                     }`}
                   >
                     {day.getDate()}
                   </span>
-                </div>
-
-                {/* Task Indicators */}
-                {dayTasks.length > 0 && (
-                  <div className="flex items-center gap-1 mt-auto text-[9px] font-semibold">
+                  {dayTasks.length > 0 && (
                     <span
                       className={`size-1.5 rounded-none shrink-0 ${getRiskDotClass(maxRiskLevel)}`}
+                      title={`${dayTasks.length} tugas`}
                     />
-                    <span className={isSelected ? "text-white" : "text-zinc-500 dark:text-zinc-400"}>
-                      {dayTasks.length} Tugas
+                  )}
+                </div>
+
+                {/* Task Indicators Bottom */}
+                {dayTasks.length > 0 && (
+                  <div className="flex items-center gap-1 w-full text-[9px] sm:text-[10px] font-semibold leading-tight truncate">
+                    <span className={`truncate ${isSelected ? "text-white" : "text-zinc-500 dark:text-zinc-400"}`}>
+                      {dayTasks.length} <span className="hidden sm:inline">Tugas</span>
                     </span>
                   </div>
                 )}

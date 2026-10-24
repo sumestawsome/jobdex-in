@@ -60,7 +60,7 @@ type ToastState =
 
 export default function ProfilePage() {
   const { user, userProfile, reloadUserProfile } = useAuth();
-  const { activeWorkspace } = useWorkspace();
+  const { activeWorkspace, isClassWorkspace } = useWorkspace();
 
   // Avatar state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -421,32 +421,41 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Peran Divisi (Indigo) & Kepanitiaan Acara Aktif (Emerald) Badges */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {/* Divisi Role Badge (Indigo Solid) */}
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-none shadow-none bg-indigo-600 text-white dark:bg-indigo-500">
-                  <Briefcase className="size-3.5" />
-                  <span>{USER_ROLE_LABELS[userProfile.role]} • {divisionDisplayName}</span>
-                </span>
-
-                {/* Kepanitiaan Acara Aktif Badge (Emerald Solid) */}
-                {activeEventRoles.length > 0 ? (
-                  activeEventRoles.map((roleText) => (
-                    <span
-                      key={roleText}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-none shadow-none bg-emerald-600 text-white dark:bg-emerald-500"
-                    >
-                      <Calendar className="size-3.5" />
-                      <span>{roleText}</span>
-                    </span>
-                  ))
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-none shadow-none bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
-                    <Calendar className="size-3.5 text-zinc-400" />
-                    <span>{loadingRoles ? "Memeriksa kepanitiaan..." : "Tidak ada acara aktif"}</span>
+              {/* Peran Divisi & Kepanitiaan Acara Badges (Khusus Ormawa) */}
+              {!isClassWorkspace ? (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {/* Divisi Role Badge (Indigo Solid) */}
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-none shadow-none bg-indigo-600 text-white dark:bg-indigo-500">
+                    <Briefcase className="size-3.5" />
+                    <span>{USER_ROLE_LABELS[userProfile.role]} • {divisionDisplayName}</span>
                   </span>
-                )}
-              </div>
+
+                  {/* Kepanitiaan Acara Aktif Badge (Emerald Solid) */}
+                  {activeEventRoles.length > 0 ? (
+                    activeEventRoles.map((roleText) => (
+                      <span
+                        key={roleText}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-none shadow-none bg-emerald-600 text-white dark:bg-emerald-500"
+                      >
+                        <Calendar className="size-3.5" />
+                        <span>{roleText}</span>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-none shadow-none bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+                      <Calendar className="size-3.5 text-zinc-400" />
+                      <span>{loadingRoles ? "Memeriksa kepanitiaan..." : "Tidak ada acara aktif"}</span>
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-none shadow-none bg-teal-600 text-white dark:bg-teal-500">
+                    <Shield className="size-3.5" />
+                    <span>Admin Komunitas • ILKOM 24</span>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -483,52 +492,54 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Quick Details Table */}
-        <div className="p-5 sm:p-6">
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-            <div className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800">
-              <dt className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                Status Akun
-              </dt>
-              <dd>
-                <span className={`inline-flex items-center px-2 py-0.5 text-xs font-bold rounded-none ${
-                  userProfile.is_active
-                    ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
-                    : "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800"
-                }`}>
-                  {userProfile.is_active ? "Aktif" : "Nonaktif"}
-                </span>
-              </dd>
-            </div>
+        {/* Quick Details Table (Disembunyikan di Ruang Kelas / Admin Komunitas) */}
+        {!isClassWorkspace && (
+          <div className="p-5 sm:p-6">
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+              <div className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800">
+                <dt className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Status Akun
+                </dt>
+                <dd>
+                  <span className={`inline-flex items-center px-2 py-0.5 text-xs font-bold rounded-none ${
+                    userProfile.is_active
+                      ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
+                      : "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800"
+                  }`}>
+                    {userProfile.is_active ? "Aktif" : "Nonaktif"}
+                  </span>
+                </dd>
+              </div>
 
-            <div className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800">
-              <dt className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                Tanggal Bergabung
-              </dt>
-              <dd className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                {formatDate(userProfile.created_at)}
-              </dd>
-            </div>
+              <div className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800">
+                <dt className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Tanggal Bergabung
+                </dt>
+                <dd className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {formatDate(userProfile.created_at)}
+                </dd>
+              </div>
 
-            <div className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800">
-              <dt className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                Divisi Kerja
-              </dt>
-              <dd className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                {divisionDisplayName}
-              </dd>
-            </div>
+              <div className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800">
+                <dt className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Divisi Kerja
+                </dt>
+                <dd className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {divisionDisplayName}
+                </dd>
+              </div>
 
-            <div className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800">
-              <dt className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                Peran Pengguna
-              </dt>
-              <dd className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                {USER_ROLE_LABELS[userProfile.role]}
-              </dd>
-            </div>
-          </dl>
-        </div>
+              <div className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800">
+                <dt className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Peran Pengguna
+                </dt>
+                <dd className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {USER_ROLE_LABELS[userProfile.role]}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        )}
       </div>
 
       {/* ── CARD 2: Form Ubah Informasi Profil ── */}

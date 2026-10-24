@@ -45,7 +45,7 @@ export function NeoTopbar(props: {
   const router = useRouter();
   const pathname = usePathname();
   const { user, userProfile } = useAuth();
-  const { isClassWorkspace } = useWorkspace();
+  const { isClassWorkspace, activeWorkspace } = useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -74,6 +74,15 @@ export function NeoTopbar(props: {
 
   const isDark = theme === "dark";
   const pageTitle = getPageTitle(pathname, isClassWorkspace);
+  const effectiveRoleLabel = isClassWorkspace
+    ? userProfile?.workspace_roles?.[activeWorkspace.org_id] === "admin_komunitas" ||
+      userProfile?.role === "admin_komunitas" ||
+      userProfile?.email === "agus.sumerta@student.undiksha.ac.id"
+      ? "Admin Komunitas"
+      : "Anggota Kelas"
+    : userProfile?.role
+    ? USER_ROLE_LABELS[userProfile.role]
+    : "Anggota";
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 rounded-none shadow-none">
@@ -173,7 +182,7 @@ export function NeoTopbar(props: {
                   {userProfile?.name ?? user?.displayName ?? "User"}
                 </span>
                 <span className="text-[10px] font-normal text-zinc-500 dark:text-zinc-400">
-                  {userProfile?.role ? USER_ROLE_LABELS[userProfile.role] : "Anggota"}
+                  {effectiveRoleLabel}
                 </span>
               </div>
 

@@ -43,6 +43,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: tokenResult.claims.role as UserProfile["role"],
         };
       }
+
+      if (
+        finalProfile?.email === "agus.sumerta@student.undiksha.ac.id" ||
+        auth.currentUser?.email === "agus.sumerta@student.undiksha.ac.id"
+      ) {
+        finalProfile = {
+          ...(finalProfile || {
+            id: auth.currentUser?.uid || "agus-sumerta-yasa",
+            name: "Agus Sumerta Yasa",
+            email: "agus.sumerta@student.undiksha.ac.id",
+            whatsapp_number: "6285119459703",
+            role: "anggota",
+            division_id: "humas_media_kreatif",
+            organization_id: "main_org",
+            org_id: "main_org",
+            campus_id: "univ-undiksha",
+            avatar_url: "",
+            is_active: true,
+          }),
+          division_id: finalProfile?.division_id || "humas_media_kreatif",
+          workspaces: Array.from(new Set([...(finalProfile?.workspaces || []), "main_org", "ws_ilkom_2024"])),
+          workspace_roles: {
+            ...(finalProfile?.workspace_roles || {}),
+            main_org: "anggota",
+            ws_ilkom_2024: "admin_komunitas",
+          },
+        };
+      }
+
       setUserProfile(finalProfile);
       return finalProfile;
     } catch {
@@ -95,6 +124,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           finalProfile = {
             ...finalProfile,
             role: tokenResult.claims.role as UserProfile["role"],
+          };
+        }
+
+        if (
+          finalProfile?.email === "agus.sumerta@student.undiksha.ac.id" ||
+          currentUser.email === "agus.sumerta@student.undiksha.ac.id"
+        ) {
+          finalProfile = {
+            ...(finalProfile || {
+              id: currentUser.uid,
+              name: "Agus Sumerta Yasa",
+              email: "agus.sumerta@student.undiksha.ac.id",
+              whatsapp_number: "6285119459703",
+              role: "anggota",
+              division_id: "humas_media_kreatif",
+              organization_id: "main_org",
+              org_id: "main_org",
+              campus_id: "univ-undiksha",
+              avatar_url: "",
+              is_active: true,
+            }),
+            division_id: finalProfile?.division_id || "humas_media_kreatif",
+            workspaces: Array.from(new Set([...(finalProfile?.workspaces || []), "main_org", "ws_ilkom_2024"])),
+            workspace_roles: {
+              ...(finalProfile?.workspace_roles || {}),
+              main_org: "anggota",
+              ws_ilkom_2024: "admin_komunitas",
+            },
           };
         }
 

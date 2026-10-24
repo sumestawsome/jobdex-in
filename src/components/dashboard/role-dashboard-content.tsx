@@ -432,8 +432,8 @@ export function RoleDashboardContent() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-12">
-      {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
-      <ActiveWorkspaceBanner />
+      {/* ── Active Workspace Isolation Banner (Sembunyi di mode kelas) ── */}
+      {!isClassWorkspace && <ActiveWorkspaceBanner />}
 
       {/* ── 1. Header & Topbar ───────────────────────────────────────────────── */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800">
@@ -498,11 +498,11 @@ export function RoleDashboardContent() {
       {/* ── 2. Bar Metrik KPI ────────────────────────────────────────────────── */}
       {isClassWorkspace ? (
         <section
-          className="grid grid-cols-1 sm:grid-cols-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none"
+          className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4"
           aria-label="Statistik Tugas Kuliah"
         >
           {/* Kartu 1: Tugas Aktif */}
-          <div className="p-5 border-b sm:border-b-0 sm:border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-3">
+          <div className="p-3 md:p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none flex flex-col justify-between gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 Tugas Aktif
@@ -512,17 +512,17 @@ export function RoleDashboardContent() {
               </span>
             </div>
             <div>
-              <div className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
+              <div className="text-2xl md:text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
                 {activeJobsCount}
               </div>
-              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                 Tugas kuliah sedang aktif / perlu dikerjakan
               </p>
             </div>
           </div>
 
           {/* Kartu 2: Deadline Mendesak (< 3 Hari) */}
-          <div className="p-5 border-b sm:border-b-0 sm:border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-3">
+          <div className="p-3 md:p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none flex flex-col justify-between gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 Deadline Mendesak (&lt; 3 Hari)
@@ -536,19 +536,19 @@ export function RoleDashboardContent() {
               </span>
             </div>
             <div>
-              <div className={`text-[28px] font-bold tracking-tight leading-none ${
+              <div className={`text-2xl md:text-[28px] font-bold tracking-tight leading-none ${
                 classUrgentTasksCount > 0 ? "text-danger" : "text-zinc-900 dark:text-white"
               }`}>
                 {classUrgentTasksCount}
               </div>
-              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                 Tenggat pengumpulan dalam 3 hari ke depan
               </p>
             </div>
           </div>
 
           {/* Kartu 3: Tugas Selesai */}
-          <div className="p-5 flex flex-col justify-between gap-3">
+          <div className="p-3 md:p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none flex flex-col justify-between gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 Tugas Selesai
@@ -558,10 +558,10 @@ export function RoleDashboardContent() {
               </span>
             </div>
             <div>
-              <div className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
+              <div className="text-2xl md:text-[28px] font-bold tracking-tight text-zinc-900 dark:text-white leading-none">
                 {completedTotalCount}
               </div>
-              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                 Tugas kuliah yang telah diselesaikan
               </p>
             </div>
@@ -654,8 +654,162 @@ export function RoleDashboardContent() {
         </section>
       )}
 
-      {/* ── 3. Split Grid Konten Utama (1fr vs 380px) ────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] 2xl:grid-cols-[1fr_380px] gap-6 items-start">
+      {/* ── 3. Split Grid Konten Utama ────────────────────────────────────────── */}
+      {isClassWorkspace ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-start">
+          {/* Section 1: Jadwal & Deadline Tugas Kuliah Terdekat */}
+          <section className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none">
+            <div className="px-4 py-3.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-zinc-900 dark:text-zinc-100" />
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  Jadwal &amp; Deadline Tugas Kuliah Terdekat
+                </h2>
+              </div>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-none bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
+                {currentMonthYear}
+              </span>
+            </div>
+
+            {/* Mini Calendar Widget */}
+            <div className="p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3.5">
+                <span className="text-xs font-semibold text-zinc-900 dark:text-white">
+                  {currentMonthYear}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCalMonthOffset((v) => v - 1)}
+                    className="size-6 inline-flex items-center justify-center rounded-none hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-bold text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 transition-colors"
+                    aria-label="Bulan sebelumnya"
+                  >
+                    <ChevronLeft className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalMonthOffset((v) => v + 1)}
+                    className="size-6 inline-flex items-center justify-center rounded-none hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-bold text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 transition-colors"
+                    aria-label="Bulan berikutnya"
+                  >
+                    <ChevronRight className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Day Labels */}
+              <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                {["Sn", "Sl", "Rb", "Km", "Jm", "Sb", "Mg"].map((dayName) => (
+                  <div
+                    key={dayName}
+                    className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 py-1"
+                  >
+                    {dayName}
+                  </div>
+                ))}
+              </div>
+
+              {/* Day Cells */}
+              <div className="grid grid-cols-7 gap-1 text-center">
+                {calendarDays.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className={`
+                      relative h-8 flex items-center justify-center text-xs font-medium rounded-none transition-colors
+                      ${
+                        item.isToday
+                          ? "bg-primary text-primary-foreground font-bold shadow-none"
+                          : item.isCurrentMonth
+                          ? "text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+                          : "text-zinc-400 dark:text-zinc-600 cursor-default"
+                      }
+                    `}
+                  >
+                    <span>{item.day}</span>
+                    {item.hasEvent && (
+                      <span
+                        className={`absolute bottom-1 size-1 rounded-none ${
+                          item.isToday ? "bg-white" : "bg-primary"
+                        }`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Upcoming Deadlines Snippet */}
+            <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-2.5 bg-zinc-50 dark:bg-zinc-950">
+              {upcomingDeadlines.length === 0 ? (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center py-2">
+                  Tidak ada jadwal deadline terdekat.
+                </p>
+              ) : (
+                upcomingDeadlines.map((up) => (
+                  <div key={up.id} className="flex items-start gap-2.5 text-xs">
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-none border whitespace-nowrap ${
+                        up.isUrgent
+                          ? "bg-red-50 dark:bg-red-950/40 text-danger border-red-200 dark:border-red-900"
+                          : "bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-200 dark:border-zinc-800"
+                      }`}
+                    >
+                      {up.time}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                        {up.title}
+                      </p>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                        {up.meta}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          {/* Section 2: Log Aktivitas Pengingat WhatsApp Otomatis */}
+          <section className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none shadow-none">
+            <div className="px-4 py-3.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="size-4 text-zinc-900 dark:text-zinc-100" />
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  Log Aktivitas Pengingat WhatsApp Otomatis
+                </h2>
+              </div>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-none bg-emerald-50 dark:bg-emerald-950/40 text-success border border-emerald-200 dark:border-emerald-900">
+                Live
+              </span>
+            </div>
+
+            {/* Vertical Timeline Feed */}
+            <div className="p-4 sm:p-5 flex flex-col gap-4">
+              {timelineFeed.length === 0 ? (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center py-2">
+                  Belum ada catatan aktivitas pengingat otomatis.
+                </p>
+              ) : (
+                timelineFeed.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3 relative">
+                    <span className={`size-2 rounded-none mt-1.5 shrink-0 ${item.dotColorClass}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-zinc-800 dark:text-zinc-200 leading-relaxed">
+                        <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{item.actor}</strong> {item.action}
+                      </p>
+                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 block">
+                        {item.timeAgo}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] 2xl:grid-cols-[1fr_380px] gap-6 items-start">
         {/* ════ KOLOM KIRI (1fr) ════ */}
         <div className="flex flex-col gap-6 min-w-0">
           {/* Panel 1: Antrean Tindakan & Job Desk Mendesak */}
@@ -1047,6 +1201,7 @@ export function RoleDashboardContent() {
           </section>
         </div>
       </div>
+      )}
 
       {/* ── Toast Feedback ───────────────────────────────────────────────────── */}
       {toastText && (

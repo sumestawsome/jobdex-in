@@ -8,7 +8,7 @@ import { ActiveWorkspaceBanner } from "@/components/workspace/active-workspace-b
 
 export default function CalendarPage() {
   const { userProfile } = useAuth();
-  const { activeCampus } = useWorkspace();
+  const { activeCampus, isClassWorkspace } = useWorkspace();
 
   if (!userProfile) {
     return <LoadingState title="Memuat kalender..." />;
@@ -16,18 +16,22 @@ export default function CalendarPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-16">
-      {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
-      <ActiveWorkspaceBanner
-        description={`${activeCampus.name} • Memantau deadline dan jadwal rilis tugas kepanitiaan`}
-      />
+      {/* ── Active Workspace Isolation Banner (Sembunyi di mode kelas) ── */}
+      {!isClassWorkspace && (
+        <ActiveWorkspaceBanner
+          description={`${activeCampus.name} • Memantau deadline dan jadwal rilis tugas kepanitiaan`}
+        />
+      )}
 
       {/* ── Header Section ──────────────────────────────────────────────────── */}
       <header className="pb-2 border-b border-zinc-200 dark:border-zinc-800">
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-          Kalender Deadline & Rilis
+          {isClassWorkspace ? "Kalender Tugas Kuliah" : "Kalender Deadline & Rilis"}
         </h1>
         <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-          Visualisasi sisa waktu dan tingkat risiko tugas berdasarkan tanggal batas akhir (deadline).
+          {isClassWorkspace
+            ? "Visualisasi batas waktu pengumpulan tugas kuliah dan jadwal akademik."
+            : "Visualisasi sisa waktu dan tingkat risiko tugas berdasarkan tanggal batas akhir (deadline)."}
         </p>
       </header>
 

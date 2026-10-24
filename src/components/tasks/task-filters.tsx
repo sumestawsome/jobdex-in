@@ -54,34 +54,38 @@ export function TaskFilters({
 
   if (isClass) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-        <div className="relative">
+      <div className="flex flex-col gap-2">
+        <div className="relative w-full">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-500 dark:text-zinc-400" />
           <Input
             placeholder="Cari mata kuliah atau nama tugas..."
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            className="pl-8 h-9 text-xs rounded-none border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-500 focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-600 shadow-none"
+            className="pl-8 h-9 text-xs rounded-none border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-500 focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-600 shadow-none w-full"
           />
         </div>
 
-        <div className="relative">
-          <Activity className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#898989] dark:text-zinc-500 pointer-events-none" />
-          <select className={selectClassName} value={status} onChange={(event) => onStatusChange(event.target.value as "all" | TaskStatus)}>
-            <option value="all">Semua Status</option>
-            {TASK_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {/* Kiri: Dropdown "Semua Status" */}
+          <div className="relative">
+            <Activity className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
+            <select className={selectClassName} value={status} onChange={(event) => onStatusChange(event.target.value as "all" | TaskStatus)}>
+              <option value="all">Semua Status</option>
+              {TASK_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
 
-        <div className="relative">
-          <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#898989] dark:text-zinc-500 pointer-events-none" />
-          <select className={selectClassName} value={deadline} onChange={(event) => onDeadlineChange(event.target.value as TaskDeadlineFilter)}>
-            <option value="all">Semua Tenggat</option>
-            <option value="overdue">Terlewat Deadline</option>
-            <option value="week">Deadline Minggu Ini</option>
-          </select>
+          {/* Kanan: Dropdown "Semua Tenggat" */}
+          <div className="relative">
+            <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
+            <select className={selectClassName} value={deadline} onChange={(event) => onDeadlineChange(event.target.value as TaskDeadlineFilter)}>
+              <option value="all">Semua Tenggat</option>
+              <option value="overdue">Terlewat Deadline</option>
+              <option value="week">Deadline Minggu Ini</option>
+            </select>
+          </div>
         </div>
       </div>
     );

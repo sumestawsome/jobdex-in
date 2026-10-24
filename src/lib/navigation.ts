@@ -76,12 +76,30 @@ export function getDashboardNavigation(
 ) {
   const isClass = options?.isClassWorkspace;
 
+  if (isClass) {
+    return [
+      {
+        label: "Ringkasan",
+        href: "/dashboard",
+      },
+      {
+        label: "Tugas Kuliah",
+        href: "/dashboard/tasks",
+      },
+      {
+        label: "Kalender",
+        href: "/dashboard/calendar",
+      },
+      {
+        label: "Profil",
+        href: "/dashboard/profile",
+      },
+    ];
+  }
+
   return dashboardNavigation
     .filter((item) => {
       if (!item.visible(profile)) return false;
-      if (isClass && (item.href === "/dashboard/events" || item.href === "/dashboard/references")) {
-        return false;
-      }
       return true;
     })
     .map((item) => {

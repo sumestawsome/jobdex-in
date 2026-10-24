@@ -377,8 +377,10 @@ export default function TasksPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-16">
-      {/* ── Active Workspace Isolation Banner ────────────────────────────────── */}
-      <ActiveWorkspaceBanner description={`${activeCampus.name} • Menampilkan job desk terfilter untuk ruang kerja ini`} />
+      {/* ── Active Workspace Isolation Banner (Sembunyi di mode kelas) ── */}
+      {!isClassWorkspace && (
+        <ActiveWorkspaceBanner description={`${activeCampus.name} • Menampilkan job desk terfilter untuk ruang kerja ini`} />
+      )}
 
       {/* ── Header Section ──────────────────────────────────────────────────── */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800">
