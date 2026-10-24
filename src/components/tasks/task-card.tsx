@@ -139,10 +139,10 @@ export function TaskCard({
           <button
             type="button"
             onClick={() => onArchive(task)}
-            className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-none bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs shadow-none transition-all cursor-pointer border border-rose-700 dark:border-rose-500"
+            className={`inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-none ${task.is_archived ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-700 dark:border-emerald-500" : "bg-rose-600 hover:bg-rose-700 border-rose-700 dark:border-rose-500"} text-white font-medium text-xs shadow-none transition-all cursor-pointer`}
           >
             <Archive className="size-3 text-white" />
-            <span>Arsip</span>
+            <span>{task.is_archived ? "Buka Arsip" : "Arsip"}</span>
           </button>
         </div>
       ) : (
@@ -177,10 +177,10 @@ export function TaskCard({
               <button
                 type="button"
                 onClick={() => onArchive(task)}
-                className="inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-xs font-semibold shadow-none transition-all border border-rose-700 dark:border-rose-500 cursor-pointer ml-auto"
+                className={`inline-flex items-center gap-1.5 h-7.5 px-3 rounded-none ${task.is_archived ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-700 dark:border-emerald-500" : "bg-rose-600 hover:bg-rose-700 border-rose-700 dark:border-rose-500"} text-white text-xs font-semibold shadow-none transition-all cursor-pointer ml-auto`}
               >
                 <Archive className="size-3 text-white/90" />
-                <span>Arsip</span>
+                <span>{task.is_archived ? "Buka Arsip" : "Arsip"}</span>
               </button>
             </>
           )}

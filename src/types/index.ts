@@ -533,6 +533,7 @@ export type TaskInput = {
   design_ref_links?: ReferenceLink[];
   drive_ref_links?: ReferenceLink[];
   design_kit_source?: "event" | "division" | "manual" | null;
+  is_archived?: boolean;
 };
 
 export type Organization = {

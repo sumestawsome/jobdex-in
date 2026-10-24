@@ -20,6 +20,7 @@ import { getMembers } from "@/lib/firebase/members";
 import { getDivisions } from "@/lib/firebase/divisions";
 import {
   archiveTask,
+  unarchiveTask,
   createTask,
   getTasksForProfile,
   getTasksByEvent,
@@ -48,6 +49,7 @@ export default function TasksPage() {
   const [picFilter, setPicFilter] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
   const [deadlineFilter, setDeadlineFilter] = useState<TaskDeadlineFilter>("all");
+  const [showArchived, setShowArchived] = useState(false);
   const [viewMode, setViewMode] = useState<TaskViewMode>("card");
   const [isMobile, setIsMobile] = useState(false);
 
@@ -96,7 +98,7 @@ export default function TasksPage() {
       // 1. Fetch main tasks
       let taskData: Task[] = [];
       try {
-        taskData = await getTasksForProfile(userProfile, activeWorkspace);
+        taskData = await getTasksForProfile(userProfile, activeWorkspace, showArchived);
       } catch (err) {
         console.error("Failed to fetch main tasks:", err);
         const detailedError = "Gagal memuat job desk karena permission Firestore. Cek rules untuk tasks/events/event_members.";
@@ -169,7 +171,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [userProfile, activeWorkspace.org_id, activeWorkspace.campus_id]);
+  }, [userProfile, activeWorkspace.org_id, activeWorkspace.campus_id, showArchived]);
 
   useEffect(() => {
     void Promise.resolve().then(loadData);
@@ -229,6 +231,8 @@ export default function TasksPage() {
         ((taskOrgId === "main_org" || taskOrgId === "org-undiksha-forkom-kip" || taskOrgId === "org-undiksha-bem") &&
          (activeWorkspace.org_id === "org-undiksha-forkom-kip" || activeWorkspace.org_id === "org-undiksha-bem" || activeWorkspace.org_id === "main_org"));
 
+      const matchesArchived = showArchived ? task.is_archived === true : !task.is_archived;
+
       return (
         matchesWorkspace &&
         matchesSearch &&
@@ -237,7 +241,8 @@ export default function TasksPage() {
         matchesPriority &&
         matchesPic &&
         matchesEvent &&
-        matchesDeadline
+        matchesDeadline &&
+        matchesArchived
       );
     });
   }, [
@@ -248,6 +253,7 @@ export default function TasksPage() {
     picFilter,
     priorityFilter,
     search,
+    showArchived,
     statusFilter,
     tasks,
     typeFilter,
@@ -349,9 +355,32 @@ export default function TasksPage() {
   }
 
   async function handleArchiveTask(task: Task) {
+    if (task.is_archived) {
+      const taskLabel = task.course_name ? `${task.course_name} - ${task.name}` : task.name;
+      const confirmed = await showConfirm({
+        title: "Buka Arsip & Aktifkan Tugas",
+        text: `Apakah Anda yakin ingin mengaktifkan kembali tugas "${taskLabel}"? Pengingat otomatis akan kembali aktif.`,
+        confirmButtonText: "Ya, Aktifkan Kembali",
+        cancelButtonText: "Batal",
+      });
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await unarchiveTask(task.id);
+        void showSuccess("Tugas berhasil diaktifkan kembali!");
+        await loadData();
+      } catch {
+        void showError("Gagal mengaktifkan kembali tugas.");
+      }
+      return;
+    }
+
     const confirmed = await showConfirm({
-      title: "Arsipkan Job Desk",
-      text: `Apakah Anda yakin ingin mengarsipkan job desk "${task.name}"?`,
+      title: isClassWorkspace ? "Arsipkan Tugas Kuliah" : "Arsipkan Job Desk",
+      text: `Apakah Anda yakin ingin mengarsipkan ${isClassWorkspace ? "tugas kuliah" : "job desk"} "${task.name}"?`,
       confirmButtonText: "Ya, Arsipkan",
       cancelButtonText: "Batal",
     });
@@ -362,10 +391,10 @@ export default function TasksPage() {
 
     try {
       await archiveTask(task.id);
-      void showSuccess("Job desk berhasil diarsipkan!");
+      void showSuccess(isClassWorkspace ? "Tugas kuliah berhasil diarsipkan!" : "Job desk berhasil diarsipkan!");
       await loadData();
     } catch {
-      void showError("Gagal mengarsipkan job desk.");
+      void showError(isClassWorkspace ? "Gagal mengarsipkan tugas kuliah." : "Gagal mengarsipkan job desk.");
     }
   }
 
@@ -431,10 +460,21 @@ export default function TasksPage() {
       />
 
       {/* ── View Mode & Summary Bar ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3 pt-1">
-        <p className="text-xs font-medium text-[#898989] dark:text-zinc-400">
-          Menampilkan <strong className="text-[#242424] dark:text-zinc-100">{filteredTasks.length}</strong> dari {tasks.length} {isClassWorkspace ? "tugas kuliah" : "job desk"} terdaftar
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <div className="flex flex-wrap items-center gap-4">
+          <p className="text-xs font-medium text-[#898989] dark:text-zinc-400">
+            Menampilkan <strong className="text-[#242424] dark:text-zinc-100">{filteredTasks.length}</strong> dari {tasks.length} {isClassWorkspace ? "tugas kuliah" : "job desk"} {showArchived ? "(arsip)" : "aktif"}
+          </p>
+          <label className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              className="size-3.5 rounded-none border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-0 cursor-pointer"
+            />
+            <span>Tampilkan Arsip {isClassWorkspace ? "Tugas Selesai" : "Job Desk"}</span>
+          </label>
+        </div>
         <div className="hidden md:inline-flex">
           <TaskViewToggle value={isMobile ? "card" : viewMode} onChange={handleViewModeChange} />
         </div>

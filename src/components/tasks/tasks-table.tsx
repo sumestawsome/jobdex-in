@@ -150,10 +150,10 @@ export function TasksTable({
                           <button
                             type="button"
                             onClick={() => onArchive(task)}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-none bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-[11px] font-semibold transition-all shadow-none border border-rose-700 dark:border-rose-500 cursor-pointer"
+                            className={`inline-flex items-center gap-1 h-7 px-2.5 rounded-none ${task.is_archived ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-700 dark:border-emerald-500" : "bg-rose-600 hover:bg-rose-700 border-rose-700 dark:border-rose-500"} active:scale-[0.98] text-white text-[11px] font-semibold transition-all shadow-none cursor-pointer`}
                           >
                             <Archive className="size-3 text-white/90" />
-                            <span>Arsip</span>
+                            <span>{task.is_archived ? "Buka Arsip" : "Arsip"}</span>
                           </button>
                         </>
                       )}

@@ -26,12 +26,14 @@ const STORAGE_KEY = "jobdex_active_workspace";
  */
 export function isClassWorkspace(workspace?: ActiveWorkspace | null): boolean {
   if (!workspace) return false;
+  const ws = workspace as unknown as Record<string, unknown>;
+  const rawType = String(ws.type || workspace.workspace_type || workspace.org_type || "").toLowerCase();
+  if (rawType === "kelas") return true;
   return (
-    workspace.workspace_type === "kelas" ||
-    workspace.org_type?.toLowerCase() === "kelas" ||
-    (workspace as unknown as Record<string, unknown>).type === "kelas" ||
     workspace.org_id === "ws_ilkom_2024" ||
-    (workspace as unknown as Record<string, unknown>).id === "ws_ilkom_2024"
+    ws.id === "ws_ilkom_2024" ||
+    Boolean(workspace.org_id?.startsWith("ws_kelas_")) ||
+    Boolean((ws.id as string)?.startsWith("ws_kelas_"))
   );
 }
 

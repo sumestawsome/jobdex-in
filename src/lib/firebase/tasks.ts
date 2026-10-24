@@ -37,15 +37,22 @@ function sortTasks(tasks: Task[]) {
 
 export async function getTasksForProfile(
   profile: UserProfile,
-  workspaceFilter?: { org_id?: string; campus_id?: string }
+  workspaceFilter?: { org_id?: string; campus_id?: string },
+  includeArchived: boolean = false
 ) {
   const tasksRef = collection(db, "tasks");
   const tasksQuery =
-    isSuperAdmin(profile) || isKoordinatorDivisi(profile)
-      ? query(tasksRef, where("is_archived", "==", false))
-      : isKoordinatorAcara(profile)
-        ? query(tasksRef, where("coordinator_id", "==", profile.id))
-        : query(tasksRef, where("pic_id", "==", profile.id));
+    includeArchived
+      ? (isSuperAdmin(profile) || isKoordinatorDivisi(profile)
+          ? query(tasksRef)
+          : isKoordinatorAcara(profile)
+            ? query(tasksRef, where("coordinator_id", "==", profile.id))
+            : query(tasksRef, where("pic_id", "==", profile.id)))
+      : (isSuperAdmin(profile) || isKoordinatorDivisi(profile)
+          ? query(tasksRef, where("is_archived", "==", false))
+          : isKoordinatorAcara(profile)
+            ? query(tasksRef, where("coordinator_id", "==", profile.id))
+            : query(tasksRef, where("pic_id", "==", profile.id)));
 
   const snapshot = await getDocs(tasksQuery);
   const rawTasks = snapshot.docs.map((item) => ({
@@ -57,7 +64,7 @@ export async function getTasksForProfile(
   const targetCampusId = workspaceFilter?.campus_id || profile.campus_id || profile.univ_id;
 
   const filteredTasks = rawTasks.filter((task) => {
-    if (task.is_archived) return false;
+    if (!includeArchived && task.is_archived) return false;
 
     if (targetOrgId) {
       const taskOrg =
@@ -537,6 +544,7 @@ export async function updateTask(
       : {}),
     ...(input.reminders_sent ? { reminders_sent: input.reminders_sent } : {}),
     ...(input.notification_tracker ? { notification_tracker: input.notification_tracker } : {}),
+    ...(typeof input.is_archived === "boolean" ? { is_archived: input.is_archived } : {}),
   });
 
   if (oldData && oldData.type === "acara" && oldData.event_id) {
@@ -577,6 +585,50 @@ export async function archiveTask(
     is_archived: true,
     updated_at: serverTimestamp(),
   });
+
+  if (oldData && oldData.type === "acara" && oldData.event_id) {
+    await recalculateEventProgress(oldData.event_id);
+  }
+}
+
+export async function unarchiveTask(
+  taskId: string,
+  newDeadline?: string,
+  workspaceFilter?: { org_id?: string; campus_id?: string }
+) {
+  const oldDoc = await getDoc(doc(db, "tasks", taskId));
+  const oldData = oldDoc.exists() ? (oldDoc.data() as Task) : null;
+
+  if (oldData) {
+    const existingOrg =
+      oldData.organization_id ||
+      oldData.org_id ||
+      (oldData as unknown as Record<string, unknown>).orgId;
+    const existingCampus =
+      oldData.campus_id ||
+      oldData.univ_id ||
+      (oldData as unknown as Record<string, unknown>).univId ||
+      (oldData as unknown as Record<string, unknown>).campusId;
+
+    if (workspaceFilter?.org_id && existingOrg && workspaceFilter.org_id !== existingOrg) {
+      throw new Error("Akses ditolak: Tidak dapat mengaktifkan tugas milik organisasi/ormawa lain.");
+    }
+    if (workspaceFilter?.campus_id && existingCampus && workspaceFilter.campus_id !== existingCampus) {
+      throw new Error("Akses ditolak: Tidak dapat mengaktifkan tugas milik kampus lain.");
+    }
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    is_archived: false,
+    status: "belum_dimulai",
+    updated_at: serverTimestamp(),
+  };
+
+  if (newDeadline) {
+    updatePayload.deadline = dateToTimestamp(newDeadline);
+  }
+
+  await updateDoc(doc(db, "tasks", taskId), updatePayload);
 
   if (oldData && oldData.type === "acara" && oldData.event_id) {
     await recalculateEventProgress(oldData.event_id);

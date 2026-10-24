@@ -110,12 +110,17 @@ export async function resolveTaskNotificationTarget(
   const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as "fonnte" | "wablas";
   const defaultGroupId = getDefaultGroupId();
 
-  // Support Academic / Class Workspaces
+  // Support Academic / Class Workspaces (Scalable for future classes)
   const isClassTask =
     task.type === ("tugas_kuliah" as Task["type"]) ||
+    (task as unknown as Record<string, unknown>).workspace_type === "kelas" ||
+    (task as unknown as Record<string, unknown>).org_type === "kelas" ||
+    (task as unknown as Record<string, unknown>).type === "kelas" ||
     task.workspace_id === "ws_ilkom_2024" ||
     task.org_id === "ws_ilkom_2024" ||
-    task.organization_id === "ws_ilkom_2024";
+    task.organization_id === "ws_ilkom_2024" ||
+    Boolean(task.workspace_id?.startsWith("ws_kelas_")) ||
+    Boolean(task.org_id?.startsWith("ws_kelas_"));
 
   if (isClassTask) {
     const classGroupId = "120363411033795051@g.us";

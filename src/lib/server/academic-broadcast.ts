@@ -16,9 +16,11 @@ export const DEFAULT_CLASS_WORKSPACE_NAME = "Ilkom B";
 export function isAcademicClassTask(task: Partial<Task> | null | undefined): boolean {
   if (!task) return false;
   if (task.type === "tugas_kuliah") return true;
+  const tAny = task as Record<string, unknown>;
+  if (tAny.workspace_type === "kelas" || tAny.org_type === "kelas" || tAny.type === "kelas") return true;
   if (task.workspace_id === DEFAULT_CLASS_WORKSPACE_ID || task.workspace_id?.startsWith("ws_")) return true;
   if (task.org_id === DEFAULT_CLASS_WORKSPACE_ID || task.organization_id === DEFAULT_CLASS_WORKSPACE_ID) return true;
-  if ((task as Record<string, unknown>).orgId === DEFAULT_CLASS_WORKSPACE_ID) return true;
+  if (tAny.orgId === DEFAULT_CLASS_WORKSPACE_ID) return true;
   return false;
 }
 

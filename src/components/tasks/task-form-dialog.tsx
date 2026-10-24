@@ -131,12 +131,15 @@ function TaskForm({
     reason: string;
   } | null>(null);
 
-  const isClassWorkspace =
-    activeWorkspace.org_type === "KELAS" ||
-    activeWorkspace.org_type === "kelas" ||
-    activeWorkspace.workspace_type === "kelas" ||
-    activeWorkspace.org_id === "ws_ilkom_2024" ||
+  const isClass =
+    (activeWorkspace as unknown as Record<string, unknown>)?.type === "kelas" ||
+    activeWorkspace?.workspace_type === "kelas" ||
+    activeWorkspace?.org_type?.toLowerCase() === "kelas" ||
+    activeWorkspace?.org_id === "ws_ilkom_2024" ||
+    (activeWorkspace as unknown as Record<string, unknown>)?.id === "ws_ilkom_2024" ||
     task?.type === "tugas_kuliah";
+
+  const isClassWorkspace = isClass;
 
   const [type, setType] = useState<TaskType>(
     task?.type ?? (isClassWorkspace ? "tugas_kuliah" : defaultEventId ? "acara" : "divisi")
@@ -509,118 +512,150 @@ function TaskForm({
 
     const colors = parseColorPalette(colorPalette);
 
-    if (!name.trim()) {
-      setError("Nama task wajib diisi.");
-      return;
-    }
-
-    if (type === "acara" && !eventId) {
-      setError("Event wajib dipilih untuk task acara.");
-      return;
-    }
-
-    if (type === "divisi") {
-      if (!divisionId || !divisionId.trim()) {
-        setError("Divisi pokok wajib dipilih untuk jobdesk tipe divisi.");
+    if (isClass) {
+      if (!courseName.trim()) {
+        setError("Mata kuliah wajib diisi.");
         return;
       }
-      if (activeOrmawaDivisions.length > 0) {
-        const isValidInActiveOrmawa = activeOrmawaDivisions.some((d) => d.id === divisionId);
-        if (!isValidInActiveOrmawa) {
-          setError("Divisi yang dipilih tidak valid untuk ormawa aktif.");
+      if (!name.trim()) {
+        setError("Judul tugas wajib diisi.");
+        return;
+      }
+      if (!deadline) {
+        setError("Tenggat pengumpulan wajib diisi.");
+        return;
+      }
+    } else {
+      if (!name.trim()) {
+        setError("Nama task wajib diisi.");
+        return;
+      }
+
+      if (type === "acara" && !eventId) {
+        setError("Event wajib dipilih untuk task acara.");
+        return;
+      }
+
+      if (type === "divisi") {
+        if (!divisionId || !divisionId.trim()) {
+          setError("Divisi pokok wajib dipilih untuk jobdesk tipe divisi.");
           return;
         }
+        if (activeOrmawaDivisions.length > 0) {
+          const isValidInActiveOrmawa = activeOrmawaDivisions.some((d) => d.id === divisionId);
+          if (!isValidInActiveOrmawa) {
+            setError("Divisi yang dipilih tidak valid untuk ormawa aktif.");
+            return;
+          }
+        }
       }
-    }
 
-    if (!picId || !coordinatorId || !deadline) {
-      setError("PIC, koordinator, dan deadline wajib diisi.");
-      return;
-    }
+      if (!picId || !coordinatorId || !deadline) {
+        setError("PIC, koordinator, dan deadline wajib diisi.");
+        return;
+      }
 
-    // Validasi source link saja (field tunggal yang masih require valid URL)
-    if (sourceLink && !isValidUrl(sourceLink)) {
-      setError("Link sumber/editable design harus valid (diawali http/https).");
-      return;
-    }
+      // Validasi source link saja (field tunggal yang masih require valid URL)
+      if (sourceLink && !isValidUrl(sourceLink)) {
+        setError("Link sumber/editable design harus valid (diawali http/https).");
+        return;
+      }
 
-    // Validasi multi-link textarea (ringan — beri warning, tidak block)
-    const invalidRedaction = getInvalidUrlsFromTextarea(redactionLinksText);
-    const invalidDesignRef = getInvalidUrlsFromTextarea(designRefLinksText);
-    const invalidDriveRef = getInvalidUrlsFromTextarea(driveRefLinksText);
-    const allInvalid = [...invalidRedaction, ...invalidDesignRef, ...invalidDriveRef];
-    if (allInvalid.length > 0) {
-      setError(`URL berikut tidak valid: ${allInvalid.slice(0, 3).join(", ")}${allInvalid.length > 3 ? "..." : ""}`);
-      return;
+      // Validasi multi-link textarea (ringan — beri warning, tidak block)
+      const invalidRedaction = getInvalidUrlsFromTextarea(redactionLinksText);
+      const invalidDesignRef = getInvalidUrlsFromTextarea(designRefLinksText);
+      const invalidDriveRef = getInvalidUrlsFromTextarea(driveRefLinksText);
+      const allInvalid = [...invalidRedaction, ...invalidDesignRef, ...invalidDriveRef];
+      if (allInvalid.length > 0) {
+        setError(`URL berikut tidak valid: ${allInvalid.slice(0, 3).join(", ")}${allInvalid.length > 3 ? "..." : ""}`);
+        return;
+      }
     }
 
     // Parse multi-link textarea
-    const redactionLinks: ReferenceLink[] = parseLinksFromTextarea(redactionLinksText);
-    const designRefLinks: ReferenceLink[] = parseLinksFromTextarea(designRefLinksText);
-    const driveRefLinks: ReferenceLink[] = parseLinksFromTextarea(driveRefLinksText);
+    const redactionLinks: ReferenceLink[] = isClass ? [] : parseLinksFromTextarea(redactionLinksText);
+    const designRefLinks: ReferenceLink[] = isClass ? [] : parseLinksFromTextarea(designRefLinksText);
+    const driveRefLinks: ReferenceLink[] = isClass ? [] : parseLinksFromTextarea(driveRefLinksText);
 
     // Legacy single-URL: pakai URL pertama dari multi-link sebagai fallback
     const firstRedactionUrl = redactionLinks[0]?.url || "";
     const firstDesignRefUrl = designRefLinks[0]?.url || "";
     const firstDriveRefUrl = driveRefLinks[0]?.url || "";
 
+    const rawClassWorkspaceId =
+      (activeWorkspace as unknown as Record<string, unknown>)?.id ||
+      activeWorkspace?.id ||
+      activeWorkspace?.org_id ||
+      "ws_ilkom_2024";
+    const classWorkspaceId = String(rawClassWorkspaceId);
+
+    const resolvedPicId = isClass
+      ? (task?.pic_id || userProfile?.id || user?.uid || fallbackCoordinatorId || "admin")
+      : picId;
+
+    const resolvedCoordId = isClass
+      ? (task?.coordinator_id || userProfile?.id || user?.uid || fallbackCoordinatorId || "admin")
+      : coordinatorId;
+
     setIsSubmitting(true);
 
     try {
       await onSave(
         {
-          workspace_id: task?.workspace_id || activeWorkspace.org_id,
+          workspace_id: isClass ? classWorkspaceId : (task?.workspace_id || activeWorkspace.org_id),
           course_name: courseName.trim(),
           subject_name: courseName.trim(),
-          submission_url: submissionUrl.trim(),
-          submission_link: submissionUrl.trim(),
-          organization_id: task?.organization_id || activeWorkspace.org_id || "default_org",
-          org_id: task?.org_id || activeWorkspace.org_id || "default_org",
-          orgId: task?.orgId || activeWorkspace.org_id || "default_org",
-          campus_id: task?.campus_id || activeWorkspace.campus_id || "default_campus",
-          campusId: task?.campusId || activeWorkspace.campus_id || "default_campus",
-          univ_id: task?.univ_id || activeWorkspace.campus_id || "default_campus",
-          univId: task?.univId || activeWorkspace.campus_id || "default_campus",
-          type,
-          event_id: type === "acara" ? eventId : "",
-          division_id: type === "divisi" ? divisionId : "",
+          submission_url: submissionUrl.trim() || "E-Learning Undiksha",
+          submission_link: submissionUrl.trim() || "E-Learning Undiksha",
+          organization_id: isClass ? classWorkspaceId : (task?.organization_id || activeWorkspace.org_id || "default_org"),
+          org_id: isClass ? classWorkspaceId : (task?.org_id || activeWorkspace.org_id || "default_org"),
+          orgId: isClass ? classWorkspaceId : (task?.orgId || activeWorkspace.org_id || "default_org"),
+          campus_id: task?.campus_id || activeWorkspace.campus_id || "univ-undiksha",
+          campusId: task?.campusId || activeWorkspace.campus_id || "univ-undiksha",
+          univ_id: task?.univ_id || activeWorkspace.campus_id || "univ-undiksha",
+          univId: task?.univId || activeWorkspace.campus_id || "univ-undiksha",
+          type: isClass ? "tugas_kuliah" : type,
+          event_id: (!isClass && type === "acara") ? eventId : "",
+          division_id: (!isClass && type === "divisi") ? divisionId : "",
           name: name.trim(),
+          title: name.trim(),
           description: description.trim(),
-          pic_id: picId,
-          coordinator_id: coordinatorId,
+          pic_id: resolvedPicId,
+          coordinator_id: resolvedCoordId,
           deadline,
-          status,
-          priority,
-          copywriting,
+          status: isClass ? (task?.is_archived ? "belum_dimulai" : (task?.status || "belum_dimulai")) : status,
+          priority: isClass ? (task?.priority || "sedang") : priority,
+          is_archived: false,
+          copywriting: isClass ? "" : copywriting,
           // Legacy single-URL fields (backward compat)
-          copywriting_docs_url: firstRedactionUrl,
-          design_reference_url: firstDesignRefUrl,
-          drive_reference_url: firstDriveRefUrl,
-          color_palette: colors,
-          visual_direction: visualDirection.trim(),
-          category_key: categoryKey,
-          category_label: MAIN_CATEGORIES.find((c) => c.key === categoryKey)?.label ?? "",
-          subcategory_key: subcategoryKey,
+          copywriting_docs_url: isClass ? "" : firstRedactionUrl,
+          design_reference_url: isClass ? "" : firstDesignRefUrl,
+          drive_reference_url: isClass ? "" : firstDriveRefUrl,
+          color_palette: isClass ? [] : colors,
+          visual_direction: isClass ? "" : visualDirection.trim(),
+          category_key: isClass ? "" : categoryKey,
+          category_label: isClass ? "" : (MAIN_CATEGORIES.find((c) => c.key === categoryKey)?.label ?? ""),
+          subcategory_key: isClass ? "" : subcategoryKey,
           subcategory_label:
-            categoryKey && subcategoryKey
+            !isClass && categoryKey && subcategoryKey
               ? (getCategoryRule(categoryKey, subcategoryKey)?.subcategoryLabel ?? "")
               : "",
-          output_types: outputTypes
+          output_types: isClass ? [] : outputTypes
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
-          archive_enabled: archiveEnabled,
-          reference_candidate_enabled: referenceCandidateEnabled,
-          requires_file: requiresFile,
-          requires_source_link: requiresSourceLink,
-          source_link: sourceLink.trim(),
-          archive_notes: archiveNotes.trim(),
-          data_sensitivity: dataSensitivity as "normal" | "internal" | "sensitive",
+          archive_enabled: isClass ? false : archiveEnabled,
+          reference_candidate_enabled: isClass ? false : referenceCandidateEnabled,
+          requires_file: isClass ? false : requiresFile,
+          requires_source_link: isClass ? false : requiresSourceLink,
+          source_link: isClass ? "" : sourceLink.trim(),
+          archive_notes: isClass ? "" : archiveNotes.trim(),
+          data_sensitivity: (isClass ? "normal" : dataSensitivity) as "normal" | "internal" | "sensitive",
           // Fase 26A: Multi-link fields
           redaction_links: redactionLinks,
           design_ref_links: designRefLinks,
           drive_ref_links: driveRefLinks,
-          design_kit_source: designKitSource,
+          design_kit_source: isClass ? null : designKitSource,
         },
         task?.id,
       );
@@ -638,18 +673,26 @@ function TaskForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 px-4 py-8">
-      <div className="w-full max-w-4xl rounded-[8px] bg-white dark:bg-slate-900 shadow-xl">
+      <div className="w-full max-w-4xl rounded-none bg-white dark:bg-slate-900 shadow-none border border-zinc-200 dark:border-zinc-800">
         <div className="border-b border-slate-200 dark:border-slate-800 p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">
-                {task ? "Edit Job Desk" : "Tambah Job Desk"}
+                {isClass
+                  ? task
+                    ? "Edit Tugas Kuliah"
+                    : "Tambah Tugas Kuliah"
+                  : task
+                  ? "Edit Job Desk"
+                  : "Tambah Job Desk"}
               </h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Upload, status log, dan approval workflow masuk fase berikutnya.
-              </p>
+              {!isClass && (
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Upload, status log, dan approval workflow masuk fase berikutnya.
+                </p>
+              )}
             </div>
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            <Button type="button" variant="ghost" size="sm" onClick={onClose} className="rounded-none">
               <X className="h-4 w-4" />
               Tutup
             </Button>
@@ -657,6 +700,66 @@ function TaskForm({
         </div>
 
         <form className="grid max-h-[78vh] gap-4 overflow-y-auto p-5" onSubmit={handleSubmit}>
+          {isClass ? (
+            /* ===================================================
+               PANGKAS TOTAL FORMULIR TUGAS KELAS (5 KOLOM BERURUTAN)
+               =================================================== */
+            <div className="space-y-4">
+              {task?.is_archived && (
+                <div className="p-3 text-xs bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-none flex items-center gap-2">
+                  <span>ℹ️</span>
+                  <span>Tugas ini saat ini <strong>diarsipkan</strong>. Memperbarui tenggat atau menyimpan perubahan ini akan otomatis mengaktifkan kembali tugas kuliah.</span>
+                </div>
+              )}
+
+              {/* 1. Mata Kuliah */}
+              <Field label="Mata Kuliah">
+                <Input
+                  placeholder="Contoh: Pemrograman Web, Basis Data Lanjut"
+                  value={courseName}
+                  onChange={(event) => setCourseName(event.target.value)}
+                  className="rounded-none shadow-none"
+                  autoFocus
+                  required
+                />
+              </Field>
+
+              {/* 2. Judul Tugas */}
+              <Field label="Judul Tugas">
+                <Input
+                  placeholder="Contoh: Praktikum REST API Next.js"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="rounded-none shadow-none"
+                  required
+                />
+              </Field>
+
+              {/* 3. Ketentuan / Deskripsi Tugas */}
+              <TextArea
+                label="Ketentuan / Deskripsi Tugas"
+                value={description}
+                onChange={setDescription}
+                placeholder="Tuliskan ketentuan pengerjaan, format file tugas, petunjuk modul dosen, dll."
+              />
+
+              {/* 4. Tenggat Pengumpulan */}
+              <Field label="Tenggat Pengumpulan">
+                <NeoDatePicker value={deadline} onChange={setDeadline} />
+              </Field>
+
+              {/* 5. Tempat / Link Pengumpulan */}
+              <Field label="Tempat / Link Pengumpulan">
+                <Input
+                  placeholder="Contoh: E-learning Undiksha"
+                  value={submissionUrl}
+                  onChange={(event) => setSubmissionUrl(event.target.value)}
+                  className="rounded-none shadow-none"
+                />
+              </Field>
+            </div>
+          ) : (
+            <>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Nama task">
               <Input value={name} onChange={(event) => setName(event.target.value)} />
@@ -1189,21 +1292,27 @@ function TaskForm({
               </>
             ) : null}
           </div>
+            </>
+          )}
 
           {error ? (
-            <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+            <p className="rounded-none bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200 border border-red-200 dark:border-red-800">
               {error}
             </p>
           ) : null}
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <Button type="button" variant="secondary" size="sm" onClick={onClose} className="rounded-none">
               <X className="h-4 w-4" />
               Batal
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting}>
+            <Button type="submit" size="sm" disabled={isSubmitting} className="rounded-none">
               <Save className="h-4 w-4" />
-              {isSubmitting ? "Menyimpan..." : "Simpan task"}
+              {isSubmitting
+                ? "Menyimpan..."
+                : isClass
+                ? "Simpan Tugas"
+                : "Simpan task"}
             </Button>
           </div>
         </form>
@@ -1227,10 +1336,12 @@ function TextArea({
   label,
   value,
   onChange,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
@@ -1238,6 +1349,7 @@ function TextArea({
         {label}
       </span>
       <textarea
+        placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="min-h-24 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800"

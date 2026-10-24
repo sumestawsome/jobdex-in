@@ -269,7 +269,7 @@ export async function handleAcademicTaskMenu(
     "*⚙️ Perintah Khusus Admin Komunitas / Korti:*",
     "• `!tugas tambah [Matkul] | [Judul] | [Deskripsi] | [Tenggat] | [LMS]` : Menambah tugas baru (format 4 atau 5 parameter).",
     "• `!tugas edit [No/Nama] | [tenggat/deskripsi/link/judul] | [Nilai Baru]` : Mengubah data tugas & siarkan revisi.",
-    "• `!tugas selesai [No/Nama]` : Menutup tugas & siarkan apresiasi selesai ke pengumuman.",
+    "• `!tugas selesai [No/Nama]` : Menutup & mengarsipkan tugas (pengingat otomatis dinonaktifkan).",
     "• `!tugas arsip [No/Nama]` : Mengarsipkan tugas yang telah selesai.",
     "",
     "🌐 *Kalender & Jadwal Publik Lengkap:*",
@@ -708,42 +708,10 @@ export async function handleAcademicTaskCompleteOrArchive(
     updated_at: FieldValue.serverTimestamp(),
   });
 
-  // 2. Kirim siaran penutupan ke Grup Pengumuman Komunitas (120363411033795051@g.us)
-  const wsConfig = await getClassWorkspaceConfig(DEFAULT_CLASS_WORKSPACE_ID, db);
-  const closingBroadcastMsg = buildClassTaskCompletedMessage({
-    courseName,
-    taskTitle,
-    workspaceName: wsConfig.name || "Ilkom B",
-  });
-
-  try {
-    await sendWhatsAppMessage({
-      target: wsConfig.groupId,
-      message: closingBroadcastMsg,
-      type: "group",
-      org_id: DEFAULT_CLASS_WORKSPACE_ID,
-    });
-
-    // Catat log
-    await db.collection("notifications_log").add({
-      workspace_id: DEFAULT_CLASS_WORKSPACE_ID,
-      task_id: task.id,
-      trigger_type: "task_completed",
-      target_group: wsConfig.groupId,
-      message_preview: closingBroadcastMsg.slice(0, 200),
-      status: "sent",
-      sent_at: new Date().toISOString(),
-      created_at: FieldValue.serverTimestamp(),
-    });
-  } catch (bcErr) {
-    console.error("[handleAcademicTaskCompleteOrArchive] Error broadcasting completion:", bcErr);
-  }
-
-  // 3. Kirim konfirmasi ke pengirim / grup diskusi
+  // 2. Kirim konfirmasi singkat HANYA kepada admin pengirim (japri/grup diskusi)
   const confMsg = [
-    `✅ *Tugas Berhasil Ditandai ${isArchive ? "Arsip" : "Selesai"}!*`,
-    `Tugas *${courseName} - ${taskTitle}* telah ditutup.`,
-    "Pesan apresiasi penutupan telah disiarkan ke Grup Pengumuman Ilkom B! 🙌",
+    "✅ *Tugas Ditutup & Diarsipkan*",
+    `Tugas *${courseName} - ${taskTitle}* telah selesai/diarsipkan. Pengingat otomatis dinonaktifkan.`,
   ].join("\n");
 
   await sendWhatsAppMessage({

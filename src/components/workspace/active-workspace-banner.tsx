@@ -21,7 +21,7 @@ export function ActiveWorkspaceBanner({
   const [logoError, setLogoError] = useState(false);
 
   // Sembunyikan banner di mode kelas / admin komunitas
-  if (isClassWorkspace || activeWorkspace.org_id === "ws_ilkom_2024") {
+  if (isClassWorkspace) {
     return null;
   }
 

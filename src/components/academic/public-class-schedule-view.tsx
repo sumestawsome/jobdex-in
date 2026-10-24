@@ -508,7 +508,7 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                     ? "Tidak ada tugas jatuh tempo pada tanggal ini"
                     : onlyUrgent
                     ? "Aman! Tidak ada tugas dengan deadline mepet (≤ 3 hari)"
-                    : "Belum ada tugas kuliah aktif"}
+                    : "Belum ada jadwal tugas"}
                 </h3>
                 <p className="text-xs text-zinc-400 max-w-md mx-auto">
                   {selectedDate || onlyUrgent || searchQuery
