@@ -40,15 +40,32 @@ export async function sendViaGreenApi(
   payload: WhatsAppSendPayload,
   credentials?: GreenApiCredentials
 ): Promise<WhatsAppSendResult> {
-  const idInstance = (credentials?.idInstance || process.env.GREEN_API_ID_INSTANCE || "").trim();
-  const apiTokenInstance = (credentials?.apiTokenInstance || process.env.GREEN_API_TOKEN_INSTANCE || "").trim();
-  let baseUrl = (credentials?.baseUrl || process.env.GREEN_API_BASE_URL || "https://7107.api.greenapi.com").trim();
+  const idInstance = (
+    credentials?.idInstance ||
+    process.env.GREEN_API_ID_INSTANCE ||
+    process.env.NEXT_PUBLIC_GREEN_API_ID_INSTANCE ||
+    ""
+  ).trim();
+  const apiTokenInstance = (
+    credentials?.apiTokenInstance ||
+    process.env.GREEN_API_TOKEN_INSTANCE ||
+    ""
+  ).trim();
+  let baseUrl = (
+    credentials?.baseUrl ||
+    process.env.GREEN_API_BASE_URL ||
+    "https://7107.api.greenapi.com"
+  ).trim();
 
   // Bersihkan format markdown jika user memasukkan link markdown [url](url)
   baseUrl = baseUrl.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/\/$/, "");
 
   if (!idInstance || !apiTokenInstance) {
-    throw new Error("Konfigurasi GREEN_API_ID_INSTANCE atau GREEN_API_TOKEN_INSTANCE tidak ditemukan.");
+    const missing: string[] = [];
+    if (!idInstance) missing.push("GREEN_API_ID_INSTANCE (or NEXT_PUBLIC_GREEN_API_ID_INSTANCE)");
+    if (!apiTokenInstance) missing.push("GREEN_API_TOKEN_INSTANCE");
+    console.error(`[GREEN-API Provider Error] Missing runtime environment variables: [${missing.join(", ")}]`);
+    throw new Error(`Konfigurasi GREEN_API belum lengkap: [${missing.join(", ")}] undefined di runtime.`);
   }
 
   let recipient = payload.target;
@@ -131,14 +148,30 @@ export async function sendFileViaGreenApi(
   caption?: string,
   credentials?: GreenApiCredentials
 ): Promise<{ ok: boolean; idMessage?: string; error?: string }> {
-  const idInstance = (credentials?.idInstance || process.env.GREEN_API_ID_INSTANCE || "").trim();
-  const apiTokenInstance = (credentials?.apiTokenInstance || process.env.GREEN_API_TOKEN_INSTANCE || "").trim();
-  let baseUrl = (credentials?.baseUrl || process.env.GREEN_API_BASE_URL || "https://7107.api.greenapi.com").trim();
+  const idInstance = (
+    credentials?.idInstance ||
+    process.env.GREEN_API_ID_INSTANCE ||
+    process.env.NEXT_PUBLIC_GREEN_API_ID_INSTANCE ||
+    ""
+  ).trim();
+  const apiTokenInstance = (
+    credentials?.apiTokenInstance ||
+    process.env.GREEN_API_TOKEN_INSTANCE ||
+    ""
+  ).trim();
+  let baseUrl = (
+    credentials?.baseUrl ||
+    process.env.GREEN_API_BASE_URL ||
+    "https://7107.api.greenapi.com"
+  ).trim();
 
   baseUrl = baseUrl.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/\/$/, "");
 
   if (!idInstance || !apiTokenInstance) {
-    throw new Error("Konfigurasi GREEN-API tidak lengkap untuk pengiriman file.");
+    const missing: string[] = [];
+    if (!idInstance) missing.push("GREEN_API_ID_INSTANCE (or NEXT_PUBLIC_GREEN_API_ID_INSTANCE)");
+    if (!apiTokenInstance) missing.push("GREEN_API_TOKEN_INSTANCE");
+    return { ok: false, error: `Konfigurasi GREEN-API tidak lengkap: [${missing.join(", ")}] undefined.` };
   }
 
   const apiUrl = `${baseUrl}/waInstance${idInstance}/sendFileByUrl/${apiTokenInstance}`;

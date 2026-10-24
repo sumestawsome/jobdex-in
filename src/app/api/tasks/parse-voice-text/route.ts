@@ -14,6 +14,14 @@ function cleanJsonMarkdown(raw: string): string {
   return clean;
 }
 
+interface GeminiApiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // 1. Verify user authentication
@@ -53,7 +61,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Native REST call to Gemini 1.5 Flash
+    // 4. Sequential Native REST call to Active Gemini Models (gemini-2.5-flash, gemini-flash-latest, etc.)
     const systemInstruction = `Kamu adalah parser teks tugas kuliah yang sangat teliti untuk mahasiswa Ilkom Undiksha.
 Tugasmu adalah menganalisis teks transkrip percakapan suara santai dan mengekstrak entitas tugas kuliah.
 Buang semua kata filler, sapaan, atau basa-basi (seperti 'tes tes', 'tolong buatkan', 'apa namanya', 'gess', 'halo').
@@ -69,40 +77,68 @@ Format JSON WAJIB murni tanpa markdown:
   "submission_url": "Tempat atau platform pengumpulan (default: 'E-Learning Undiksha')"
 }`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const modelsToTry = [
+      process.env.GEMINI_MODEL,
+      "gemini-2.5-flash",
+      "gemini-flash-latest",
+      "gemini-2.5-flash-lite",
+      "gemini-2.5-pro",
+      "gemini-pro-latest",
+    ].filter(Boolean) as string[];
+    const uniqueModels = [...new Set(modelsToTry)];
 
-    const geminiRes = await fetch(geminiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemInstruction }],
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: transcript }],
+    let geminiData: GeminiApiResponse | null = null;
+    let lastError = "";
+
+    for (const model of uniqueModels) {
+      try {
+        console.log(`[parse-voice-text] Attempting Gemini model: ${model}`);
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        const geminiRes = await fetch(geminiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          response_mime_type: "application/json",
-        },
-      }),
-    });
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: systemInstruction }],
+            },
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: transcript }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.1,
+              response_mime_type: "application/json",
+            },
+          }),
+        });
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error("[parse-voice-text] Gemini API error:", geminiRes.status, errText);
+        if (geminiRes.ok) {
+          geminiData = (await geminiRes.json()) as GeminiApiResponse;
+          console.log(`[parse-voice-text] Successfully parsed voice text using model: ${model}`);
+          break;
+        } else {
+          const errText = await geminiRes.text();
+          console.warn(`[parse-voice-text] Model ${model} failed (HTTP ${geminiRes.status}):`, errText);
+          lastError = `Status ${geminiRes.status}: ${errText}`;
+        }
+      } catch (callErr) {
+        console.warn(`[parse-voice-text] Network error calling ${model}:`, callErr);
+        lastError = callErr instanceof Error ? callErr.message : String(callErr);
+      }
+    }
+
+    if (!geminiData) {
+      console.error("[parse-voice-text] All Gemini models failed:", lastError);
       return NextResponse.json(
-        { error: `Gemini API error (Status ${geminiRes.status}): ${errText}` },
+        { error: `Gemini API error (Seluruh model gagal): ${lastError}` },
         { status: 502 }
       );
     }
-
-    const geminiData = await geminiRes.json();
     const rawText =
       geminiData?.candidates?.[0]?.content?.parts
         ?.map((part: { text?: string }) => part.text ?? "")

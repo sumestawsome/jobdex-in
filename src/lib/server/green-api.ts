@@ -32,11 +32,26 @@ export function formatGreenApiChatId(target: string, isGroup?: boolean): string 
 
 /**
  * Extracts and sanitizes Green-API configuration.
+ * Reads from process.env.GREEN_API_ID_INSTANCE || process.env.NEXT_PUBLIC_GREEN_API_ID_INSTANCE
+ * and process.env.GREEN_API_TOKEN_INSTANCE.
  */
 export function getGreenApiConfig(credentials?: GreenApiCredentials) {
-  const idInstance = (credentials?.idInstance || process.env.GREEN_API_ID_INSTANCE || "").trim();
-  const apiTokenInstance = (credentials?.apiTokenInstance || process.env.GREEN_API_TOKEN_INSTANCE || "").trim();
-  let baseUrl = (credentials?.baseUrl || process.env.GREEN_API_BASE_URL || "https://api.green-api.com").trim();
+  const idInstance = (
+    credentials?.idInstance ||
+    process.env.GREEN_API_ID_INSTANCE ||
+    process.env.NEXT_PUBLIC_GREEN_API_ID_INSTANCE ||
+    ""
+  ).trim();
+  const apiTokenInstance = (
+    credentials?.apiTokenInstance ||
+    process.env.GREEN_API_TOKEN_INSTANCE ||
+    ""
+  ).trim();
+  let baseUrl = (
+    credentials?.baseUrl ||
+    process.env.GREEN_API_BASE_URL ||
+    "https://api.green-api.com"
+  ).trim();
 
   // Bersihkan format markdown jika terisi e.g. [https://...](https://...)
   baseUrl = baseUrl.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/\/$/, "");
@@ -56,10 +71,17 @@ export async function sendGreenApiTextMessage(
   const { idInstance, apiTokenInstance, baseUrl } = getGreenApiConfig(credentials);
 
   if (!idInstance || !apiTokenInstance) {
-    console.error("[GREEN-API] Missing GREEN_API_ID_INSTANCE or GREEN_API_TOKEN_INSTANCE");
+    const missing: string[] = [];
+    if (!idInstance) missing.push("GREEN_API_ID_INSTANCE (or NEXT_PUBLIC_GREEN_API_ID_INSTANCE)");
+    if (!apiTokenInstance) missing.push("GREEN_API_TOKEN_INSTANCE");
+
+    console.error(
+      `[GREEN-API Fallback Warning] Failed to dispatch text message to ${chatId}: missing runtime environment variables [${missing.join(", ")}]. ` +
+      `Pastikan variabel GREEN_API_ID_INSTANCE dan GREEN_API_TOKEN_INSTANCE telah diisi di .env.local atau Vercel Environment Variables.`
+    );
     return {
       ok: false,
-      error: "Konfigurasi GREEN_API_ID_INSTANCE atau GREEN_API_TOKEN_INSTANCE belum lengkap.",
+      error: `Konfigurasi GREEN-API belum lengkap: [${missing.join(", ")}] undefined di runtime.`,
     };
   }
 
@@ -120,9 +142,16 @@ export async function sendGreenApiFile(
   const { idInstance, apiTokenInstance, baseUrl } = getGreenApiConfig(credentials);
 
   if (!idInstance || !apiTokenInstance) {
+    const missing: string[] = [];
+    if (!idInstance) missing.push("GREEN_API_ID_INSTANCE (or NEXT_PUBLIC_GREEN_API_ID_INSTANCE)");
+    if (!apiTokenInstance) missing.push("GREEN_API_TOKEN_INSTANCE");
+
+    console.error(
+      `[GREEN-API Fallback Warning] Failed to dispatch file to ${chatId}: missing runtime environment variables [${missing.join(", ")}].`
+    );
     return {
       ok: false,
-      error: "Konfigurasi GREEN_API_ID_INSTANCE atau GREEN_API_TOKEN_INSTANCE belum lengkap.",
+      error: `Konfigurasi GREEN-API belum lengkap: [${missing.join(", ")}] undefined di runtime.`,
     };
   }
 

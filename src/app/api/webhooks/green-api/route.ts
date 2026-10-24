@@ -82,11 +82,20 @@ export async function POST(request: NextRequest) {
     ? messageData.fileMessageData
     : {}) as Record<string, unknown>;
 
-  // Ekstrak target chat dan nomor pengirim
+  // Ekstrak target chat dan nomor pengirim dengan safeguard grup
   const rawChatId = String(senderData.chatId || root.chatId || "").trim();
-  const rawSender = String(senderData.sender || senderData.chatId || root.sender || "").trim();
+  const isGroup = rawChatId.endsWith("@g.us");
+  const groupId = isGroup ? rawChatId : undefined;
 
-  // Ekstrak nomor murni tanpa @c.us / @g.us (contoh: 6285119459703)
+  // Di grup WhatsApp, senderData.sender berisi nomor individu peserta (e.g. 6285119459703@c.us),
+  // sedangkan senderData.chatId berisi ID grup (e.g. 120363432766465224@g.us).
+  const rawSender = String(
+    senderData.sender ||
+    root.sender ||
+    (!isGroup ? rawChatId : "")
+  ).trim();
+
+  // Ekstrak nomor murni tanpa @c.us / @g.us / @s.whatsapp.net (contoh: 6285119459703)
   const cleanSender = rawSender
     .replace(/@c\.us$/i, "")
     .replace(/@s\.whatsapp\.net$/i, "")
@@ -94,9 +103,16 @@ export async function POST(request: NextRequest) {
     .replace(/[^\d]/g, "")
     .replace(/^0/, "62");
 
-  // Deteksi apakah pesan dari grup: senderData.chatId.endsWith('@g.us')
-  const isGroup = rawChatId.endsWith("@g.us");
-  const groupId = isGroup ? rawChatId : undefined;
+  if (!cleanSender) {
+    console.warn("[green-api webhook] Warning: Failed to extract valid sender phone number from payload:", {
+      idMessage: root.idMessage,
+      rawChatId,
+      rawSender,
+      senderData,
+      isGroup,
+    });
+  }
+
   const senderName = String(senderData.senderName || senderData.senderContactName || "");
 
   // Ekstrak media dan teks pesan
