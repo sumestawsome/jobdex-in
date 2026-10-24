@@ -69,6 +69,7 @@ type TaskFormDialogProps = {
   open: boolean;
   task: Task | null;
   initialValues?: Partial<TaskInput> | null;
+  autoFocusField?: string | null;
   users: UserProfile[];
   events: Event[];
   divisions?: Division[];
@@ -96,6 +97,7 @@ export function TaskFormDialog(props: TaskFormDialogProps) {
 function TaskForm({
   task,
   initialValues,
+  autoFocusField,
   users,
   events,
   divisions,
@@ -221,6 +223,32 @@ function TaskForm({
 
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!autoFocusField) return;
+    const timer = setTimeout(() => {
+      let targetId = "";
+      if (autoFocusField === "deadline") {
+        targetId = "task-form-deadline-input";
+      } else if (autoFocusField === "course_name") {
+        targetId = "task-form-course-input";
+      } else if (autoFocusField === "name") {
+        targetId = "task-form-name-input";
+      } else if (autoFocusField === "description") {
+        targetId = "task-form-description-input";
+      }
+      if (targetId) {
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.focus();
+          if (autoFocusField === "deadline") {
+            el.click();
+          }
+        }
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [autoFocusField]);
 
   // --- Category detection logic (unchanged) ---
   const initialSuggestion = (() => {
@@ -739,11 +767,12 @@ function TaskForm({
               {/* 1. Mata Kuliah */}
               <Field label="Mata Kuliah">
                 <Input
+                  id="task-form-course-input"
                   placeholder="Contoh: Pemrograman Web, Basis Data Lanjut"
                   value={courseName}
                   onChange={(event) => setCourseName(event.target.value)}
                   className="rounded-none shadow-none"
-                  autoFocus
+                  autoFocus={!autoFocusField || autoFocusField === "course_name"}
                   required
                 />
               </Field>
@@ -751,6 +780,7 @@ function TaskForm({
               {/* 2. Judul Tugas */}
               <Field label="Judul Tugas">
                 <Input
+                  id="task-form-name-input"
                   placeholder="Contoh: Praktikum REST API Next.js"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
@@ -761,6 +791,7 @@ function TaskForm({
 
               {/* 3. Ketentuan / Deskripsi Tugas */}
               <TextArea
+                id="task-form-description-input"
                 label="Ketentuan / Deskripsi Tugas"
                 value={description}
                 onChange={setDescription}
@@ -769,12 +800,13 @@ function TaskForm({
 
               {/* 4. Tenggat Pengumpulan */}
               <Field label="Tenggat Pengumpulan">
-                <NeoDatePicker value={deadline} onChange={setDeadline} />
+                <NeoDatePicker id="task-form-deadline-input" value={deadline} onChange={setDeadline} />
               </Field>
 
               {/* 5. Tempat / Link Pengumpulan */}
               <Field label="Tempat / Link Pengumpulan">
                 <Input
+                  id="task-form-submission-input"
                   placeholder="Contoh: E-learning Undiksha"
                   value={submissionUrl}
                   onChange={(event) => setSubmissionUrl(event.target.value)}
@@ -1361,11 +1393,13 @@ function TextArea({
   value,
   onChange,
   placeholder,
+  id,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  id?: string;
 }) {
   return (
     <label className="block">
@@ -1373,6 +1407,7 @@ function TextArea({
         {label}
       </span>
       <textarea
+        id={id}
         placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}

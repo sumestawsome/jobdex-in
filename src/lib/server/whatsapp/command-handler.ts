@@ -77,6 +77,9 @@ import {
   isAudioVoiceNote,
   handleWhatsAppVoiceTask,
   processVoiceNoteAcademicTask,
+  getWhatsAppTaskDraft,
+  handleDraftFollowUpMessage,
+  deleteWhatsAppTaskDraft,
 } from "@/lib/server/voice-task-processor";
 
 export { findFaqMatch } from "@/lib/server/faq-matcher";
@@ -652,6 +655,30 @@ export async function executeWhatsAppWebhook(
       ignored: true,
       reason: "announcement_group_is_broadcast_only",
     });
+  }
+
+  // ============================================================================
+  // CONVERSATIONAL CLARIFICATION: ACTIVE TASK DRAFT SESSION INTERCEPTOR
+  // Periksa apakah nomor pengirim memiliki draf aktif di session sebelum perintah umum.
+  // ============================================================================
+  const activeDraft = await getWhatsAppTaskDraft(incoming.sender);
+  if (activeDraft) {
+    const isExplicitSystemCommand =
+      /^[!/](?:jobde[xs]\b|tugas\s+(?:tambah|edit|selesai|arsip|tutup|beres|list|mepet|menu|bantuan)\b)/i.test(
+        stripped
+      );
+
+    if (!isExplicitSystemCommand) {
+      console.log("[whatsapp draft] Active draft found for sender:", incoming.sender, {
+        course: activeDraft.course_name,
+        name: activeDraft.name,
+        missing: activeDraft.missing_fields,
+      });
+
+      const draftRes = await handleDraftFollowUpMessage(incoming, activeDraft, stripped);
+      console.log("[whatsapp draft] Follow-up processed with status:", draftRes.status);
+      return draftRes;
+    }
   }
 
   // 2. CEK PERINTAH TUGAS KELAS AKADEMIK (!tugas ...)

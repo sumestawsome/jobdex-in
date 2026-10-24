@@ -43,11 +43,14 @@ interface SpeechRecognitionInstance {
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
 export interface ExtractedVoiceTaskData {
+  status?: "ready" | "needs_clarification";
   course_name: string;
   name: string;
   description: string;
   deadline: string;
   submission_url: string;
+  missing_fields?: string[];
+  clarification_question?: string | null;
 }
 
 interface VoiceTaskDialogProps {
@@ -219,11 +222,18 @@ export function VoiceTaskDialog({ open, onClose, onTaskExtracted }: VoiceTaskDia
       }
 
       const extracted: ExtractedVoiceTaskData = {
+        status: (json.status || json.data?.status || "ready") as "ready" | "needs_clarification",
         course_name: String(json.course_name ?? json.data?.course_name ?? "").trim(),
         name: String(json.name ?? json.data?.name ?? "").trim(),
         description: String(json.description ?? json.data?.description ?? "").trim(),
         deadline: String(json.deadline ?? json.data?.deadline ?? "").trim(),
         submission_url: String(json.submission_url ?? json.data?.submission_url ?? "E-Learning Undiksha").trim(),
+        missing_fields: Array.isArray(json.missing_fields)
+          ? json.missing_fields
+          : Array.isArray(json.data?.missing_fields)
+          ? json.data.missing_fields
+          : [],
+        clarification_question: json.clarification_question ?? json.data?.clarification_question ?? null,
       };
 
       onTaskExtracted(extracted);

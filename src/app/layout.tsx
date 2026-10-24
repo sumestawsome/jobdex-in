@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { WorkspaceProvider } from "@/contexts/workspace-context";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -54,7 +55,10 @@ export default function RootLayout({
         />
         <ThemeProvider>
           <AuthProvider>
-            <WorkspaceProvider>{children}</WorkspaceProvider>
+            <WorkspaceProvider>
+              {children}
+              <Toaster position="top-right" richColors />
+            </WorkspaceProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

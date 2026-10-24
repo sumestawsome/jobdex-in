@@ -68,13 +68,20 @@ Buang semua kata filler, sapaan, atau basa-basi (seperti 'tes tes', 'tolong buat
 
 Basis Waktu: Hari ini adalah Minggu, 25 Oktober 2026.
 
+Aturan Status & Kelengkapan:
+- Jika ketiga entitas inti (course_name, name, dan deadline) terdeteksi lengkap, set "status": "ready" dan "missing_fields": [].
+- Jika ada satu atau lebih entitas inti yang belum lengkap, set "status": "needs_clarification", isi field yang belum ada dengan null, sebutkan di "missing_fields" (misal: ["deadline"]), dan buatkan "clarification_question" yang ramah dan spesifik menanyakan informasi yang kurang (misal: 'Tugas RPL sudah dicatat, tapi kapan tenggat waktunya ya?').
+
 Format JSON WAJIB murni tanpa markdown:
 {
-  "course_name": "Nama mata kuliah yang disebutkan (contoh: Basis Data, Pemrograman Web)",
-  "name": "Judul spesifik tugas (contoh: Tugas Latihan 8, Resume Jurnal)",
+  "status": "ready" | "needs_clarification",
+  "course_name": "Nama mata kuliah atau null jika tidak disebutkan",
+  "name": "Judul tugas atau null jika tidak disebutkan",
   "description": "Instruksi/ketentuan pengerjaan bersih tanpa kata filler (contoh: Kerjakan di double folio, upload di e-learning Undiksha)",
-  "deadline": "Format string input datetime-local: YYYY-MM-DDTHH:mm. Jika jam tidak disebutkan, gunakan pukul 23:59",
-  "submission_url": "Tempat atau platform pengumpulan (default: 'E-Learning Undiksha')"
+  "deadline": "Format string input datetime-local: YYYY-MM-DDTHH:mm atau null jika tidak disebutkan. Jika jam tidak disebutkan, gunakan pukul 23:59",
+  "submission_url": "Tempat pengumpulan (default: 'E-Learning Undiksha')",
+  "missing_fields": ["deadline"],
+  "clarification_question": "Pertanyaan ramah dan spesifik menanyakan informasi yang kurang (misal: 'Tugas RPL sudah dicatat, tapi kapan tenggat waktunya ya?') atau null jika status ready"
 }`;
 
     const modelsToTry = [
@@ -146,14 +153,37 @@ Format JSON WAJIB murni tanpa markdown:
         .trim() || "";
 
     const cleanedText = cleanJsonMarkdown(rawText);
-    const parsed = JSON.parse(cleanedText);
+    const parsed = JSON.parse(cleanedText) as Record<string, unknown>;
+
+    const courseName = parsed.course_name ? String(parsed.course_name).trim() : null;
+    const name = parsed.name ? String(parsed.name).trim() : (parsed.title ? String(parsed.title).trim() : null);
+    const description = parsed.description ? String(parsed.description).trim() : "";
+    const deadline = parsed.deadline ? String(parsed.deadline).trim() : null;
+    const submissionUrl = parsed.submission_url ? String(parsed.submission_url).trim() : "E-Learning Undiksha";
+
+    const missing: string[] = [];
+    if (!courseName) missing.push("course_name");
+    if (!name) missing.push("name");
+    if (!deadline) missing.push("deadline");
+
+    const status: "ready" | "needs_clarification" =
+      missing.length === 0 && parsed.status !== "needs_clarification"
+        ? "ready"
+        : "needs_clarification";
+
+    const clarificationQuestion = parsed.clarification_question
+      ? String(parsed.clarification_question).trim()
+      : null;
 
     const extracted = {
-      course_name: String(parsed.course_name || "").trim(),
-      name: String(parsed.name || "").trim(),
-      description: String(parsed.description || "").trim(),
-      deadline: String(parsed.deadline || "").trim(),
-      submission_url: String(parsed.submission_url || "E-Learning Undiksha").trim(),
+      status,
+      course_name: courseName,
+      name,
+      description,
+      deadline,
+      submission_url: submissionUrl,
+      missing_fields: missing.length > 0 ? missing : (Array.isArray(parsed.missing_fields) ? (parsed.missing_fields as string[]) : []),
+      clarification_question: clarificationQuestion,
     };
 
     return NextResponse.json({

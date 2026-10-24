@@ -13,6 +13,7 @@ import Link from "next/link";
 import { Plus, Building2, ArrowRight, Mic } from "lucide-react";
 import { VoiceTaskDialog, type ExtractedVoiceTaskData } from "@/components/tasks/voice-task-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { ActiveWorkspaceBanner } from "@/components/workspace/active-workspace-banner";
@@ -88,6 +89,7 @@ export default function TasksPage() {
   const [userEventRoles, setUserEventRoles] = useState<Map<string, string>>(new Map());
   const [voiceDialogOpen, setVoiceDialogOpen] = useState(false);
   const [formInitialValues, setFormInitialValues] = useState<Partial<TaskInput> | null>(null);
+  const [autoFocusField, setAutoFocusField] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -110,6 +112,25 @@ export default function TasksPage() {
       submission_link: data.submission_url,
       type: "tugas_kuliah",
     });
+
+    const isDeadlineMissing = !data.deadline || data.missing_fields?.includes("deadline");
+    const isCourseMissing = !data.course_name || data.missing_fields?.includes("course_name");
+    const isNameMissing = !data.name || data.missing_fields?.includes("name");
+
+    if (isDeadlineMissing) {
+      toast.info("Tenggat waktu belum disebutkan di suara, silakan lengkapi di formulir");
+      setAutoFocusField("deadline");
+    } else if (isCourseMissing) {
+      toast.info("Mata kuliah belum disebutkan di suara, silakan lengkapi di formulir");
+      setAutoFocusField("course_name");
+    } else if (isNameMissing) {
+      toast.info("Judul tugas belum disebutkan di suara, silakan lengkapi di formulir");
+      setAutoFocusField("name");
+    } else {
+      toast.success("Detail tugas berhasil diekstrak dari suara!");
+      setAutoFocusField(null);
+    }
+
     setVoiceDialogOpen(false);
     setFormOpen(true);
   };
@@ -469,6 +490,7 @@ export default function TasksPage() {
               onClick={() => {
                 setSelectedTask(null);
                 setFormInitialValues(null);
+                setAutoFocusField(null);
                 setFormOpen(true);
               }}
               className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-none bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white shadow-none transition-all active:scale-[0.98] cursor-pointer shrink-0"
@@ -603,6 +625,7 @@ export default function TasksPage() {
         open={formOpen}
         task={selectedTask}
         initialValues={formInitialValues}
+        autoFocusField={autoFocusField}
         users={users.filter((user) => user.is_active)}
         events={events}
         divisions={divisions}
@@ -611,6 +634,7 @@ export default function TasksPage() {
           setFormOpen(false);
           setSelectedTask(null);
           setFormInitialValues(null);
+          setAutoFocusField(null);
         }}
         onSave={handleSaveTask}
       />
