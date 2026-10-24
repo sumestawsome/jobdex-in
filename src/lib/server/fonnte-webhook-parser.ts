@@ -140,20 +140,64 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
       : undefined;
 
 
+  // Read media URL / file URL (e.g. for voice notes / audio)
+  const mediaUrl = pickString(
+    data.url,
+    data.file,
+    data.media,
+    data.audio,
+    data.voice,
+    data.link,
+    root.url,
+    root.file,
+    root.media,
+    root.audio,
+    root.voice,
+    root.link
+  );
+
+  const filename = pickString(
+    data.filename,
+    data.name_file,
+    data.fileName,
+    root.filename,
+    root.name_file,
+    root.fileName
+  );
+
+  const filetype = pickString(
+    data.filetype,
+    data.type,
+    data.fileType,
+    data.mime,
+    data.mimetype,
+    root.filetype,
+    root.type,
+    root.fileType,
+    root.mime,
+    root.mimetype
+  );
+
   const keys = Object.keys(root);
-  if (!message) {
-    console.warn("[fonnte webhook] ignored payload without message", { keys });
+  const effectiveMessage = message || mediaUrl || "";
+  if (!effectiveMessage) {
+    console.warn("[fonnte webhook] ignored payload without message or media url", { keys });
     return null;
   }
 
   return {
     provider: "fonnte",
-    message,
+    message: effectiveMessage,
     sender: finalSender,
     senderName: senderName || undefined,
     groupId: finalGroupId,
     isGroup,
     rawMessageId: rawMessageId || undefined,
     timestamp: (typeof timestamp === "string" || typeof timestamp === "number") ? timestamp : undefined,
+    url: mediaUrl || undefined,
+    mediaUrl: mediaUrl || undefined,
+    filename: filename || undefined,
+    filetype: filetype || undefined,
+    messageType: filetype || undefined,
   } satisfies NormalizedIncomingWhatsAppMessage;
 }

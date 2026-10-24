@@ -73,6 +73,10 @@ import {
   findFaqMatch,
   incrementFaqHitCount,
 } from "@/lib/server/faq-matcher";
+import {
+  isAudioVoiceNote,
+  handleWhatsAppVoiceTask,
+} from "@/lib/server/voice-task-processor";
 
 export { findFaqMatch } from "@/lib/server/faq-matcher";
 export { formatWhatsAppText } from "@/lib/server/whatsapp";
@@ -616,6 +620,18 @@ export async function executeWhatsAppWebhook(
       ignored: true,
       reason: "announcement_group_is_broadcast_only",
     });
+  }
+
+  // 1B. DETEKSI PESAN SUARA / VOICE NOTE (VN)
+  const audioCheck = isAudioVoiceNote(incoming, payload);
+  if (audioCheck.isAudio && audioCheck.audioUrl) {
+    console.log("[whatsapp command] step: process_voice_note", {
+      sender: incoming.sender,
+      isGroup: incoming.isGroup,
+      groupId: incoming.groupId,
+      audioUrl: audioCheck.audioUrl.slice(0, 60),
+    });
+    return await handleWhatsAppVoiceTask(incoming, audioCheck.audioUrl);
   }
 
   // 2. CEK PERINTAH TUGAS KELAS AKADEMIK (!tugas ...)

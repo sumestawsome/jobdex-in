@@ -268,6 +268,7 @@ export async function handleAcademicTaskMenu(
     "",
     "*⚙️ Perintah Khusus Admin Komunitas / Korti:*",
     "• `!tugas tambah [Matkul] | [Judul] | [Deskripsi] | [Tenggat] | [LMS]` : Menambah tugas baru (format 4 atau 5 parameter).",
+    "• *Kirim Voice Note (VN)* : Rekam pesan suara berisi detail tugas & tenggat untuk dicatat otomatis oleh AI.",
     "• `!tugas edit [No/Nama] | [tenggat/deskripsi/link/judul] | [Nilai Baru]` : Mengubah data tugas & siarkan revisi.",
     "• `!tugas selesai [No/Nama]` : Menutup & mengarsipkan tugas (pengingat otomatis dinonaktifkan).",
     "• `!tugas arsip [No/Nama]` : Mengarsipkan tugas yang telah selesai.",

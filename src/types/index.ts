@@ -660,6 +660,11 @@ export type NormalizedIncomingWhatsAppMessage = {
   isGroup: boolean;
   rawMessageId?: string;
   timestamp?: string | number;
+  url?: string;
+  mediaUrl?: string;
+  filename?: string;
+  filetype?: string;
+  messageType?: string;
 };
 
 export interface WhatsAppSystemSettings {
