@@ -8,7 +8,7 @@ import { getTaskDeadlineDiffDays } from "@/lib/task-risk";
 export const DEFAULT_CLASS_GROUP_ID = "120363411033795051@g.us"; // Coba JobdexIn (Broadcast Only)
 export const DEFAULT_CLASS_DISCUSSION_GROUP_ID = "120363432766465224@g.us"; // CONTOH KELAS (Diskusi & Command)
 export const DEFAULT_CLASS_WORKSPACE_ID = "ws_ilkom_2024";
-export const DEFAULT_CLASS_WORKSPACE_NAME = "Kelas Ilmu Komputer 2024";
+export const DEFAULT_CLASS_WORKSPACE_NAME = "Ilkom B";
 
 /**
  * Checks whether a task belongs to an academic class workspace.
@@ -119,6 +119,7 @@ export async function getClassWorkspaceConfig(
 
 export const DEFAULT_SUBMISSION_PLACE = "E-Learning Undiksha";
 export const OFFICIAL_APP_URL = "https://jobdexin.sumestawsome.xyz";
+export const PUBLIC_CLASS_SCHEDULE_URL = "https://jobdexin.sumestawsome.xyz/jadwal-tugas-ilkom-b";
 
 /**
  * Resolves the application base URL, strictly avoiding localhost in WhatsApp broadcasts.
@@ -146,10 +147,10 @@ export function resolveSubmissionText(rawSubmission?: string): string {
 }
 
 /**
- * Skenario 1 - Format pesan pengumuman tugas baru (Deadline Mepet <= 3 Hari)
+ * Skenario 1 - Format pesan pengumuman tugas baru (Ilkom B Akrab)
  */
 export function buildNewClassTaskMessage(params: {
-  workspaceName: string;
+  workspaceName?: string;
   courseName: string;
   taskName: string;
   deadlineFormatted: string;
@@ -157,15 +158,18 @@ export function buildNewClassTaskMessage(params: {
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = resolveAppBaseUrl(params.appUrl);
   const subLink = resolveSubmissionText(params.submissionUrl);
-  const descText = params.description && params.description.trim() ? params.description.trim() : "Tidak ada catatan khusus.";
+  const descText =
+    params.description && params.description.trim()
+      ? params.description.trim()
+      : "Tidak ada ketentuan khusus.";
+  const wsName = params.workspaceName || "Ilkom B";
 
   return [
     "📢 *PENGUMUMAN TUGAS KULIAH* ✨",
-    `Halo rekan-rekan *${params.workspaceName}*!`,
+    `Halo rekan-rekan *${wsName}*!`,
     "",
-    "Ada tugas baru yang baru saja diinput oleh Admin Komunitas:",
+    "Ada tugas baru nih, jangan lupa dicatat dan dibuat ya Guys! 🙌",
     `📚 *Mata Kuliah:* ${params.courseName || "Umum"}`,
     `📝 *Tugas:* ${params.taskName}`,
     `⏰ *Tenggat:* ${params.deadlineFormatted}`,
@@ -173,11 +177,29 @@ export function buildNewClassTaskMessage(params: {
     "📌 *Ketentuan / Deskripsi:*",
     descText,
     "",
-    "🔗 *Link Pengumpulan / LMS:*",
+    "🔗 *Tempat Pengumpulan / LMS:*",
     subLink,
     "",
-    "Yuk mulai dicicil dari sekarang biar gak keteteran pas deadline! 🙌",
-    `👉 Cek jadwal lengkap: ${appBase}/dashboard/tasks`,
+    "Yuk cicil dari sekarang biar gak keteteran pas deadline!",
+    `👉 Cek kalender & jadwal lengkap: ${PUBLIC_CLASS_SCHEDULE_URL}`,
+  ].join("\n");
+}
+
+/**
+ * Format siaran penutupan tugas selesai ke Grup Pengumuman Komunitas
+ */
+export function buildClassTaskCompletedMessage(params: {
+  courseName: string;
+  taskTitle: string;
+  workspaceName?: string;
+}): string {
+  const course = params.courseName || "Mata Kuliah";
+  const title = params.taskTitle || "Tugas";
+  const ws = params.workspaceName || "Ilkom B";
+
+  return [
+    "🎉 *TUGAS SELESAI / DITUTUP*",
+    `Tugas *${course} - ${title}* telah selesai dikumpulkan. Terima kasih atas kerja samanya teman-teman ${ws}!`,
   ].join("\n");
 }
 
@@ -185,7 +207,7 @@ export function buildNewClassTaskMessage(params: {
  * Skenario 2A - Format pengingat H-5
  */
 export function buildH5ClassReminderMessage(params: {
-  workspaceName: string;
+  workspaceName?: string;
   courseName: string;
   taskName: string;
   deadlineFormatted: string;
@@ -193,12 +215,12 @@ export function buildH5ClassReminderMessage(params: {
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = resolveAppBaseUrl(params.appUrl);
   const subLink = resolveSubmissionText(params.submissionUrl);
+  const wsName = params.workspaceName || "Ilkom B";
 
   return [
     "⏳ *PENGINGAT TUGAS KULIAH (H-5)* 📚",
-    `Halo rekan-rekan *${params.workspaceName}*!`,
+    `Halo rekan-rekan *${wsName}*!`,
     "",
     "Mengingatkan untuk tugas yang perlu dicicil:",
     `📚 *Mata Kuliah:* ${params.courseName || "Umum"}`,
@@ -209,7 +231,7 @@ export function buildH5ClassReminderMessage(params: {
     subLink,
     "",
     "Yuk mulai dicicil dari sekarang biar santai pas mendekati deadline! 💪",
-    `👉 Cek detail tugas: ${appBase}/dashboard/tasks`,
+    `👉 Cek kalender & jadwal lengkap: ${PUBLIC_CLASS_SCHEDULE_URL}`,
   ].join("\n");
 }
 
@@ -217,19 +239,19 @@ export function buildH5ClassReminderMessage(params: {
  * Skenario 2B - Format pengingat H-3
  */
 export function buildH3ClassReminderMessage(params: {
-  workspaceName: string;
+  workspaceName?: string;
   courseName: string;
   taskName: string;
   deadlineFormatted: string;
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = resolveAppBaseUrl(params.appUrl);
   const subLink = resolveSubmissionText(params.submissionUrl);
+  const wsName = params.workspaceName || "Ilkom B";
 
   return [
     "⚠️ *PENGINGAT PROGRES TUGAS (H-3)* 📌",
-    `Halo rekan-rekan *${params.workspaceName}*!`,
+    `Halo rekan-rekan *${wsName}*!`,
     "",
     "Tenggat pengumpulan tugas tinggal 3 hari lagi:",
     `📚 *Mata Kuliah:* ${params.courseName || "Umum"}`,
@@ -240,7 +262,7 @@ export function buildH3ClassReminderMessage(params: {
     subLink,
     "",
     "Bagaimana progres pengerjaannya? Segera cicil dan selesaikan sebelum tenggat ya! 🙌",
-    `👉 Cek detail tugas: ${appBase}/dashboard/tasks`,
+    `👉 Cek kalender & jadwal lengkap: ${PUBLIC_CLASS_SCHEDULE_URL}`,
   ].join("\n");
 }
 
@@ -248,19 +270,19 @@ export function buildH3ClassReminderMessage(params: {
  * Skenario 2C - Format pengingat H-1 (Urgent Reminder)
  */
 export function buildH1ClassReminderMessage(params: {
-  workspaceName: string;
+  workspaceName?: string;
   courseName: string;
   taskName: string;
   deadlineFormatted: string;
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = resolveAppBaseUrl(params.appUrl);
   const subLink = resolveSubmissionText(params.submissionUrl);
+  const wsName = params.workspaceName || "Ilkom B";
 
   return [
     "⏰ *PENGINGAT DEADLINE BESOK!* 🔥",
-    `Halo rekan-rekan *${params.workspaceName}*! Jangan lupa tugas berikut batas pengumpulannya besok ya:`,
+    `Halo rekan-rekan *${wsName}*! Jangan lupa tugas berikut batas pengumpulannya besok ya:`,
     "",
     `📚 *Mata Kuliah:* ${params.courseName || "Umum"}`,
     `📝 *Tugas:* ${params.taskName}`,
@@ -270,7 +292,7 @@ export function buildH1ClassReminderMessage(params: {
     subLink,
     "",
     "Pastikan file/link tugas sudah siap disubmit sebelum server LMS penuh. Semangat menyelesaikannya! 🚀",
-    `👉 Cek detail tugas: ${appBase}/dashboard/tasks`,
+    `👉 Cek kalender & jadwal lengkap: ${PUBLIC_CLASS_SCHEDULE_URL}`,
   ].join("\n");
 }
 
@@ -278,7 +300,7 @@ export function buildH1ClassReminderMessage(params: {
  * Skenario 3A - Format perubahan tanggal deadline
  */
 export function buildDeadlineChangedMessage(params: {
-  workspaceName: string;
+  workspaceName?: string;
   courseName: string;
   taskName: string;
   newDeadlineFormatted: string;
@@ -286,12 +308,12 @@ export function buildDeadlineChangedMessage(params: {
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = resolveAppBaseUrl(params.appUrl);
   const subLink = resolveSubmissionText(params.submissionUrl);
+  const wsName = params.workspaceName || "Ilkom B";
 
   return [
     "⚠️ *INFO PERUBAHAN DEADLINE KULIAH* ⏰",
-    `Halo rekan-rekan *${params.workspaceName}*!`,
+    `Halo rekan-rekan *${wsName}*!`,
     "",
     "Ada pembaruan jadwal pengumpulan tugas:",
     `📚 *Mata Kuliah:* ${params.courseName || "Umum"}`,
@@ -305,7 +327,7 @@ export function buildDeadlineChangedMessage(params: {
     "🔗 *Link Pengumpulan / LMS:*",
     subLink,
     "",
-    `👉 Cek detail tugas: ${appBase}/dashboard/tasks`,
+    `👉 Cek kalender & jadwal lengkap: ${PUBLIC_CLASS_SCHEDULE_URL}`,
   ].join("\n");
 }
 
@@ -313,7 +335,7 @@ export function buildDeadlineChangedMessage(params: {
  * Skenario 3B - Format perubahan ketentuan / instruksi tugas
  */
 export function buildDescriptionChangedMessage(params: {
-  workspaceName: string;
+  workspaceName?: string;
   courseName: string;
   taskName: string;
   deadlineFormatted: string;
@@ -321,12 +343,12 @@ export function buildDescriptionChangedMessage(params: {
   submissionUrl?: string;
   appUrl?: string;
 }): string {
-  const appBase = resolveAppBaseUrl(params.appUrl);
   const subLink = resolveSubmissionText(params.submissionUrl);
+  const wsName = params.workspaceName || "Ilkom B";
 
   return [
     "📝 *UPDATE KETENTUAN TUGAS KULIAH* 💡",
-    `Halo rekan-rekan *${params.workspaceName}*!`,
+    `Halo rekan-rekan *${wsName}*!`,
     "",
     "Ada pembaruan ketentuan/instruksi tugas dari dosen/Admin Komunitas:",
     `📚 *Mata Kuliah:* ${params.courseName || "Umum"}`,
@@ -340,7 +362,7 @@ export function buildDescriptionChangedMessage(params: {
     subLink,
     "",
     "Silakan cek instruksi terbaru agar pengerjaan sesuai arahan! 🙌",
-    `👉 Cek detail tugas: ${appBase}/dashboard/tasks`,
+    `👉 Cek kalender & jadwal lengkap: ${PUBLIC_CLASS_SCHEDULE_URL}`,
   ].join("\n");
 }
 

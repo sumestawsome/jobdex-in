@@ -2,17 +2,22 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
-import {
-  sendWhatsAppMessage,
-  isGroupRecipient,
-} from "@/lib/server/whatsapp";
+import { sendWhatsAppMessage, isGroupRecipient } from "@/lib/server/whatsapp";
 import {
   handleAcademicTaskCreated,
+  handleAcademicTaskUpdated,
+  buildClassTaskCompletedMessage,
+  getClassWorkspaceConfig,
+  formatWitaDate,
+  resolveSubmissionText,
   DEFAULT_CLASS_GROUP_ID,
   DEFAULT_CLASS_DISCUSSION_GROUP_ID,
   DEFAULT_CLASS_WORKSPACE_ID,
+  isAcademicClassTask,
+  PUBLIC_CLASS_SCHEDULE_URL,
 } from "@/lib/server/academic-broadcast";
-import type { NormalizedIncomingWhatsAppMessage, UserProfile } from "@/types";
+import { getTaskDeadlineDiffDays } from "@/lib/task-risk";
+import type { NormalizedIncomingWhatsAppMessage, Task, UserProfile } from "@/types";
 
 /**
  * Normalizes phone numbers to standard Indonesian format (e.g. 628...).
@@ -70,8 +75,697 @@ export function parseAcademicDeadline(raw: string): Date | null {
 }
 
 /**
+ * Validates whether the message sender has Admin Komunitas / Korti / Super Admin privileges.
+ */
+export async function verifyAdminKomunitas(
+  incoming: NormalizedIncomingWhatsAppMessage,
+  db: FirebaseFirestore.Firestore = getAdminDb()
+): Promise<{
+  isAdmin: boolean;
+  adminUser: UserProfile | null;
+  replyTarget: string;
+  isGroupTarget: boolean;
+}> {
+  const workspaceId = DEFAULT_CLASS_WORKSPACE_ID;
+  const replyTarget = incoming.isGroup
+    ? incoming.groupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID
+    : incoming.sender || incoming.groupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID;
+  const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
+
+  const senderPhone = normalizePhone(incoming.sender || "");
+  let isAdmin = false;
+  let adminUser: UserProfile | null = null;
+
+  try {
+    const usersSnap = await db.collection("users").get();
+    for (const doc of usersSnap.docs) {
+      const data = doc.data() as UserProfile;
+      const uPhone = normalizePhone(data.whatsapp_number || "");
+      if (uPhone && uPhone === senderPhone) {
+        const wsRole = data.workspace_roles?.[workspaceId];
+        if (
+          wsRole === "admin_komunitas" ||
+          wsRole === "korti" ||
+          wsRole === "super_admin" ||
+          data.role === "super_admin" ||
+          data.role === "korti" ||
+          data.role === "admin_komunitas"
+        ) {
+          isAdmin = true;
+          adminUser = { ...data, id: doc.id };
+          break;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[verifyAdminKomunitas] Error querying users:", err);
+  }
+
+  // Hardcoded fallback checks for known Admin Komunitas numbers
+  if (!isAdmin) {
+    if (senderPhone === "6285119459703" || senderPhone === "628814878194") {
+      isAdmin = true;
+      adminUser = {
+        id: senderPhone === "6285119459703" ? "ls25IoTMA7dMP4NNb04XWeDxNAL2" : "iTR4JpIAn0WMjDtKIOi72VU2zO33",
+        name: senderPhone === "6285119459703" ? "Putu Agus Sumerta Yasa" : "Made Darma Tanaya",
+        email: senderPhone === "6285119459703" ? "agus.sumerta@student.undiksha.ac.id" : "cdnzidarma@gmail.com",
+        whatsapp_number: senderPhone,
+        role: "admin_komunitas",
+        organization_id: workspaceId,
+        division_id: "humas_media_kreatif",
+        avatar_url: "",
+        is_active: true,
+      };
+    }
+  }
+
+  return { isAdmin, adminUser, replyTarget, isGroupTarget };
+}
+
+/**
+ * Searches active tasks by Dual Identifier:
+ * 1. Number Index (1, 2, 3...) according to list sorted by deadline ASC
+ * 2. Course Name or Task Title (case-insensitive substring match)
+ */
+export async function findAcademicTaskByIdentifier(
+  identifier: string,
+  db: FirebaseFirestore.Firestore = getAdminDb()
+): Promise<{
+  task: Task | null;
+  index: number | null;
+  totalActive: number;
+  error?: string;
+}> {
+  const snap = await db.collection("tasks").where("is_archived", "==", false).get();
+  const activeTasks: Task[] = [];
+  snap.forEach((doc) => {
+    const t = { id: doc.id, ...doc.data() } as Task;
+    if (
+      isAcademicClassTask(t) &&
+      t.status !== "approved" &&
+      (t.status as string) !== "selesai"
+    ) {
+      activeTasks.push(t);
+    }
+  });
+
+  // Urutkan berdasarkan deadline terdekat (earliest first)
+  activeTasks.sort((a, b) => {
+    const timeA = a.deadline ? new Date(a.deadline as string).getTime() : Infinity;
+    const timeB = b.deadline ? new Date(b.deadline as string).getTime() : Infinity;
+    return timeA - timeB;
+  });
+
+  const rawTrimmed = identifier.trim();
+  const numericOnly = rawTrimmed.replace(/^[#№\s]+|^no\.?\s*/i, "").trim();
+
+  // 1. Cek apakah identifier adalah Nomor Urut (1, 2, 3...)
+  if (/^\d+$/.test(numericOnly)) {
+    const idx = parseInt(numericOnly, 10);
+    if (idx >= 1 && idx <= activeTasks.length) {
+      return {
+        task: activeTasks[idx - 1],
+        index: idx,
+        totalActive: activeTasks.length,
+      };
+    }
+    return {
+      task: null,
+      index: null,
+      totalActive: activeTasks.length,
+      error: `Nomor urut tugas #${idx} tidak ditemukan. Saat ini terdapat ${activeTasks.length} tugas aktif.`,
+    };
+  }
+
+  // 2. Pencarian Nama Matkul / Judul Tugas (case-insensitive substring)
+  const queryLower = rawTrimmed.toLowerCase();
+  let matchIndex = -1;
+  const match = activeTasks.find((t, i) => {
+    const course = (t.course_name || t.subject_name || "").toLowerCase();
+    const title = (t.name || t.title || "").toLowerCase();
+    if (course.includes(queryLower) || title.includes(queryLower)) {
+      matchIndex = i;
+      return true;
+    }
+    return false;
+  });
+
+  if (match) {
+    return {
+      task: match,
+      index: matchIndex + 1,
+      totalActive: activeTasks.length,
+    };
+  }
+
+  // 3. Fallback pencarian pada deskripsi
+  const descMatch = activeTasks.find((t, i) => {
+    const desc = (t.description || "").toLowerCase();
+    if (desc.includes(queryLower)) {
+      matchIndex = i;
+      return true;
+    }
+    return false;
+  });
+
+  if (descMatch) {
+    return {
+      task: descMatch,
+      index: matchIndex + 1,
+      totalActive: activeTasks.length,
+    };
+  }
+
+  return {
+    task: null,
+    index: null,
+    totalActive: activeTasks.length,
+    error: `Tidak ditemukan tugas aktif dengan kata kunci "${rawTrimmed}". Ketik \`!tugas list\` untuk melihat daftar nomor tugas aktif.`,
+  };
+}
+
+/**
+ * Command: !tugas atau !tugas menu
+ * Displays the complete bot command guide for Ilkom B.
+ */
+export async function handleAcademicTaskMenu(
+  incoming: NormalizedIncomingWhatsAppMessage
+): Promise<NextResponse> {
+  const replyTarget = incoming.isGroup
+    ? incoming.groupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID
+    : incoming.sender || incoming.groupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID;
+  const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
+
+  const menuMsg = [
+    "📚 *PANDUAN BOT TUGAS KELAS ILKOM B* 🤖",
+    "",
+    "Halo teman-teman *Ilkom B*! Berikut daftar perintah bot yang dapat digunakan:",
+    "",
+    "*📖 Perintah Umum (Bisa di Grup Diskusi / Japri):*",
+    "• `!tugas list` : Menampilkan seluruh tugas aktif urut deadline terdekat.",
+    "• `!tugas mepet` : Menampilkan tugas aktif dengan sisa waktu ≤ 3 hari.",
+    "• `!tugas menu` : Menampilkan panduan bantuan ini.",
+    "",
+    "*⚙️ Perintah Khusus Admin Komunitas / Korti:*",
+    "• `!tugas tambah [Matkul] | [Judul] | [Deskripsi] | [Tenggat] | [LMS]` : Menambah tugas baru (format 4 atau 5 parameter).",
+    "• `!tugas edit [No/Nama] | [tenggat/deskripsi/link/judul] | [Nilai Baru]` : Mengubah data tugas & siarkan revisi.",
+    "• `!tugas selesai [No/Nama]` : Menutup tugas & siarkan apresiasi selesai ke pengumuman.",
+    "• `!tugas arsip [No/Nama]` : Mengarsipkan tugas yang telah selesai.",
+    "",
+    "🌐 *Kalender & Jadwal Publik Lengkap:*",
+    `👉 ${PUBLIC_CLASS_SCHEDULE_URL}`,
+  ].join("\n");
+
+  await sendWhatsAppMessage({
+    target: replyTarget,
+    message: menuMsg,
+    type: isGroupTarget ? "group" : "phone",
+    org_id: DEFAULT_CLASS_WORKSPACE_ID,
+  });
+
+  return NextResponse.json({ ok: true, action: "academic_menu_sent" });
+}
+
+/**
+ * Command: !tugas list atau !tugas mepet
+ * Lists all active class tasks sorted by nearest deadline.
+ */
+export async function handleAcademicTaskList(
+  incoming: NormalizedIncomingWhatsAppMessage,
+  filterUrgentOnly: boolean = false
+): Promise<NextResponse> {
+  const db = getAdminDb();
+  const replyTarget = incoming.isGroup
+    ? incoming.groupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID
+    : incoming.sender || incoming.groupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID;
+  const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
+
+  const snap = await db.collection("tasks").where("is_archived", "==", false).get();
+  const activeTasks: Task[] = [];
+  snap.forEach((doc) => {
+    const t = { id: doc.id, ...doc.data() } as Task;
+    if (
+      isAcademicClassTask(t) &&
+      t.status !== "approved" &&
+      (t.status as string) !== "selesai"
+    ) {
+      activeTasks.push(t);
+    }
+  });
+
+  activeTasks.sort((a, b) => {
+    const timeA = a.deadline ? new Date(a.deadline as string).getTime() : Infinity;
+    const timeB = b.deadline ? new Date(b.deadline as string).getTime() : Infinity;
+    return timeA - timeB;
+  });
+
+  let displayedTasks = activeTasks;
+  if (filterUrgentOnly) {
+    displayedTasks = activeTasks.filter((t) => {
+      const diff = getTaskDeadlineDiffDays(t);
+      return diff !== Number.MAX_SAFE_INTEGER && diff <= 3;
+    });
+  }
+
+  if (displayedTasks.length === 0) {
+    const emptyMsg = filterUrgentOnly
+      ? [
+          "✨ *Aman Guys!*",
+          "Tidak ada tugas kuliah yang mepet deadline (≤ 3 hari).",
+          "Tetap santai tapi jangan lupa cicil tugas lainnya ya! 🙌",
+          "",
+          `👉 Cek semua tugas: ${PUBLIC_CLASS_SCHEDULE_URL}`,
+        ].join("\n")
+      : [
+          "🎉 *Hore! Belum ada tugas aktif untuk kelas Ilkom B.*",
+          "Semua tugas sudah beres atau belum ada tugas baru yang diinput.",
+          "",
+          `👉 Cek kalender: ${PUBLIC_CLASS_SCHEDULE_URL}`,
+        ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: emptyMsg,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+
+    return NextResponse.json({ ok: true, count: 0 });
+  }
+
+  const lines: string[] = [];
+  if (filterUrgentOnly) {
+    lines.push("🚨 *DAFTAR TUGAS DEADLINE MEPET (≤ 3 HARI)* 🔥");
+    lines.push("Yuk segera diselesaikan sebelum server LMS penuh!\n");
+  } else {
+    lines.push("📋 *DAFTAR TUGAS KULIAH ILKOM B* 📚");
+    lines.push(`Total: ${activeTasks.length} tugas aktif\n`);
+  }
+
+  displayedTasks.forEach((t) => {
+    const originalIndex = activeTasks.indexOf(t) + 1;
+    const course = t.course_name || t.subject_name || "Mata Kuliah";
+    const title = t.name || t.title || "Tugas Kuliah";
+    const deadlineStr = formatWitaDate(t.deadline);
+    const diff = getTaskDeadlineDiffDays(t);
+    let diffStatus = "";
+    if (diff === Number.MAX_SAFE_INTEGER) {
+      diffStatus = "Tanpa batas waktu";
+    } else if (diff < 0) {
+      diffStatus = "⚠️ Lewat tenggat";
+    } else if (diff === 0) {
+      diffStatus = "🔥 HARI INI";
+    } else if (diff === 1) {
+      diffStatus = "🚨 Besok";
+    } else {
+      diffStatus = `⏳ ${diff} hari lagi`;
+    }
+
+    const lms = resolveSubmissionText(t.submission_url || t.submission_link);
+
+    lines.push(`${originalIndex}. *${course}*`);
+    lines.push(`   📝 *Tugas:* ${title}`);
+    lines.push(`   ⏰ *Tenggat:* ${deadlineStr} (${diffStatus})`);
+    lines.push(`   🔗 *LMS:* ${lms}`);
+    lines.push("");
+  });
+
+  lines.push(`👉 Kalender & jadwal lengkap: ${PUBLIC_CLASS_SCHEDULE_URL}`);
+
+  await sendWhatsAppMessage({
+    target: replyTarget,
+    message: lines.join("\n"),
+    type: isGroupTarget ? "group" : "phone",
+    org_id: DEFAULT_CLASS_WORKSPACE_ID,
+  });
+
+  return NextResponse.json({ ok: true, count: displayedTasks.length });
+}
+
+/**
+ * Command: !tugas edit [Identifier] | [tenggat/deskripsi/link/judul] | [Nilai Baru]
+ * Modifies an existing academic task and triggers revision broadcast if deadline or description changed.
+ */
+export async function handleAcademicTaskEdit(
+  incoming: NormalizedIncomingWhatsAppMessage,
+  rawText: string
+): Promise<NextResponse> {
+  const db = getAdminDb();
+  const { isAdmin, adminUser, replyTarget, isGroupTarget } = await verifyAdminKomunitas(incoming, db);
+
+  if (!isAdmin || !adminUser) {
+    const deniedMsg = [
+      "⛔ *Akses Ditolak*",
+      "Maaf, hanya *Admin Komunitas* yang memiliki izin untuk mengedit tugas kelas via WhatsApp.",
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: deniedMsg,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 403 });
+  }
+
+  const cleanCmd = rawText.replace(/^[!/](?:jobde[xs]\s+)?tugas\s+edit\s*/i, "").trim();
+  const parts = cleanCmd.split("|").map((p) => p.trim());
+
+  if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) {
+    const usageMsg = [
+      "⚠️ *Format Perintah Edit Tidak Sesuai*",
+      "Gunakan format:",
+      "*!tugas edit [Nomor/Nama Matkul] | [tenggat/deskripsi/link/judul] | [Nilai Baru]*",
+      "",
+      "*Contoh Ubah Tenggat:*",
+      "`!tugas edit 1 | tenggat | 31/10/2026 23:59`",
+      "",
+      "*Contoh Ubah Ketentuan:*",
+      "`!tugas edit Basis Data | deskripsi | Tambahkan relasi ERD pada laporan akhir`",
+      "",
+      "*Contoh Ubah Link Pengumpulan:*",
+      "`!tugas edit 2 | link | https://elearning.undiksha.ac.id/mod/assign/view.php?id=123`",
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: usageMsg,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+
+    return NextResponse.json({ ok: false, error: "invalid_format" });
+  }
+
+  const identifier = parts[0];
+  const field = parts[1].toLowerCase();
+  const newVal = parts.slice(2).join("|").trim();
+
+  const searchResult = await findAcademicTaskByIdentifier(identifier, db);
+  if (!searchResult.task) {
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: `⚠️ *Tugas Tidak Ditemukan*\n${searchResult.error || "Tugas tidak ditemukan."}`,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+    return NextResponse.json({ ok: false, error: "task_not_found" });
+  }
+
+  const task = searchResult.task;
+  const courseName = task.course_name || task.subject_name || "Mata Kuliah";
+  const taskTitle = task.name || task.title || "Tugas Kuliah";
+
+  if (field === "tenggat" || field === "deadline" || field === "waktu") {
+    const newDeadlineDate = parseAcademicDeadline(newVal);
+    if (!newDeadlineDate || isNaN(newDeadlineDate.getTime())) {
+      const dateErrMsg = [
+        "⚠️ *Format Tenggat Salah*",
+        `Tidak dapat mengenali format tanggal: "${newVal}"`,
+        "Gunakan format *DD/MM/YYYY HH:mm* (Contoh: `31/10/2026 23:59`).",
+      ].join("\n");
+
+      await sendWhatsAppMessage({
+        target: replyTarget,
+        message: dateErrMsg,
+        type: isGroupTarget ? "group" : "phone",
+        org_id: DEFAULT_CLASS_WORKSPACE_ID,
+      });
+      return NextResponse.json({ ok: false, error: "invalid_deadline" });
+    }
+
+    const oldDeadline = task.deadline;
+    await db.collection("tasks").doc(task.id).update({
+      deadline: newDeadlineDate.toISOString(),
+      updated_at: FieldValue.serverTimestamp(),
+    });
+
+    // Broadcast revisi ke Grup Pengumuman
+    try {
+      await handleAcademicTaskUpdated(task.id, adminUser.id, {
+        deadlineChanged: true,
+        oldDeadline,
+        newDeadline: newDeadlineDate,
+      }, db);
+    } catch (bcErr) {
+      console.error("[handleAcademicTaskEdit] Error triggering deadline broadcast:", bcErr);
+    }
+
+    const confMsg = [
+      "✅ *Tenggat Tugas Berhasil Diperbarui!*",
+      `Tugas: *${courseName} - ${taskTitle}*`,
+      `⏰ *Tenggat Baru:* ${formatWitaDate(newDeadlineDate)}`,
+      "",
+      "Pesan revisi telah disiarkan ke Grup Pengumuman Ilkom B. 🙌",
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: confMsg,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+
+    return NextResponse.json({ ok: true, taskId: task.id, field: "deadline" });
+  }
+
+  if (field === "deskripsi" || field === "ketentuan" || field === "instruksi") {
+    const oldDescription = task.description || "";
+    await db.collection("tasks").doc(task.id).update({
+      description: newVal,
+      updated_at: FieldValue.serverTimestamp(),
+    });
+
+    // Broadcast revisi ke Grup Pengumuman
+    try {
+      await handleAcademicTaskUpdated(task.id, adminUser.id, {
+        descriptionChanged: true,
+        oldDescription,
+        newDescription: newVal,
+      }, db);
+    } catch (bcErr) {
+      console.error("[handleAcademicTaskEdit] Error triggering description broadcast:", bcErr);
+    }
+
+    const confMsg = [
+      "✅ *Ketentuan Tugas Berhasil Diperbarui!*",
+      `Tugas: *${courseName} - ${taskTitle}*`,
+      `📌 *Ketentuan Terbaru:*`,
+      newVal,
+      "",
+      "Pesan revisi telah disiarkan ke Grup Pengumuman Ilkom B. 🙌",
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: confMsg,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+
+    return NextResponse.json({ ok: true, taskId: task.id, field: "description" });
+  }
+
+  if (field === "link" || field === "lms" || field === "tempat" || field === "pengumpulan") {
+    await db.collection("tasks").doc(task.id).update({
+      submission_url: newVal,
+      submission_link: newVal,
+      updated_at: FieldValue.serverTimestamp(),
+    });
+
+    const confMsg = [
+      "✅ *Tempat Pengumpulan Berhasil Diperbarui!*",
+      `Tugas: *${courseName} - ${taskTitle}*`,
+      `🔗 *LMS / Link Terbaru:* ${newVal}`,
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: confMsg,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+
+    return NextResponse.json({ ok: true, taskId: task.id, field: "submission_url" });
+  }
+
+  if (field === "judul" || field === "nama" || field === "tugas") {
+    await db.collection("tasks").doc(task.id).update({
+      name: newVal,
+      title: newVal,
+      updated_at: FieldValue.serverTimestamp(),
+    });
+
+    const confMsg = [
+      "✅ *Judul Tugas Berhasil Diperbarui!*",
+      `Mata Kuliah: *${courseName}*`,
+      `📝 *Judul Baru:* ${newVal}`,
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: confMsg,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+
+    return NextResponse.json({ ok: true, taskId: task.id, field: "title" });
+  }
+
+  const unknownMsg = [
+    `⚠️ *Bidang "${field}" Tidak Dikenali*`,
+    "Gunakan salah satu bidang berikut yang dapat diubah:",
+    "- `tenggat` : Mengubah tanggal tenggat tugas",
+    "- `deskripsi` : Mengubah rincian ketentuan tugas",
+    "- `link` : Mengubah tempat pengumpulan / link LMS",
+    "- `judul` : Mengubah judul tugas",
+  ].join("\n");
+
+  await sendWhatsAppMessage({
+    target: replyTarget,
+    message: unknownMsg,
+    type: isGroupTarget ? "group" : "phone",
+    org_id: DEFAULT_CLASS_WORKSPACE_ID,
+  });
+
+  return NextResponse.json({ ok: false, error: "unknown_field" });
+}
+
+/**
+ * Command: !tugas selesai [Identifier] atau !tugas arsip [Identifier]
+ * Closes the task and broadcasts celebration/closing announcement to announcement group.
+ */
+export async function handleAcademicTaskCompleteOrArchive(
+  incoming: NormalizedIncomingWhatsAppMessage,
+  rawText: string,
+  isArchive: boolean = false
+): Promise<NextResponse> {
+  const db = getAdminDb();
+  const { isAdmin, adminUser, replyTarget, isGroupTarget } = await verifyAdminKomunitas(incoming, db);
+
+  if (!isAdmin || !adminUser) {
+    const deniedMsg = [
+      "⛔ *Akses Ditolak*",
+      "Maaf, hanya *Admin Komunitas* yang memiliki izin untuk menutup atau mengarsipkan tugas kelas via WhatsApp.",
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: deniedMsg,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 403 });
+  }
+
+  const cleanCmd = rawText
+    .replace(/^[!/](?:jobde[xs]\s+)?tugas\s+(?:selesai|arsip|tutup|beres)\s*/i, "")
+    .trim();
+
+  if (!cleanCmd) {
+    const usageMsg = [
+      "⚠️ *Format Perintah Belum Lengkap*",
+      `Gunakan format: \`!tugas ${isArchive ? "arsip" : "selesai"} [Nomor Urut / Nama Matkul]\``,
+      "",
+      `*Contoh:* \`!tugas ${isArchive ? "arsip" : "selesai"} 1\` atau \`!tugas ${isArchive ? "arsip" : "selesai"} Basis Data\``,
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: usageMsg,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+
+    return NextResponse.json({ ok: false, error: "missing_identifier" });
+  }
+
+  const searchResult = await findAcademicTaskByIdentifier(cleanCmd, db);
+  if (!searchResult.task) {
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: `⚠️ *Tugas Tidak Ditemukan*\n${searchResult.error || "Tugas tidak ditemukan."}`,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+    return NextResponse.json({ ok: false, error: "task_not_found" });
+  }
+
+  const task = searchResult.task;
+  const courseName = task.course_name || task.subject_name || "Mata Kuliah";
+  const taskTitle = task.name || task.title || "Tugas Kuliah";
+
+  // 1. Update task di Firestore
+  await db.collection("tasks").doc(task.id).update({
+    status: "approved",
+    is_archived: true,
+    approved_by: adminUser.id,
+    approved_by_name: adminUser.name,
+    approved_by_role: "admin_komunitas",
+    approved_at: FieldValue.serverTimestamp(),
+    updated_at: FieldValue.serverTimestamp(),
+  });
+
+  // 2. Kirim siaran penutupan ke Grup Pengumuman Komunitas (120363411033795051@g.us)
+  const wsConfig = await getClassWorkspaceConfig(DEFAULT_CLASS_WORKSPACE_ID, db);
+  const closingBroadcastMsg = buildClassTaskCompletedMessage({
+    courseName,
+    taskTitle,
+    workspaceName: wsConfig.name || "Ilkom B",
+  });
+
+  try {
+    await sendWhatsAppMessage({
+      target: wsConfig.groupId,
+      message: closingBroadcastMsg,
+      type: "group",
+      org_id: DEFAULT_CLASS_WORKSPACE_ID,
+    });
+
+    // Catat log
+    await db.collection("notifications_log").add({
+      workspace_id: DEFAULT_CLASS_WORKSPACE_ID,
+      task_id: task.id,
+      trigger_type: "task_completed",
+      target_group: wsConfig.groupId,
+      message_preview: closingBroadcastMsg.slice(0, 200),
+      status: "sent",
+      sent_at: new Date().toISOString(),
+      created_at: FieldValue.serverTimestamp(),
+    });
+  } catch (bcErr) {
+    console.error("[handleAcademicTaskCompleteOrArchive] Error broadcasting completion:", bcErr);
+  }
+
+  // 3. Kirim konfirmasi ke pengirim / grup diskusi
+  const confMsg = [
+    `✅ *Tugas Berhasil Ditandai ${isArchive ? "Arsip" : "Selesai"}!*`,
+    `Tugas *${courseName} - ${taskTitle}* telah ditutup.`,
+    "Pesan apresiasi penutupan telah disiarkan ke Grup Pengumuman Ilkom B! 🙌",
+  ].join("\n");
+
+  await sendWhatsAppMessage({
+    target: replyTarget,
+    message: confMsg,
+    type: isGroupTarget ? "group" : "phone",
+    org_id: DEFAULT_CLASS_WORKSPACE_ID,
+  });
+
+  return NextResponse.json({
+    ok: true,
+    taskId: task.id,
+    action: isArchive ? "task_archived" : "task_completed",
+  });
+}
+
+/**
  * Handles creation of academic tasks directly from WhatsApp commands:
- * !tugas tambah [Mata Kuliah] | [Deskripsi/Ketentuan] | [Tenggat DD/MM/YYYY HH:mm atau YYYY-MM-DD]
+ * Format 5 Parameter:
+ * !tugas tambah [Matkul] | [Judul Tugas] | [Deskripsi/Ketentuan] | [Tenggat] | [Tempat Pengumpulan]
+ * Format 4 Parameter:
+ * !tugas tambah [Matkul] | [Judul Tugas] | [Tenggat] | [Tempat Pengumpulan]
  */
 export async function handleCreateAcademicTaskFromWhatsApp(
   incoming: NormalizedIncomingWhatsAppMessage,
@@ -79,10 +773,7 @@ export async function handleCreateAcademicTaskFromWhatsApp(
 ): Promise<NextResponse> {
   const db = getAdminDb();
   const workspaceId = DEFAULT_CLASS_WORKSPACE_ID;
-  const replyTarget = incoming.isGroup
-    ? (incoming.groupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID)
-    : (incoming.sender || incoming.groupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID);
-  const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
+  const { isAdmin, adminUser, replyTarget, isGroupTarget } = await verifyAdminKomunitas(incoming, db);
 
   // 1. Verifikasi Jalur Pengiriman:
   // - Japri pribadi: diizinkan
@@ -102,7 +793,6 @@ export async function handleCreateAcademicTaskFromWhatsApp(
       });
     }
 
-    // Jika dikirim dari grup lain selain grup diskusi kelas
     if (cleanIncomingGroup !== cleanDiscussionGroup) {
       console.log("[AcademicTaskCreator] Ignored command from non-class group:", incoming.groupId);
       return NextResponse.json({
@@ -114,58 +804,7 @@ export async function handleCreateAcademicTaskFromWhatsApp(
   }
 
   // 2. Validasi Hak Akses:
-  // Cek nomor pengirim: Hanya nomor WhatsApp yang terdaftar sebagai Admin Komunitas di ruang kerja kelas yang boleh menambah tugas.
-  const senderPhone = normalizePhone(incoming.sender || "");
-  console.log("[AcademicTaskCreator] Verifying admin status for sender:", senderPhone);
-
-  let isAdminKomunitas = false;
-  let adminUser: UserProfile | null = null;
-
-  try {
-    const usersSnap = await db.collection("users").get();
-    for (const doc of usersSnap.docs) {
-      const data = doc.data() as UserProfile;
-      const uPhone = normalizePhone(data.whatsapp_number || "");
-      if (uPhone && uPhone === senderPhone) {
-        const wsRole = data.workspace_roles?.[workspaceId];
-        if (
-          wsRole === "admin_komunitas" ||
-          wsRole === "korti" ||
-          wsRole === "super_admin" ||
-          data.role === "super_admin" ||
-          data.role === "korti" ||
-          data.role === "admin_komunitas"
-        ) {
-          isAdminKomunitas = true;
-          adminUser = { ...data, id: doc.id };
-          break;
-        }
-      }
-    }
-  } catch (err) {
-    console.error("[AcademicTaskCreator] Error reading users:", err);
-  }
-
-  // Fallback checks untuk nomor terdaftar Admin Komunitas
-  if (!isAdminKomunitas) {
-    if (senderPhone === "6285119459703" || senderPhone === "628814878194") {
-      isAdminKomunitas = true;
-      adminUser = {
-        id: senderPhone === "6285119459703" ? "ls25IoTMA7dMP4NNb04XWeDxNAL2" : "iTR4JpIAn0WMjDtKIOi72VU2zO33",
-        name: senderPhone === "6285119459703" ? "Putu Agus Sumerta Yasa" : "Made Darma Tanaya",
-        email: senderPhone === "6285119459703" ? "agus.sumerta@student.undiksha.ac.id" : "cdnzidarma@gmail.com",
-        whatsapp_number: senderPhone,
-        role: "admin_komunitas",
-        organization_id: workspaceId,
-        division_id: "humas_media_kreatif",
-        avatar_url: "",
-        is_active: true,
-      };
-    }
-  }
-
-  if (!isAdminKomunitas || !adminUser) {
-    console.log("[AcademicTaskCreator] Denied: sender is not Admin Komunitas:", senderPhone);
+  if (!isAdmin || !adminUser) {
     const deniedMsg = [
       "⛔ *Akses Ditolak*",
       "Maaf, hanya *Admin Komunitas* yang memiliki izin untuk menambahkan tugas kelas via WhatsApp.",
@@ -183,22 +822,23 @@ export async function handleCreateAcademicTaskFromWhatsApp(
     return NextResponse.json({ ok: false, error: "unauthorized_sender" }, { status: 403 });
   }
 
-  // 3. Format Perintah:
-  // !tugas tambah [Mata Kuliah] | [Deskripsi/Ketentuan] | [Tenggat DD/MM/YYYY HH:mm atau YYYY-MM-DD] | [Link/Tempat Pengumpulan (opsional)]
+  // 3. Format Perintah 4 atau 5 parameter
   const cleanCmd = rawText.replace(/^[!/](?:jobde[xs]\s+)?tugas\s+tambah\s*/i, "").trim();
   const parts = cleanCmd.split("|").map((p) => p.trim());
 
   if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) {
     const usageMsg = [
       "⚠️ *Format Perintah Tidak Sesuai*",
-      "Gunakan format berikut:",
-      "*!tugas tambah [Mata Kuliah] | [Deskripsi/Ketentuan] | [Tenggat DD/MM/YYYY HH:mm] | [Link/Tempat Pengumpulan (opsional)]*",
+      "Gunakan salah satu format berikut:",
       "",
-      "*Contoh (dengan tempat pengumpulan):*",
-      "`!tugas tambah Pemrograman Web | Bikin REST API Next.js & push ke GitHub | 28/10/2026 23:59 | E-learning Undiksha`",
+      "*Format 5 Parameter:*",
+      "`!tugas tambah [Matkul] | [Judul] | [Deskripsi] | [Tenggat] | [Tempat Pengumpulan]`",
       "",
-      "*Contoh (default E-Learning Undiksha):*",
-      "`!tugas tambah Basis Data | Praktikum Query SQL | 29/10/2026 23:59`",
+      "*Format 4 Parameter:*",
+      "`!tugas tambah [Matkul] | [Judul] | [Tenggat] | [Tempat Pengumpulan]`",
+      "",
+      "*Contoh:*",
+      "`!tugas tambah Pemrograman Web | REST API Next.js | Buat API CRUD dan push ke repo GitHub | 28/10/2026 23:59 | E-Learning Undiksha`",
     ].join("\n");
 
     await sendWhatsAppMessage({
@@ -211,11 +851,44 @@ export async function handleCreateAcademicTaskFromWhatsApp(
     return NextResponse.json({ ok: false, error: "invalid_format" });
   }
 
-  const courseName = parts[0];
-  const description = parts[1];
-  const deadlineRaw = parts[2];
-  const submissionInput = parts[3] ? parts[3].trim() : "";
-  const submissionUrl = submissionInput || "E-Learning Undiksha";
+  let courseName = "";
+  let taskTitle = "";
+  let description = "";
+  let deadlineRaw = "";
+  let submissionInput = "";
+
+  if (parts.length >= 5) {
+    // 5 Parameter: [Matkul] | [Judul] | [Deskripsi] | [Tenggat] | [Pengumpulan]
+    courseName = parts[0];
+    taskTitle = parts[1];
+    description = parts[2];
+    deadlineRaw = parts[3];
+    submissionInput = parts[4];
+  } else if (parts.length === 4) {
+    courseName = parts[0];
+    taskTitle = parts[1];
+    // Periksa apakah parts[2] adalah tanggal tenggat yang valid
+    const dateTry = parseAcademicDeadline(parts[2]);
+    if (dateTry && !isNaN(dateTry.getTime())) {
+      deadlineRaw = parts[2];
+      submissionInput = parts[3];
+      description = `Tugas mata kuliah ${courseName}. Selesaikan dan kumpulkan sesuai instruksi dosen pengampu.`;
+    } else {
+      // parts[2] adalah deskripsi, parts[3] adalah tenggat
+      description = parts[2];
+      deadlineRaw = parts[3];
+      submissionInput = "E-Learning Undiksha";
+    }
+  } else {
+    // 3 Parameter: [Matkul] | [Judul] | [Tenggat]
+    courseName = parts[0];
+    taskTitle = parts[1];
+    deadlineRaw = parts[2];
+    description = `Tugas mata kuliah ${courseName}. Selesaikan dan kumpulkan sesuai instruksi dosen pengampu.`;
+    submissionInput = "E-Learning Undiksha";
+  }
+
+  const submissionUrl = resolveSubmissionText(submissionInput);
 
   // Parse tenggat
   const deadlineDate = parseAcademicDeadline(deadlineRaw);
@@ -242,7 +915,6 @@ export async function handleCreateAcademicTaskFromWhatsApp(
 
   // 4. Simpan ke koleksi `tasks`
   const newTaskRef = db.collection("tasks").doc();
-  const taskTitle = description.split("\n")[0].slice(0, 80) || `Tugas ${courseName}`;
 
   const taskData: Record<string, unknown> = {
     id: newTaskRef.id,
@@ -256,6 +928,7 @@ export async function handleCreateAcademicTaskFromWhatsApp(
     univId: "univ-undiksha",
     type: "tugas_kuliah",
     name: taskTitle,
+    title: taskTitle,
     course_name: courseName,
     subject_name: courseName,
     description: description,
@@ -292,8 +965,12 @@ export async function handleCreateAcademicTaskFromWhatsApp(
   // 6. Kirim pesan balasan konfirmasi ke tempat perintah diketik (japri / grup kelas)
   const confirmationMsg = [
     "✅ *Tugas Berhasil Disimpan!*",
-    `Tugas *${courseName}* telah dicatat dan dijadwalkan pengingatnya.`,
+    `Mata Kuliah: *${courseName}*`,
+    `📝 *Tugas:* ${taskTitle}`,
+    `⏰ *Tenggat:* ${formatWitaDate(deadlineDate)}`,
     `🔗 *Tempat Pengumpulan:* ${submissionUrl}`,
+    "",
+    `👉 Cek kalender & jadwal lengkap: ${PUBLIC_CLASS_SCHEDULE_URL}`,
   ].join("\n");
 
   await sendWhatsAppMessage({
@@ -307,6 +984,7 @@ export async function handleCreateAcademicTaskFromWhatsApp(
     ok: true,
     taskId: newTaskRef.id,
     courseName,
+    taskTitle,
     broadcastResult,
   });
 }

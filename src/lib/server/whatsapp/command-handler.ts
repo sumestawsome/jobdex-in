@@ -56,7 +56,13 @@ import {
   handleSiapaBelumUpdateCommand,
 } from "@/lib/server/whatsapp-task-command-executor";
 import type { UserProfile, Event, Task, NormalizedIncomingWhatsAppMessage } from "@/types";
-import { handleCreateAcademicTaskFromWhatsApp } from "@/lib/server/whatsapp-academic-task-creator";
+import {
+  handleCreateAcademicTaskFromWhatsApp,
+  handleAcademicTaskMenu,
+  handleAcademicTaskList,
+  handleAcademicTaskEdit,
+  handleAcademicTaskCompleteOrArchive,
+} from "@/lib/server/whatsapp-academic-task-creator";
 import { USER_ROLE_LABELS } from "@/lib/roles";
 import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 import {
@@ -612,16 +618,48 @@ export async function executeWhatsAppWebhook(
     });
   }
 
-  // 2. CEK PERINTAH INPUT TUGAS AKADEMIK KELAS (!tugas tambah)
-  // Format: !tugas tambah [Mata Kuliah] | [Deskripsi/Ketentuan] | [Tenggat DD/MM/YYYY HH:mm atau YYYY-MM-DD]
-  const isTugasTambahCommand = /^[!/](?:jobde[xs]\s+)?tugas\s+tambah\b/i.test(stripped);
-  if (isTugasTambahCommand) {
-    console.log("[whatsapp command] step: process_academic_task_tambah", {
+  // 2. CEK PERINTAH TUGAS KELAS AKADEMIK (!tugas ...)
+  const isDirectTugas = /^[!/]tugas\b/i.test(stripped);
+  const isJobdexAcademicTugas = /^[!/]jobde[xs]\s+tugas\s+(?:tambah|edit|selesai|arsip|tutup|beres|list|mepet|menu|bantuan)\b/i.test(stripped);
+  const isAcademicTugasCommand = isDirectTugas || isJobdexAcademicTugas;
+
+  if (isAcademicTugasCommand) {
+    console.log("[whatsapp command] step: process_academic_task_command", {
       sender: incoming.sender,
       isGroup: incoming.isGroup,
       groupId: incoming.groupId,
+      commandPreview: stripped.slice(0, 30),
     });
-    return await handleCreateAcademicTaskFromWhatsApp(incoming, stripped);
+
+    if (/^[!/](?:jobde[xs]\s+)?tugas\s+tambah\b/i.test(stripped)) {
+      return await handleCreateAcademicTaskFromWhatsApp(incoming, stripped);
+    }
+
+    if (/^[!/](?:jobde[xs]\s+)?tugas\s+edit\b/i.test(stripped)) {
+      return await handleAcademicTaskEdit(incoming, stripped);
+    }
+
+    if (/^[!/](?:jobde[xs]\s+)?tugas\s+(?:selesai|beres|tutup)\b/i.test(stripped)) {
+      return await handleAcademicTaskCompleteOrArchive(incoming, stripped, false);
+    }
+
+    if (/^[!/](?:jobde[xs]\s+)?tugas\s+arsip\b/i.test(stripped)) {
+      return await handleAcademicTaskCompleteOrArchive(incoming, stripped, true);
+    }
+
+    if (/^[!/](?:jobde[xs]\s+)?tugas\s+mepet\b/i.test(stripped)) {
+      return await handleAcademicTaskList(incoming, true);
+    }
+
+    if (/^[!/](?:jobde[xs]\s+)?tugas\s+list\b/i.test(stripped)) {
+      return await handleAcademicTaskList(incoming, false);
+    }
+
+    if (/^[!/](?:jobde[xs]\s+)?tugas(?:\s+menu|\s+bantuan)?$/i.test(stripped)) {
+      return await handleAcademicTaskMenu(incoming);
+    }
+
+    return await handleAcademicTaskMenu(incoming);
   }
 
   const isJobdexPrefixed = /^[!/]jobde[xs]/i.test(stripped);
