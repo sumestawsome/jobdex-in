@@ -209,16 +209,23 @@ export function VoiceTaskDialog({ open, onClose, onTaskExtracted }: VoiceTaskDia
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ text: textToProcess }),
+        body: JSON.stringify({ transcript: textToProcess }),
       });
 
       const json = await res.json();
 
-      if (!res.ok || !json.ok) {
+      if (!res.ok) {
         throw new Error(json.error || "Gagal memproses suara dengan AI.");
       }
 
-      const extracted: ExtractedVoiceTaskData = json.data;
+      const extracted: ExtractedVoiceTaskData = {
+        course_name: String(json.course_name ?? json.data?.course_name ?? "").trim(),
+        name: String(json.name ?? json.data?.name ?? "").trim(),
+        description: String(json.description ?? json.data?.description ?? "").trim(),
+        deadline: String(json.deadline ?? json.data?.deadline ?? "").trim(),
+        submission_url: String(json.submission_url ?? json.data?.submission_url ?? "E-Learning Undiksha").trim(),
+      };
+
       onTaskExtracted(extracted);
       onClose();
     } catch (err) {
@@ -270,10 +277,10 @@ export function VoiceTaskDialog({ open, onClose, onTaskExtracted }: VoiceTaskDia
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    Mengekstrak Tugas dengan AI...
+                    Sedang mengekstrak detail tugas dengan AI...
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    Mata kuliah, judul, tenggat, dan deskripsi sedang dipetakan.
+                    Mata kuliah, judul, tenggat, dan ketentuan sedang dipetakan.
                   </p>
                 </div>
               </div>

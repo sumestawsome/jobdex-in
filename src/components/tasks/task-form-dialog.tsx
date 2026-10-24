@@ -646,7 +646,7 @@ function TaskForm({
           description: description.trim(),
           pic_id: resolvedPicId,
           coordinator_id: resolvedCoordId,
-          deadline,
+          deadline: isClass && deadline && !deadline.includes("T") ? `${deadline}T23:59` : deadline,
           status: isClass ? (task?.is_archived ? "belum_dimulai" : (task?.status || "belum_dimulai")) : status,
           priority: isClass ? (task?.priority || "sedang") : priority,
           is_archived: false,

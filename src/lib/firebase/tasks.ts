@@ -21,6 +21,12 @@ import {
 import type { ReferenceLink, Task, TaskInput, UserProfile } from "@/types";
 
 function dateToTimestamp(value: string) {
+  if (value.includes("T")) {
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) {
+      return Timestamp.fromDate(parsed);
+    }
+  }
   return Timestamp.fromDate(new Date(`${value}T00:00:00`));
 }
 
