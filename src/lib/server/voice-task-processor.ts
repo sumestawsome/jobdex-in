@@ -41,6 +41,15 @@ export function isAudioVoiceNote(
       ? (root.choices[0] as Record<string, unknown>)
       : {};
 
+  const messageData =
+    root.messageData && typeof root.messageData === "object"
+      ? (root.messageData as Record<string, unknown>)
+      : {};
+  const fileMessageData =
+    messageData.fileMessageData && typeof messageData.fileMessageData === "object"
+      ? (messageData.fileMessageData as Record<string, unknown>)
+      : {};
+
   const pickCandidate = (...vals: unknown[]): string => {
     for (const v of vals) {
       if (typeof v === "string" && v.trim()) return v.trim();
@@ -53,6 +62,10 @@ export function isAudioVoiceNote(
     incoming.url,
     incoming.mediaUrl,
     incoming.attachment,
+    fileMessageData.downloadUrl,
+    fileMessageData.urlFile,
+    messageData.downloadUrl,
+    messageData.urlFile,
     firstChoice.url,
     firstChoice.file,
     firstChoice.attachment,
@@ -71,6 +84,8 @@ export function isAudioVoiceNote(
 
   const candidateFilename = pickCandidate(
     incoming.filename,
+    fileMessageData.fileName,
+    messageData.fileName,
     firstChoice.filename,
     firstChoice.name_file,
     firstChoice.fileName,
@@ -82,6 +97,9 @@ export function isAudioVoiceNote(
   const candidateType = pickCandidate(
     incoming.filetype,
     incoming.messageType,
+    fileMessageData.mimeType,
+    messageData.typeMessage,
+    messageData.mimeType,
     firstChoice.filetype,
     firstChoice.type,
     firstChoice.fileType,
@@ -212,31 +230,42 @@ function resolveAudioMimeType(audioUrl: string, headerType?: string | null): str
 
 /**
  * Transcribes audio via Gemini Flash API and extracts academic task JSON.
+ * Accepts either an audio download URL (string) or raw audio Buffer directly.
  */
-export async function extractTaskFromVoiceNote(audioUrl: string): Promise<ExtractedVoiceTask> {
+export async function extractTaskFromVoiceNote(
+  audioSource: string | Buffer,
+  mimeTypeOverride?: string
+): Promise<ExtractedVoiceTask> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured in environment variables.");
   }
 
-  // 1. Fetch audio buffer
-  console.log(`[VoiceTaskProcessor] Fetching audio from URL: ${audioUrl.slice(0, 60)}...`);
-  const audioRes = await fetch(audioUrl, {
-    headers: {
-      "User-Agent": "JobDex-In-VoiceProcessor/1.0",
-    },
-  });
+  let base64Audio = "";
+  let mimeType = mimeTypeOverride || "audio/ogg";
 
-  if (!audioRes.ok) {
-    throw new Error(`Failed to download audio file: HTTP status ${audioRes.status}`);
+  if (Buffer.isBuffer(audioSource)) {
+    console.log(`[VoiceTaskProcessor] Processing raw audio buffer directly (${audioSource.byteLength} bytes)`);
+    base64Audio = audioSource.toString("base64");
+  } else {
+    // 1. Fetch audio buffer from URL
+    console.log(`[VoiceTaskProcessor] Fetching audio from URL: ${audioSource.slice(0, 60)}...`);
+    const audioRes = await fetch(audioSource, {
+      headers: {
+        "User-Agent": "JobDex-In-VoiceProcessor/1.0",
+      },
+    });
+
+    if (!audioRes.ok) {
+      throw new Error(`Failed to download audio file: HTTP status ${audioRes.status}`);
+    }
+
+    const contentTypeHeader = audioRes.headers.get("content-type");
+    mimeType = mimeTypeOverride || resolveAudioMimeType(audioSource, contentTypeHeader);
+    const arrayBuffer = await audioRes.arrayBuffer();
+    base64Audio = Buffer.from(arrayBuffer).toString("base64");
+    console.log(`[VoiceTaskProcessor] Audio downloaded successfully (${arrayBuffer.byteLength} bytes, MIME: ${mimeType})`);
   }
-
-  const contentTypeHeader = audioRes.headers.get("content-type");
-  const mimeType = resolveAudioMimeType(audioUrl, contentTypeHeader);
-  const arrayBuffer = await audioRes.arrayBuffer();
-  const base64Audio = Buffer.from(arrayBuffer).toString("base64");
-
-  console.log(`[VoiceTaskProcessor] Audio downloaded successfully (${arrayBuffer.byteLength} bytes, MIME: ${mimeType})`);
 
   // 2. Call Gemini 1.5 Flash API
   const systemPrompt = `Kamu adalah asisten pencatat tugas akademik Ilkom B Undiksha. Tugasmu adalah mendengarkan pesan suara berikut dan mengekstrak informasi tugas kuliah ke dalam format JSON murni.
@@ -343,13 +372,25 @@ Jika rekaman suara tidak jelas, terlalu bising, atau bukan berisi tentang tugas 
 }
 
 /**
+ * Helper to extract task from raw audio Buffer directly.
+ */
+export async function extractTaskFromAudioBuffer(
+  audioBuffer: Buffer,
+  mimeType: string = "audio/ogg"
+): Promise<ExtractedVoiceTask> {
+  return extractTaskFromVoiceNote(audioBuffer, mimeType);
+}
+
+/**
  * Main handler for WhatsApp Voice Notes / Audio messages.
  * Verifies access, extracts task info via Gemini Flash, saves to Firestore,
  * triggers instant broadcast if diffDays <= 3, and sends friendly reply.
+ * Accepts either an audio download URL or a raw audio Buffer.
  */
 export async function handleWhatsAppVoiceTask(
   incoming: NormalizedIncomingWhatsAppMessage,
-  audioUrl: string
+  audioSource: string | Buffer,
+  audioMimeType?: string
 ): Promise<NextResponse> {
   const db = getAdminDb();
   const workspaceId = DEFAULT_CLASS_WORKSPACE_ID;
@@ -396,6 +437,7 @@ export async function handleWhatsAppVoiceTask(
       message: deniedMsg,
       type: isGroupTarget ? "group" : "phone",
       org_id: workspaceId,
+      provider: incoming.provider,
     });
 
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 403 });
@@ -407,7 +449,7 @@ export async function handleWhatsAppVoiceTask(
 
   try {
     // 3. Ekstraksi Multimodal menggunakan Gemini Flash API
-    const extracted = await extractTaskFromVoiceNote(audioUrl);
+    const extracted = await extractTaskFromVoiceNote(audioSource, audioMimeType);
     console.log("[VoiceTaskProcessor] Extracted task result:", extracted);
 
     if (
@@ -422,6 +464,7 @@ export async function handleWhatsAppVoiceTask(
         message: fallbackErrorMsg,
         type: isGroupTarget ? "group" : "phone",
         org_id: workspaceId,
+        provider: incoming.provider,
       });
 
       return NextResponse.json({ ok: false, error: "unrecognized_voice_note" });
@@ -446,6 +489,7 @@ export async function handleWhatsAppVoiceTask(
         message: fallbackErrorMsg,
         type: isGroupTarget ? "group" : "phone",
         org_id: workspaceId,
+        provider: incoming.provider,
       });
 
       return NextResponse.json({ ok: false, error: "invalid_deadline_date" });
@@ -478,7 +522,7 @@ export async function handleWhatsAppVoiceTask(
       coordinator_id: adminUser.id,
       created_by: adminUser.id,
       created_via: "voice_note",
-      voice_audio_url: audioUrl,
+      voice_audio_url: typeof audioSource === "string" ? audioSource : incoming.url || incoming.mediaUrl || "",
       reminders_sent: [],
       notification_tracker: {
         instant_broadcast_sent: false,
@@ -521,6 +565,7 @@ export async function handleWhatsAppVoiceTask(
       message: confirmationMsg,
       type: isGroupTarget ? "group" : "phone",
       org_id: workspaceId,
+      provider: incoming.provider,
     });
 
     return NextResponse.json({
@@ -540,6 +585,7 @@ export async function handleWhatsAppVoiceTask(
       message: fallbackErrorMsg,
       type: isGroupTarget ? "group" : "phone",
       org_id: workspaceId,
+      provider: incoming.provider,
     });
 
     return NextResponse.json({

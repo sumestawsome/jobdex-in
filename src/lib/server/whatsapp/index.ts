@@ -1,6 +1,7 @@
 import "server-only";
 import { sendViaWablas } from "./wablas-provider";
 import { sendViaFonnte } from "./fonnte-provider";
+import { sendViaGreenApi } from "./green-api-provider";
 import { getWhatsAppSystemSettings } from "../whatsapp-settings";
 import { getOrmawaGatewayConfig } from "../ormawa-whatsapp-gateway";
 import type { WhatsAppSendPayload, WhatsAppSendResult, WhatsAppProviderName, WhatsAppSendTarget } from "./provider";
@@ -31,12 +32,12 @@ export function isGroupRecipient(target: string): boolean {
   return target.endsWith("@g.us") || target.includes("-") || target.startsWith("120363");
 }
 
-export function normalizeWhatsAppGroupId(groupId: string, provider: "fonnte" | "wablas"): string {
+export function normalizeWhatsAppGroupId(groupId: string, provider: "fonnte" | "wablas" | "green-api"): string {
   const trimmed = groupId.trim();
 
   if (!trimmed) return "";
 
-  if (provider === "fonnte") {
+  if (provider === "fonnte" || provider === "green-api") {
     if (trimmed.endsWith("@g.us")) return trimmed;
     return `${trimmed}@g.us`;
   }
@@ -49,7 +50,7 @@ export function normalizeWhatsAppGroupId(groupId: string, provider: "fonnte" | "
 }
 
 export function getAllowedGroupIds(): string[] {
-  const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as "fonnte" | "wablas";
+  const provider = (process.env.WHATSAPP_PROVIDER || "fonnte") as "fonnte" | "wablas" | "green-api";
   const allowedStr =
     process.env.WHATSAPP_ALLOWED_GROUP_IDS ||
     process.env.FONNTE_ALLOWED_GROUP_IDS ||
@@ -70,7 +71,7 @@ export function getAllowedGroupIds(): string[] {
 }
 
 export async function sendWhatsAppMessage(payload: WhatsAppSendPayload): Promise<WhatsAppSendResult> {
-  const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as WhatsAppProviderName;
+  const provider = (payload.provider || process.env.WHATSAPP_PROVIDER || "fonnte") as WhatsAppProviderName;
 
   if (process.env.WHATSAPP_ENABLED === "false") {
     throw new Error("WhatsApp sending is disabled by WHATSAPP_ENABLED=false");
@@ -147,10 +148,21 @@ export async function sendWhatsAppMessage(payload: WhatsAppSendPayload): Promise
           apiUrl: ormawaGateway.server_url,
         });
       }
+
+      if ((ormawaGateway.provider as string) === "green-api") {
+        return sendViaGreenApi(effectivePayload, {
+          apiTokenInstance: ormawaGateway.api_token,
+          baseUrl: ormawaGateway.server_url,
+        });
+      }
     }
   }
 
   // Fallback ke gateway global sistem (hanya jika data tidak terikat ke ormawa spesifik)
+  if (provider === "green-api") {
+    return sendViaGreenApi(effectivePayload);
+  }
+
   if (provider === "fonnte") {
     return sendViaFonnte(effectivePayload);
   }
@@ -166,10 +178,16 @@ export async function sendWhatsAppMessage(payload: WhatsAppSendPayload): Promise
 }
 
 export function getWhatsAppRecipient(): string {
-  const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as "fonnte" | "wablas";
+  const provider = (process.env.WHATSAPP_PROVIDER || "fonnte") as "fonnte" | "wablas" | "green-api";
   let rawRecipient = "";
 
-  if (provider === "fonnte") {
+  if (provider === "green-api") {
+    rawRecipient =
+      process.env.GREEN_API_DEFAULT_GROUP_ID ||
+      process.env.WHATSAPP_DEFAULT_GROUP_ID ||
+      process.env.FONNTE_DEFAULT_GROUP_ID ||
+      "";
+  } else if (provider === "fonnte") {
     rawRecipient = 
       process.env.FONNTE_DEFAULT_GROUP_ID || 
       process.env.WHATSAPP_DEFAULT_GROUP_ID || 

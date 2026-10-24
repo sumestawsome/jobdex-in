@@ -652,7 +652,7 @@ export type TaskEditPreview = {
 };
 
 export type NormalizedIncomingWhatsAppMessage = {
-  provider: "fonnte" | "wablas";
+  provider: "fonnte" | "wablas" | "green-api";
   message: string;
   sender: string;
   senderName?: string;

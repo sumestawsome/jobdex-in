@@ -737,6 +737,7 @@ export async function executeWhatsAppWebhook(
       target: replyTarget,
       message: singleJobdexReply,
       type: isGroupTarget ? "group" : "phone",
+      provider: incoming.provider,
     });
 
     await baseCreateWhatsAppLog({
@@ -806,6 +807,7 @@ export async function executeWhatsAppWebhook(
         message: formattedMessage,
         type,
         org_id: detectedOrgId || undefined,
+        provider: incoming.provider,
       });
 
       if (result.skipped) {
@@ -923,6 +925,7 @@ export async function executeWhatsAppWebhook(
         message: formattedReply,
         type,
         org_id: taskOrgId || detectedOrgId || undefined,
+        provider: incoming.provider,
       });
 
       if (sendResult.skipped) {
