@@ -1,6 +1,6 @@
 import "server-only";
 
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 export const GEMINI_EMPTY_ANSWER_FALLBACK =
   "Maaf, AI belum bisa menjawab pertanyaan itu. Coba tanyakan tentang progress task, acara, atau status anggota.";
 
@@ -37,9 +37,9 @@ export async function askGemini({
   const apiKey = getGeminiApiKey();
   const modelsToTry = [
     process.env.GEMINI_MODEL,
-    "gemini-1.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-pro",
+    "gemini-3.8-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.8-pro",
   ].filter(Boolean) as string[];
 
   const uniqueModels = [...new Set(modelsToTry)];
@@ -55,6 +55,7 @@ export async function askGemini({
             "Content-Type": "application/json",
             "x-goog-api-key": apiKey,
           },
+          signal: AbortSignal.timeout(15000),
           body: JSON.stringify({
             system_instruction: {
               parts: [{ text: systemPrompt }],

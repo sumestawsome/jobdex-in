@@ -59,15 +59,14 @@ export const FETCH_TIMEOUT_MS = 15000;
 
 /**
  * Urutan model Gemini Flash yang didukung.
- * Mengutamakan gemini-2.0-flash sebagai model utama, dengan fallback berurutan ke
- * gemini-1.5-flash-latest dan model flash aktif lainnya.
+ * Model utama: gemini-3.8-flash, dengan fallback ringan ke gemini-3.5-flash-lite dan gemini-3.8-pro.
+ * Model usang (gemini-1.5-flash, gemini-2.0-flash, gemini-2.5-flash) dihapus total.
  */
 export const SUPPORTED_GEMINI_FLASH_MODELS = [
   process.env.GEMINI_MODEL,
-  "gemini-2.0-flash",
-  "gemini-1.5-flash-latest",
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
+  "gemini-3.8-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.8-pro",
 ].filter(Boolean) as string[];
 
 /**
