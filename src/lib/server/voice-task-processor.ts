@@ -30,7 +30,7 @@ export interface ExtractedVoiceTask {
 
 export interface TaskDraft {
   sender: string;
-  status?: "awaiting_approval" | "needs_clarification";
+  status?: "awaiting_approval" | "needs_clarification" | "processing";
   course_name?: string | null;
   name?: string | null;
   title?: string | null;
@@ -46,6 +46,50 @@ export interface TaskDraft {
   provider?: string;
   created_at_ms: number;
   expires_at_ms: number;
+}
+
+/**
+ * Header awalan keluaran bot untuk mendeteksi echo pesan sendiri secara mutlak.
+ * Mencegah bot membalas pesannya sendiri dalam infinite loop.
+ */
+export const BOT_OUTPUT_PREFIXES = [
+  "📋 *Draf Tugas Kuliah",
+  "✅ *Tugas Berhasil Disetujui",
+  "📢 *PENGUMUMAN TUGAS KULIAH",
+  "⚠️ Maaf, bot tidak dapat mengenali",
+  "📝 *Draf Tugas",
+  "⚠️ *Draf Tugas Belum Lengkap",
+  "⚠️ *Format Tenggat Belum Valid",
+  "🗑️ Draf tugas berhasil dibatalkan",
+  "⚠️ Gagal memproses audio",
+  "⛔ *Akses Ditolak",
+  "[JobDex.in - Bot",
+  "[JobDex - Bot",
+  "[JobDex.in - Ormawa Bot",
+  "[JobDex.in - Bot Akses Ditolak",
+  "[JobDex.in - Ormawa Bot Akses Ditolak",
+] as const;
+
+/**
+ * Memeriksa apakah pesan teks diawali dengan header keluaran bot (self-echo).
+ * Mengabaikan markdown formatting seperti bintang (*) saat pencocokan.
+ */
+export function isBotSelfEchoMessage(text: string | null | undefined): boolean {
+  if (!text || typeof text !== "string") return false;
+  const clean = text.trim();
+  if (!clean) return false;
+
+  if (BOT_OUTPUT_PREFIXES.some((prefix) => clean.startsWith(prefix))) {
+    return true;
+  }
+
+  const stripped = clean.replace(/[*_~`]/g, "");
+  const strippedPrefixes = BOT_OUTPUT_PREFIXES.map((p) => p.replace(/[*_~`]/g, ""));
+  if (strippedPrefixes.some((prefix) => stripped.startsWith(prefix))) {
+    return true;
+  }
+
+  return false;
 }
 
 const AUDIO_EXT_REGEX = /\.(ogg|opus|oga|mp3|m4a|wav|aac|wma|webm|flac)(\?.*)?$/i;
@@ -924,32 +968,117 @@ export function buildDraftPreviewCard(
 /**
  * Approves and officially publishes an active task draft to Firestore `tasks`,
  * triggers instant broadcast if deadline <= 3 days, and cleans up the draft session.
+ * 
+ * Distributed Lock:
+ * Menggunakan transaksi atomik Firestore pada dokumen whatsapp_drafts/{sender}
+ * dengan mengubah status menjadi 'processing' SEBELUM membuat tugas di Firestore dan memicu broadcast.
+ * Jika status sudah 'processing' atau dokumen sudah terhapus, abaikan request approval kedua (Fast ACK HTTP 200).
  */
 export async function approveAndPublishTaskDraft(
   incoming: NormalizedIncomingWhatsAppMessage,
-  activeDraft: TaskDraft
+  activeDraft?: TaskDraft | null
 ): Promise<NextResponse> {
   const db = getAdminDb();
   const workspaceId = DEFAULT_CLASS_WORKSPACE_ID;
+  const cleanSender = normalizeDraftSenderKey(incoming.sender);
+
+  if (!cleanSender) {
+    return NextResponse.json({
+      ok: false,
+      error: "invalid_sender",
+      stopFurtherProcessing: true,
+    }, { status: 400 });
+  }
+
+  // 1. In-memory distributed lock check (Fast path untuk request milidetik berdekatan)
+  const memDraft = inMemoryDraftMap.get(cleanSender);
+  if (memDraft && memDraft.status === "processing") {
+    console.log(`[VoiceTaskProcessor] In-memory lock: draft for ${cleanSender} is already processing. Ignoring duplicate approval.`);
+    return NextResponse.json({
+      ok: true,
+      stopFurtherProcessing: true,
+      status: "ignored_duplicate_approval",
+      reason: "draft_already_processing",
+    }, { status: 200 });
+  }
+
+  // 2. Firestore Atomic Distributed Lock Transaction
+  const draftDocRef = db.collection("whatsapp_drafts").doc(cleanSender);
+  let lockedDraft: TaskDraft | null = null;
+
+  try {
+    lockedDraft = await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(draftDocRef);
+      if (!snap.exists) {
+        return null;
+      }
+
+      const data = snap.data() as TaskDraft;
+      // Jika status draf sudah processing atau sudah kedaluwarsa, kunci gagal
+      if (data.status === "processing") {
+        return null;
+      }
+
+      // Kunci draf secara atomik dengan status "processing"
+      transaction.update(draftDocRef, {
+        status: "processing",
+        processing_at: FieldValue.serverTimestamp(),
+        processing_provider: incoming.provider || "unknown",
+        updated_at: FieldValue.serverTimestamp(),
+      });
+
+      return data;
+    });
+  } catch (txErr) {
+    console.error(`[VoiceTaskProcessor] Firestore transaction lock error for ${cleanSender}:`, txErr);
+    lockedDraft = null;
+  }
+
+  if (!lockedDraft) {
+    console.log(`[VoiceTaskProcessor] Distributed lock: draft for ${cleanSender} already processing or deleted. Ignoring duplicate approval.`);
+    return NextResponse.json({
+      ok: true,
+      stopFurtherProcessing: true,
+      status: "ignored_duplicate_approval",
+      reason: "draft_already_processing_or_deleted",
+    }, { status: 200 });
+  }
+
+  // Tandai juga di in-memory map agar request dalam hitungan milidetik berikutnya langsung tertolak
+  inMemoryDraftMap.set(cleanSender, {
+    ...lockedDraft,
+    status: "processing",
+  });
+
+  const draftToPublish: TaskDraft = {
+    ...activeDraft,
+    ...lockedDraft,
+  };
+
   const { adminUser, replyTarget, isGroupTarget } = await verifyAdminKomunitas(incoming, db);
+  const effectiveReplyTarget = replyTarget || draftToPublish.reply_target || incoming.sender;
+  const effectiveIsGroup = isGroupTarget ?? draftToPublish.is_group_target ?? false;
 
-  const effectiveReplyTarget = replyTarget || activeDraft.reply_target || incoming.sender;
-  const effectiveIsGroup = isGroupTarget ?? activeDraft.is_group_target ?? false;
-
-  // 1. Periksa kelengkapan entitas utama (course_name, name, deadline)
+  // 3. Periksa kelengkapan entitas utama (course_name, name, deadline)
   const isMissingCore =
-    !activeDraft.course_name?.trim() ||
-    !(activeDraft.name || activeDraft.title)?.trim() ||
-    !activeDraft.deadline?.trim();
+    !draftToPublish.course_name?.trim() ||
+    !(draftToPublish.name || draftToPublish.title)?.trim() ||
+    !draftToPublish.deadline?.trim();
 
   if (isMissingCore) {
+    // Reset status draf agar admin dapat memperbaikinya kembali
+    await draftDocRef.update({
+      status: "needs_clarification",
+      updated_at: FieldValue.serverTimestamp(),
+    }).catch(() => {});
+
     const missingMsg = [
       "⚠️ *Draf Tugas Belum Lengkap*",
       "",
       "Data tugas belum lengkap untuk dipublikasikan:",
-      `📚 *Mata Kuliah:* ${activeDraft.course_name || "Belum ada"}`,
-      `📝 *Judul Tugas:* ${activeDraft.name || activeDraft.title || "Belum ada"}`,
-      `⏰ *Tenggat:* ${activeDraft.deadline || "Belum ada"}`,
+      `📚 *Mata Kuliah:* ${draftToPublish.course_name || "Belum ada"}`,
+      `📝 *Judul Tugas:* ${draftToPublish.name || draftToPublish.title || "Belum ada"}`,
+      `⏰ *Tenggat:* ${draftToPublish.deadline || "Belum ada"}`,
       "",
       "Silakan lengkapi bagian yang kurang terlebih dahulu (contoh balas: 'Besok jam 23:59').",
     ].join("\n");
@@ -969,16 +1098,21 @@ export async function approveAndPublishTaskDraft(
     });
   }
 
-  // 2. Parse deadline
-  const cleanDeadlineStr = activeDraft.deadline!.replace(/\(wita\)/i, "").trim();
+  // 4. Parse deadline
+  const cleanDeadlineStr = draftToPublish.deadline!.replace(/\(wita\)/i, "").trim();
   const deadlineDate = parseAcademicDeadline(cleanDeadlineStr);
 
   if (!deadlineDate || isNaN(deadlineDate.getTime())) {
-    console.warn(`[VoiceTaskProcessor] Failed to parse deadline from draft: "${activeDraft.deadline}"`);
+    console.warn(`[VoiceTaskProcessor] Failed to parse deadline from draft: "${draftToPublish.deadline}"`);
+    await draftDocRef.update({
+      status: "needs_clarification",
+      updated_at: FieldValue.serverTimestamp(),
+    }).catch(() => {});
+
     const invalidDeadlineMsg = [
       "⚠️ *Format Tenggat Belum Valid*",
-      `📚 *Mata Kuliah:* ${activeDraft.course_name}`,
-      `📌 *Judul Tugas:* ${activeDraft.name || activeDraft.title}`,
+      `📚 *Mata Kuliah:* ${draftToPublish.course_name}`,
+      `📌 *Judul Tugas:* ${draftToPublish.name || draftToPublish.title}`,
       "",
       "❓ Kapan tenggat waktu pengumpulan tugas ini?",
       "*(Contoh: 'Besok jam 23:59' atau '28 Oktober 2026 jam 18:00')*",
@@ -999,14 +1133,14 @@ export async function approveAndPublishTaskDraft(
     });
   }
 
-  const courseName = activeDraft.course_name!.trim();
-  const taskTitle = (activeDraft.name || activeDraft.title)!.trim();
+  const courseName = draftToPublish.course_name!.trim();
+  const taskTitle = (draftToPublish.name || draftToPublish.title)!.trim();
   const description =
-    activeDraft.description?.trim() ||
+    draftToPublish.description?.trim() ||
     `Tugas mata kuliah ${courseName}. Selesaikan dan kumpulkan sesuai instruksi dosen pengampu.`;
-  const submissionUrl = activeDraft.submission_url?.trim() || "E-Learning Undiksha";
+  const submissionUrl = draftToPublish.submission_url?.trim() || "E-Learning Undiksha";
 
-  // 3. Simpan tugas secara resmi ke koleksi Firestore tasks pada workspace ws_ilkom_2024
+  // 5. Simpan tugas secara resmi ke koleksi Firestore tasks pada workspace ws_ilkom_2024
   const newTaskRef = db.collection("tasks").doc();
   const taskData: Record<string, unknown> = {
     id: newTaskRef.id,
@@ -1033,7 +1167,7 @@ export async function approveAndPublishTaskDraft(
     coordinator_id: adminUser?.id || "system",
     created_by: adminUser?.id || "system",
     created_via: "voice_note_approved",
-    voice_audio_url: activeDraft.audio_url || incoming.url || incoming.mediaUrl || "",
+    voice_audio_url: draftToPublish.audio_url || incoming.url || incoming.mediaUrl || "",
     reminders_sent: [],
     notification_tracker: {
       instant_broadcast_sent: false,
@@ -1047,7 +1181,7 @@ export async function approveAndPublishTaskDraft(
   await newTaskRef.set(taskData);
   console.log(`[VoiceTaskProcessor] Draft approved & published! Created task ${newTaskRef.id}: "${taskTitle}" (${courseName})`);
 
-  // 4. Jika sisa tenggat <= 3 hari, picu siaran pengumuman ke grup komunitas (120363411033795051@g.us)
+  // 6. Jika sisa tenggat <= 3 hari, picu siaran pengumuman ke grup komunitas (120363411033795051@g.us)
   let broadcastResult = null;
   try {
     broadcastResult = await handleAcademicTaskCreated(newTaskRef.id, adminUser?.id || "system", db);
@@ -1056,10 +1190,10 @@ export async function approveAndPublishTaskDraft(
     console.error("[VoiceTaskProcessor] Error triggering broadcast for draft:", bcErr);
   }
 
-  // 5. Hapus draf sesi
+  // 7. Hapus draf sesi
   await deleteWhatsAppTaskDraft(incoming.sender);
 
-  // 6. Kirim pesan konfirmasi sukses
+  // 8. Kirim pesan konfirmasi sukses
   const formattedDeadline = formatVoiceDeadlineWita(deadlineDate);
   const confirmationMsg = [
     "✅ *Tugas Berhasil Disetujui & Diterbitkan!*",
@@ -1092,6 +1226,11 @@ export async function approveAndPublishTaskDraft(
 }
 
 /**
+ * Alias exported as requested for draft approval.
+ */
+export const approveAndPublishDraft = approveAndPublishTaskDraft;
+
+/**
  * Handles incoming follow-up message when sender has an active task draft.
  * Supports ACC approval, cancellation, and fast natural revision via Gemini.
  */
@@ -1108,6 +1247,17 @@ export async function handleDraftFollowUpMessage(
   const effectiveIsGroup = isGroupTarget ?? activeDraft.is_group_target ?? false;
 
   const cleanText = followUpText.trim().toLowerCase();
+
+  // Jika draf sedang dalam proses penerbitan, abaikan pesan follow-up susulan
+  if (activeDraft.status === "processing") {
+    console.log("[VoiceTaskProcessor] Draft is already processing for sender:", incoming.sender);
+    return NextResponse.json({
+      ok: true,
+      stopFurtherProcessing: true,
+      status: "ignored_duplicate_approval",
+      reason: "draft_already_processing",
+    }, { status: 200 });
+  }
 
   // 1. Cek perintah ACC (!tugas acc / !acc / acc)
   if (/^(?:[!/]tugas\s+acc|[!/]acc|acc)$/i.test(cleanText)) {

@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
 import { sendGreenApiTextMessage } from "@/lib/server/green-api";
 import { verifyAdminKomunitas } from "@/lib/server/whatsapp-academic-task-creator";
-import { handleWhatsAppVoiceTask } from "@/lib/server/voice-task-processor";
+import { handleWhatsAppVoiceTask, isBotSelfEchoMessage } from "@/lib/server/voice-task-processor";
 import { executeWhatsAppWebhook } from "@/lib/server/whatsapp/command-handler";
 import type { NormalizedIncomingWhatsAppMessage } from "@/types";
 
@@ -85,6 +85,20 @@ export async function POST(request: NextRequest) {
   const fileMessageData = (messageData.fileMessageData && typeof messageData.fileMessageData === "object"
     ? messageData.fileMessageData
     : {}) as Record<string, unknown>;
+
+  const textMessage = String(
+    textMessageData.textMessage ||
+    extendedTextMessageData.text ||
+    fileMessageData.caption ||
+    messageData.caption ||
+    ""
+  ).trim();
+
+  // Fast exit: Filter Self-Echo & Pesan Bot Sendiri
+  if (isBotSelfEchoMessage(textMessage)) {
+    console.log("[green-api webhook] Fast exit - ignored bot self-echo output message:", textMessage.slice(0, 50));
+    return NextResponse.json({ status: "ignored_bot_output" }, { status: 200 });
+  }
 
   // Ekstrak target chat dan nomor pengirim dengan safeguard grup
   const rawChatId = String(senderData.chatId || root.chatId || "").trim();
@@ -194,14 +208,6 @@ export async function POST(request: NextRequest) {
   const downloadUrl = String(fileMessageData.downloadUrl || messageData.downloadUrl || "").trim();
   const mimeType = String(fileMessageData.mimeType || messageData.mimeType || "").trim();
   const fileName = String(fileMessageData.fileName || messageData.fileName || "").trim();
-
-  const textMessage = String(
-    textMessageData.textMessage ||
-    extendedTextMessageData.text ||
-    fileMessageData.caption ||
-    messageData.caption ||
-    ""
-  ).trim();
 
   // Deteksi pesan suara / audio attachment
   const isAudio =

@@ -81,6 +81,7 @@ import {
   handleDraftFollowUpMessage,
   deleteWhatsAppTaskDraft,
   approveAndPublishTaskDraft,
+  isBotSelfEchoMessage,
 } from "@/lib/server/voice-task-processor";
 
 export { findFaqMatch } from "@/lib/server/faq-matcher";
@@ -607,6 +608,12 @@ export async function executeWhatsAppWebhook(
   incoming: NormalizedIncomingWhatsAppMessage,
   payload: unknown
 ): Promise<NextResponse> {
+  // Fast exit: Filter Self-Echo & Pesan Bot Sendiri
+  if (isBotSelfEchoMessage(incoming.message)) {
+    console.log("[whatsapp command] Fast exit - ignored bot self-echo output message:", (incoming.message || "").slice(0, 50));
+    return NextResponse.json({ status: "ignored_bot_output" }, { status: 200 });
+  }
+
   const messagePreview = incoming.message?.slice(0, 40) || "";
 
   // Deduplikasi pesan menggunakan rawMessageId atau fingerprint
@@ -710,6 +717,16 @@ export async function executeWhatsAppWebhook(
         stopFurtherProcessing: true,
         reason: "no_active_draft_for_approval",
       });
+    }
+
+    if (activeDraft.status === "processing") {
+      console.log("[whatsapp draft] Draft is already processing for sender:", incoming.sender);
+      return NextResponse.json({
+        ok: true,
+        stopFurtherProcessing: true,
+        status: "ignored_duplicate_approval",
+        reason: "draft_already_processing",
+      }, { status: 200 });
     }
 
     console.log("[whatsapp draft] Approving draft for sender:", incoming.sender);

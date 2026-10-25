@@ -3,6 +3,11 @@ import crypto from "crypto";
 import { normalizeFonnteWebhookPayload } from "@/lib/server/fonnte-webhook-parser";
 import { executeWhatsAppWebhook } from "@/lib/server/whatsapp/command-handler";
 import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
+import {
+  isBotSelfEchoMessage,
+  isAudioVoiceNote,
+  getWhatsAppTaskDraft,
+} from "@/lib/server/voice-task-processor";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -121,6 +126,49 @@ export async function POST(request: NextRequest) {
       ignored: true,
       reason: "missing_message_or_sender",
     });
+  }
+
+  // 1. Filter Self-Echo & Pesan Bot Sendiri
+  if (isBotSelfEchoMessage(incoming.message)) {
+    console.log("[fonnte webhook] Fast exit - ignored bot self-echo output message:", incoming.message.slice(0, 50));
+    return NextResponse.json({ status: "ignored_bot_output" }, { status: 200 });
+  }
+
+  // 2. Batasi Peran Webhook Fonnte (One-Way Separation)
+  // Sesuai arsitektur JobDex.in: Green-API adalah gateway utama untuk interaksi 2 arah & pembuatan tugas.
+  // Fonnte khusus broadcast satu arah. Abaikan voice note, task command, dan interaksi draf.
+
+  // A. Abaikan Voice Note / Audio
+  const audioCheck = isAudioVoiceNote(incoming, payload);
+  if (audioCheck.isAudio) {
+    console.log("[fonnte webhook] Ignored voice note - handled exclusively by Green-API gateway");
+    return NextResponse.json({
+      status: "ignored_fonnte_voice_note_handled_by_green_api",
+      ignored: true,
+    }, { status: 200 });
+  }
+
+  // B. Abaikan Perintah Task & Interaksi Draf (ACC, Batal, Revisi, dsb.)
+  const strippedText = (incoming.message || "")
+    .trim()
+    .replace(/^[*_~`]+|[*_~`]+$/g, "")
+    .trim();
+
+  const isTaskCommand = /^(?:[!/]tugas\b|[!/]acc\b|acc\b|[!/]batal\b|batal\b)/i.test(strippedText);
+  const activeDraft = await getWhatsAppTaskDraft(incoming.sender);
+
+  if (isTaskCommand || activeDraft) {
+    console.log("[fonnte webhook] Ignored task command / draft interaction (handled by Green-API):", {
+      sender: incoming.sender,
+      isTaskCommand,
+      hasActiveDraft: Boolean(activeDraft),
+      textPreview: strippedText.slice(0, 40),
+    });
+    return NextResponse.json({
+      status: "ignored_fonnte_task_command_handled_by_green_api",
+      ignored: true,
+      reason: isTaskCommand ? "task_command_handled_by_green_api" : "active_draft_revision_handled_by_green_api",
+    }, { status: 200 });
   }
 
   // --- Route-Level Atomic Deduplication (Fase 27A.2.6) ---
