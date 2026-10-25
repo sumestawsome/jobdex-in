@@ -30,6 +30,7 @@ export interface ExtractedVoiceTask {
 
 export interface TaskDraft {
   sender: string;
+  status?: "awaiting_approval" | "needs_clarification";
   course_name?: string | null;
   name?: string | null;
   title?: string | null;
@@ -702,12 +703,39 @@ Format JSON WAJIB murni tanpa markdown:
 }
 
 /**
- * Handles incoming follow-up message when sender has an active task draft.
+ * Builds the standard WhatsApp preview card for a task draft awaiting approval.
  */
-export async function handleDraftFollowUpMessage(
+export function buildDraftPreviewCard(
+  courseName: string,
+  name: string,
+  formattedDeadline: string,
+  description: string,
+  submissionUrl: string
+): string {
+  return [
+    "📋 *Draf Tugas Kuliah (Menunggu Persetujuan)*",
+    "",
+    `📚 *Mata Kuliah:* ${courseName}`,
+    `📝 *Judul Tugas:* ${name}`,
+    `⏰ *Tenggat:* ${formattedDeadline} WITA`,
+    `📌 *Ketentuan:* ${description}`,
+    `🔗 *Pengumpulan:* ${submissionUrl}`,
+    "",
+    "--------------------------------------",
+    "Periksa draf di atas. Jika data sudah benar:",
+    "👉 Ketik *!tugas acc* (atau *acc*) untuk mempublikasikan.",
+    "👉 Ketik *!tugas batal* (atau *batal*) untuk membuang draf.",
+    '👉 Atau kirim pesan/VN perbaikan jika ada kata yang salah (contoh: "ganti judulnya jadi Latihan 9").',
+  ].join("\n");
+}
+
+/**
+ * Approves and officially publishes an active task draft to Firestore `tasks`,
+ * triggers instant broadcast if deadline <= 3 days, and cleans up the draft session.
+ */
+export async function approveAndPublishTaskDraft(
   incoming: NormalizedIncomingWhatsAppMessage,
-  activeDraft: TaskDraft,
-  followUpText: string
+  activeDraft: TaskDraft
 ): Promise<NextResponse> {
   const db = getAdminDb();
   const workspaceId = DEFAULT_CLASS_WORKSPACE_ID;
@@ -716,15 +744,190 @@ export async function handleDraftFollowUpMessage(
   const effectiveReplyTarget = replyTarget || activeDraft.reply_target || incoming.sender;
   const effectiveIsGroup = isGroupTarget ?? activeDraft.is_group_target ?? false;
 
+  // 1. Periksa kelengkapan entitas utama (course_name, name, deadline)
+  const isMissingCore =
+    !activeDraft.course_name?.trim() ||
+    !(activeDraft.name || activeDraft.title)?.trim() ||
+    !activeDraft.deadline?.trim();
+
+  if (isMissingCore) {
+    const missingMsg = [
+      "⚠️ *Draf Tugas Belum Lengkap*",
+      "",
+      "Data tugas belum lengkap untuk dipublikasikan:",
+      `📚 *Mata Kuliah:* ${activeDraft.course_name || "Belum ada"}`,
+      `📝 *Judul Tugas:* ${activeDraft.name || activeDraft.title || "Belum ada"}`,
+      `⏰ *Tenggat:* ${activeDraft.deadline || "Belum ada"}`,
+      "",
+      "Silakan lengkapi bagian yang kurang terlebih dahulu (contoh balas: 'Besok jam 23:59').",
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: effectiveReplyTarget,
+      message: missingMsg,
+      type: effectiveIsGroup ? "group" : "phone",
+      org_id: workspaceId,
+      provider: incoming.provider,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      status: "needs_clarification",
+      stopFurtherProcessing: true,
+    });
+  }
+
+  // 2. Parse deadline
+  const cleanDeadlineStr = activeDraft.deadline!.replace(/\(wita\)/i, "").trim();
+  const deadlineDate = parseAcademicDeadline(cleanDeadlineStr);
+
+  if (!deadlineDate || isNaN(deadlineDate.getTime())) {
+    console.warn(`[VoiceTaskProcessor] Failed to parse deadline from draft: "${activeDraft.deadline}"`);
+    const invalidDeadlineMsg = [
+      "⚠️ *Format Tenggat Belum Valid*",
+      `📚 *Mata Kuliah:* ${activeDraft.course_name}`,
+      `📌 *Judul Tugas:* ${activeDraft.name || activeDraft.title}`,
+      "",
+      "❓ Kapan tenggat waktu pengumpulan tugas ini?",
+      "*(Contoh: 'Besok jam 23:59' atau '28 Oktober 2026 jam 18:00')*",
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: effectiveReplyTarget,
+      message: invalidDeadlineMsg,
+      type: effectiveIsGroup ? "group" : "phone",
+      org_id: workspaceId,
+      provider: incoming.provider,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      status: "needs_clarification",
+      stopFurtherProcessing: true,
+    });
+  }
+
+  const courseName = activeDraft.course_name!.trim();
+  const taskTitle = (activeDraft.name || activeDraft.title)!.trim();
+  const description =
+    activeDraft.description?.trim() ||
+    `Tugas mata kuliah ${courseName}. Selesaikan dan kumpulkan sesuai instruksi dosen pengampu.`;
+  const submissionUrl = activeDraft.submission_url?.trim() || "E-Learning Undiksha";
+
+  // 3. Simpan tugas secara resmi ke koleksi Firestore tasks pada workspace ws_ilkom_2024
+  const newTaskRef = db.collection("tasks").doc();
+  const taskData: Record<string, unknown> = {
+    id: newTaskRef.id,
+    workspace_id: workspaceId,
+    organization_id: workspaceId,
+    org_id: workspaceId,
+    orgId: workspaceId,
+    campus_id: "univ-undiksha",
+    campusId: "univ-undiksha",
+    univ_id: "univ-undiksha",
+    univId: "univ-undiksha",
+    type: "tugas_kuliah",
+    name: taskTitle,
+    title: taskTitle,
+    course_name: courseName,
+    subject_name: courseName,
+    description,
+    submission_url: submissionUrl,
+    submission_link: submissionUrl,
+    deadline: deadlineDate.toISOString(),
+    status: "belum_dimulai",
+    priority: "sedang",
+    pic_id: adminUser?.id || "system",
+    coordinator_id: adminUser?.id || "system",
+    created_by: adminUser?.id || "system",
+    created_via: "voice_note_approved",
+    voice_audio_url: activeDraft.audio_url || incoming.url || incoming.mediaUrl || "",
+    reminders_sent: [],
+    notification_tracker: {
+      instant_broadcast_sent: false,
+      edit_count: 0,
+    },
+    is_archived: false,
+    created_at: FieldValue.serverTimestamp(),
+    updated_at: FieldValue.serverTimestamp(),
+  };
+
+  await newTaskRef.set(taskData);
+  console.log(`[VoiceTaskProcessor] Draft approved & published! Created task ${newTaskRef.id}: "${taskTitle}" (${courseName})`);
+
+  // 4. Jika sisa tenggat <= 3 hari, picu siaran pengumuman ke grup komunitas (120363411033795051@g.us)
+  let broadcastResult = null;
+  try {
+    broadcastResult = await handleAcademicTaskCreated(newTaskRef.id, adminUser?.id || "system", db);
+    console.log("[VoiceTaskProcessor] Broadcast trigger result for approved draft:", broadcastResult);
+  } catch (bcErr) {
+    console.error("[VoiceTaskProcessor] Error triggering broadcast for draft:", bcErr);
+  }
+
+  // 5. Hapus draf sesi
+  await deleteWhatsAppTaskDraft(incoming.sender);
+
+  // 6. Kirim pesan konfirmasi sukses
+  const formattedDeadline = formatVoiceDeadlineWita(deadlineDate);
+  const confirmationMsg = [
+    "✅ *Tugas Berhasil Disetujui & Diterbitkan!*",
+    "",
+    `📚 *Mata Kuliah:* ${courseName}`,
+    `📝 *Tugas:* ${taskTitle}`,
+    `⏰ *Tenggat:* ${formattedDeadline} WITA`,
+    "",
+    "Tugas telah tersimpan di JobDex dan disiarkan ke kelas.",
+  ].join("\n");
+
+  await sendWhatsAppMessage({
+    target: effectiveReplyTarget,
+    message: confirmationMsg,
+    type: effectiveIsGroup ? "group" : "phone",
+    org_id: workspaceId,
+    provider: incoming.provider,
+  });
+
+  return NextResponse.json({
+    ok: true,
+    stopFurtherProcessing: true,
+    taskId: newTaskRef.id,
+    courseName,
+    taskTitle,
+    deadline: deadlineDate.toISOString(),
+    broadcastResult,
+  });
+}
+
+/**
+ * Handles incoming follow-up message when sender has an active task draft.
+ * Supports ACC approval, cancellation, and fast natural revision via Gemini.
+ */
+export async function handleDraftFollowUpMessage(
+  incoming: NormalizedIncomingWhatsAppMessage,
+  activeDraft: TaskDraft,
+  followUpText: string
+): Promise<NextResponse> {
+  const db = getAdminDb();
+  const workspaceId = DEFAULT_CLASS_WORKSPACE_ID;
+  const { replyTarget, isGroupTarget } = await verifyAdminKomunitas(incoming, db);
+
+  const effectiveReplyTarget = replyTarget || activeDraft.reply_target || incoming.sender;
+  const effectiveIsGroup = isGroupTarget ?? activeDraft.is_group_target ?? false;
+
   const cleanText = followUpText.trim().toLowerCase();
+
+  // 1. Cek perintah ACC (!tugas acc / !acc / acc)
+  if (/^(?:[!/]tugas\s+acc|[!/]acc|acc)$/i.test(cleanText)) {
+    return await approveAndPublishTaskDraft(incoming, activeDraft);
+  }
+
+  // 2. Cek perintah pembatalan (!tugas batal / !batal / batal)
   const isCancel =
-    /^(batal|cancel|hapus draf|tidak jadi|reset draf)$/i.test(cleanText) ||
-    /^[!/](batal|cancel)$/i.test(cleanText);
+    /^(?:[!/]tugas\s+batal|[!/]batal|batal|cancel|hapus draf|tidak jadi|reset draf)$/i.test(cleanText);
 
   if (isCancel) {
     await deleteWhatsAppTaskDraft(incoming.sender);
-    const cancelMsg =
-      "🗑️ *Draf Tugas Dibatalkan*\n\nDraf tugas Anda telah dihapus. Silakan buat atau kirim tugas baru kapan saja.";
+    const cancelMsg = "🗑️ Draf tugas berhasil dibatalkan dan dihapus.";
     await sendWhatsAppMessage({
       target: effectiveReplyTarget,
       message: cancelMsg,
@@ -739,16 +942,17 @@ export async function handleDraftFollowUpMessage(
     });
   }
 
+  // 3. Revisi Cepat menggunakan Gemini
   try {
     const merged = await mergeTaskDraftWithFollowUp(activeDraft, followUpText);
     console.log("[VoiceTaskProcessor] Merged draft result:", merged);
 
-    if (
-      merged.status === "needs_clarification" ||
+    const isMissingCore =
       !merged.course_name?.trim() ||
-      !merged.name?.trim() ||
-      !merged.deadline?.trim()
-    ) {
+      !(merged.name || merged.title)?.trim() ||
+      !merged.deadline?.trim();
+
+    if (merged.status === "needs_clarification" || isMissingCore) {
       activeDraft.course_name = merged.course_name || activeDraft.course_name;
       activeDraft.name = merged.name || merged.title || activeDraft.name;
       activeDraft.title = activeDraft.name;
@@ -757,6 +961,7 @@ export async function handleDraftFollowUpMessage(
       activeDraft.submission_url = merged.submission_url || activeDraft.submission_url;
       activeDraft.missing_fields = merged.missing_fields;
       activeDraft.clarification_question = merged.clarification_question;
+      activeDraft.status = "needs_clarification";
       activeDraft.reply_target = effectiveReplyTarget;
       activeDraft.is_group_target = effectiveIsGroup;
 
@@ -788,8 +993,9 @@ export async function handleDraftFollowUpMessage(
       });
     }
 
-    // Status ready: simpan tugas ke Firestore
-    const cleanDeadlineStr = merged.deadline.replace(/\(wita\)/i, "").trim();
+    // Jika entitas inti sudah lengkap:
+    // Parse tanggal tenggat dan perbarui draf dengan status "awaiting_approval"
+    const cleanDeadlineStr = merged.deadline!.replace(/\(wita\)/i, "").trim();
     const deadlineDate = parseAcademicDeadline(cleanDeadlineStr);
 
     if (!deadlineDate || isNaN(deadlineDate.getTime())) {
@@ -799,6 +1005,7 @@ export async function handleDraftFollowUpMessage(
       activeDraft.title = merged.name;
       activeDraft.description = merged.description;
       activeDraft.missing_fields = ["deadline"];
+      activeDraft.status = "needs_clarification";
       await saveWhatsAppTaskDraft(activeDraft);
 
       const invalidDeadlineMsg = [
@@ -825,82 +1032,40 @@ export async function handleDraftFollowUpMessage(
       });
     }
 
-    const courseName = merged.course_name.trim();
+    const courseName = merged.course_name!.trim();
     const taskTitle = (merged.name || merged.title)!.trim();
     const description =
       merged.description?.trim() ||
       `Tugas mata kuliah ${courseName}. Selesaikan dan kumpulkan sesuai instruksi dosen pengampu.`;
     const submissionUrl = merged.submission_url?.trim() || "E-Learning Undiksha";
-
-    const newTaskRef = db.collection("tasks").doc();
-    const taskData: Record<string, unknown> = {
-      id: newTaskRef.id,
-      workspace_id: workspaceId,
-      organization_id: workspaceId,
-      org_id: workspaceId,
-      orgId: workspaceId,
-      campus_id: "univ-undiksha",
-      campusId: "univ-undiksha",
-      univ_id: "univ-undiksha",
-      univId: "univ-undiksha",
-      type: "tugas_kuliah",
-      name: taskTitle,
-      title: taskTitle,
-      course_name: courseName,
-      subject_name: courseName,
-      description,
-      submission_url: submissionUrl,
-      submission_link: submissionUrl,
-      deadline: deadlineDate.toISOString(),
-      status: "belum_dimulai",
-      priority: "sedang",
-      pic_id: adminUser?.id || "system",
-      coordinator_id: adminUser?.id || "system",
-      created_by: adminUser?.id || "system",
-      created_via: "voice_note_draft",
-      voice_audio_url: activeDraft.audio_url || incoming.url || incoming.mediaUrl || "",
-      reminders_sent: [],
-      notification_tracker: {
-        instant_broadcast_sent: false,
-        edit_count: 0,
-      },
-      is_archived: false,
-      created_at: FieldValue.serverTimestamp(),
-      updated_at: FieldValue.serverTimestamp(),
-    };
-
-    await newTaskRef.set(taskData);
-    console.log(`[VoiceTaskProcessor] Draft completed! Created task ${newTaskRef.id}: "${taskTitle}" (${courseName})`);
-
-    // Picu broadcast instan jika <= 3 hari
-    let broadcastResult = null;
-    try {
-      broadcastResult = await handleAcademicTaskCreated(newTaskRef.id, adminUser?.id || "system", db);
-      console.log("[VoiceTaskProcessor] Broadcast trigger result for completed draft:", broadcastResult);
-    } catch (bcErr) {
-      console.error("[VoiceTaskProcessor] Error triggering broadcast for draft:", bcErr);
-    }
-
-    // Hapus draft session
-    await deleteWhatsAppTaskDraft(incoming.sender);
-
-    // Kirim kartu konfirmasi tugas berhasil dibuat
     const formattedDeadline = formatVoiceDeadlineWita(deadlineDate);
-    const confirmationMsg = [
-      "🎤 *Tugas Berhasil Dilengkapi & Dicatat!*",
-      "",
-      `📚 *Mata Kuliah:* ${courseName}`,
-      `📝 *Tugas:* ${taskTitle}`,
-      `⏰ *Tenggat:* ${formattedDeadline} WITA`,
-      `📌 *Ketentuan:* ${description}`,
-      `🔗 *Pengumpulan:* ${submissionUrl}`,
-      "",
-      "Tugas sudah masuk ke jadwal kelas.",
-    ].join("\n");
+
+    activeDraft.course_name = courseName;
+    activeDraft.name = taskTitle;
+    activeDraft.title = taskTitle;
+    activeDraft.description = description;
+    activeDraft.deadline = merged.deadline!.trim();
+    activeDraft.submission_url = submissionUrl;
+    activeDraft.missing_fields = [];
+    activeDraft.clarification_question = null;
+    activeDraft.status = "awaiting_approval";
+    activeDraft.reply_target = effectiveReplyTarget;
+    activeDraft.is_group_target = effectiveIsGroup;
+
+    await saveWhatsAppTaskDraft(activeDraft);
+
+    // Kirim ulang kartu pratinjau yang sudah diperbarui dengan format yang sama
+    const previewMsg = buildDraftPreviewCard(
+      courseName,
+      taskTitle,
+      formattedDeadline,
+      description,
+      submissionUrl
+    );
 
     await sendWhatsAppMessage({
       target: effectiveReplyTarget,
-      message: confirmationMsg,
+      message: previewMsg,
       type: effectiveIsGroup ? "group" : "phone",
       org_id: workspaceId,
       provider: incoming.provider,
@@ -908,12 +1073,9 @@ export async function handleDraftFollowUpMessage(
 
     return NextResponse.json({
       ok: true,
+      status: "awaiting_approval",
       stopFurtherProcessing: true,
-      taskId: newTaskRef.id,
-      courseName,
-      taskTitle,
-      deadline: deadlineDate.toISOString(),
-      broadcastResult,
+      draft: activeDraft,
     });
   } catch (err) {
     console.error("[VoiceTaskProcessor] Error handling draft follow-up:", err);
@@ -936,9 +1098,8 @@ export async function handleDraftFollowUpMessage(
 
 /**
  * Main handler for WhatsApp Voice Notes / Audio messages.
- * Verifies access, extracts task info via Gemini Flash, saves to Firestore,
- * triggers instant broadcast if diffDays <= 3, and sends friendly reply.
- * Accepts either an audio download URL or a raw audio Buffer.
+ * Verifies access, extracts task info via Gemini Flash, saves as draft review (awaiting_approval),
+ * and sends preview card. Does NOT directly write to `tasks` or trigger broadcast until ACC.
  */
 export async function handleWhatsAppVoiceTask(
   incoming: NormalizedIncomingWhatsAppMessage,
@@ -1052,6 +1213,7 @@ export async function handleWhatsAppVoiceTask(
       console.log("[VoiceTaskProcessor] Incomplete task extracted, creating draft session for conversational clarification");
       const draft: TaskDraft = {
         sender: incoming.sender,
+        status: "needs_clarification",
         course_name: extracted.course_name?.trim() || null,
         name: (extracted.name || extracted.title)?.trim() || null,
         title: (extracted.name || extracted.title)?.trim() || null,
@@ -1105,7 +1267,9 @@ export async function handleWhatsAppVoiceTask(
       });
     }
 
-    // 6. Entitas Lengkap: Simpan Langsung ke Firestore
+    // 6. Entitas Lengkap: Simpan sebagai Draf Pratinjau (Menunggu Persetujuan / ACC)
+    // JANGAN langsung membuat dokumen di koleksi tasks!
+    // JANGAN memicu siaran broadcast ke grup kelas!
     const courseName = extracted.course_name!.trim();
     const taskTitle = (extracted.name || extracted.title)!.trim();
     const description =
@@ -1130,77 +1294,44 @@ export async function handleWhatsAppVoiceTask(
       return NextResponse.json({ ok: false, error: "invalid_deadline_date" });
     }
 
-    // Simpan Tugas ke Firestore (koleksi `tasks` ruang kelas `ws_ilkom_2024`)
-    const newTaskRef = db.collection("tasks").doc();
-    const taskData: Record<string, unknown> = {
-      id: newTaskRef.id,
-      workspace_id: workspaceId,
-      organization_id: workspaceId,
-      org_id: workspaceId,
-      orgId: workspaceId,
-      campus_id: "univ-undiksha",
-      campusId: "univ-undiksha",
-      univ_id: "univ-undiksha",
-      univId: "univ-undiksha",
-      type: "tugas_kuliah",
+    const formattedDeadline = formatVoiceDeadlineWita(deadlineDate);
+
+    // Simpan seluruh hasil ekstraksi ke draf sesi admin (whatsapp_drafts/{senderNumber})
+    const draft: TaskDraft = {
+      sender: incoming.sender,
+      status: "awaiting_approval",
+      course_name: courseName,
       name: taskTitle,
       title: taskTitle,
-      course_name: courseName,
-      subject_name: courseName,
       description,
+      deadline: extracted.deadline!.trim(),
       submission_url: submissionUrl,
-      submission_link: submissionUrl,
-      deadline: deadlineDate.toISOString(),
-      status: "belum_dimulai",
-      priority: "sedang",
-      pic_id: adminUser.id,
-      coordinator_id: adminUser.id,
-      created_by: adminUser.id,
-      created_via: "voice_note",
-      voice_audio_url: typeof audioSource === "string" ? audioSource : incoming.url || incoming.mediaUrl || "",
-      reminders_sent: [],
-      notification_tracker: {
-        instant_broadcast_sent: false,
-        edit_count: 0,
-      },
-      is_archived: false,
-      created_at: FieldValue.serverTimestamp(),
-      updated_at: FieldValue.serverTimestamp(),
+      missing_fields: [],
+      clarification_question: null,
+      audio_url: typeof audioSource === "string" ? audioSource : incoming.url || incoming.mediaUrl || null,
+      group_id: incoming.groupId || null,
+      reply_target: replyTarget,
+      is_group_target: isGroupTarget,
+      provider: incoming.provider,
+      created_at_ms: Date.now(),
+      expires_at_ms: Date.now() + DRAFT_TTL_MS,
     };
 
-    await newTaskRef.set(taskData);
-    console.log(`[VoiceTaskProcessor] Successfully created task ${newTaskRef.id} from voice note!`);
-    console.log(`[whatsapp audio] task successfully created from voice note: "${taskTitle}" (${courseName}) with id: ${newTaskRef.id}`);
+    await saveWhatsAppTaskDraft(draft);
+    console.log(`[VoiceTaskProcessor] Draft saved with status awaiting_approval for ${incoming.sender}`);
 
-    // Hapus draft jika sebelumnya ada
-    await deleteWhatsAppTaskDraft(incoming.sender);
-
-    // Broadcast Instan jika tenggat mepet (<= 3 hari) ke Grup Pengumuman
-    let broadcastResult = null;
-    try {
-      broadcastResult = await handleAcademicTaskCreated(newTaskRef.id, adminUser.id, db);
-      console.log("[VoiceTaskProcessor] Broadcast trigger result:", broadcastResult);
-    } catch (bcErr) {
-      console.error("[VoiceTaskProcessor] Error triggering instant broadcast:", bcErr);
-    }
-
-    // Kirim Pesan Konfirmasi ke Pengirim (Japri / Grup Diskusi)
-    const formattedDeadline = formatVoiceDeadlineWita(deadlineDate);
-    const confirmationMsg = [
-      "🎤 *Tugas dari Voice Note Berhasil Dicatat!*",
-      "",
-      `📚 *Mata Kuliah:* ${courseName}`,
-      `📝 *Tugas:* ${taskTitle}`,
-      `⏰ *Tenggat:* ${formattedDeadline} WITA`,
-      `📌 *Ketentuan:* ${description}`,
-      `🔗 *Pengumpulan:* ${submissionUrl}`,
-      "",
-      "Tugas sudah masuk ke jadwal kelas.",
-    ].join("\n");
+    // Balas pesan WhatsApp ke admin dengan format pratinjau (preview card) yang rapi
+    const previewMsg = buildDraftPreviewCard(
+      courseName,
+      taskTitle,
+      formattedDeadline,
+      description,
+      submissionUrl
+    );
 
     await sendWhatsAppMessage({
       target: replyTarget,
-      message: confirmationMsg,
+      message: previewMsg,
       type: isGroupTarget ? "group" : "phone",
       org_id: workspaceId,
       provider: incoming.provider,
@@ -1208,12 +1339,9 @@ export async function handleWhatsAppVoiceTask(
 
     return NextResponse.json({
       ok: true,
+      status: "awaiting_approval",
       stopFurtherProcessing: true,
-      taskId: newTaskRef.id,
-      courseName,
-      taskTitle,
-      deadline: deadlineDate.toISOString(),
-      broadcastResult,
+      draft,
     });
   } catch (err) {
     console.error("[VoiceTaskProcessor] Error processing voice task:", err);

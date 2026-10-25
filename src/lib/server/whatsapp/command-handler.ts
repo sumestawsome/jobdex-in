@@ -80,6 +80,7 @@ import {
   getWhatsAppTaskDraft,
   handleDraftFollowUpMessage,
   deleteWhatsAppTaskDraft,
+  approveAndPublishTaskDraft,
 } from "@/lib/server/voice-task-processor";
 
 export { findFaqMatch } from "@/lib/server/faq-matcher";
@@ -658,9 +659,59 @@ export async function executeWhatsAppWebhook(
   }
 
   // ============================================================================
-  // CONVERSATIONAL CLARIFICATION: ACTIVE TASK DRAFT SESSION INTERCEPTOR
-  // Periksa apakah nomor pengirim memiliki draf aktif di session sebelum perintah umum.
+  // CONVERSATIONAL CLARIFICATION & DRAFT APPROVAL (ACC / BATAL / REVISION)
+  // Tangkap perintah persetujuan (!tugas acc, !acc, acc), pembatalan, atau revisi draf.
   // ============================================================================
+  const isApprovalCommand = /^(?:[!/]tugas\s+acc|[!/]acc|acc)$/i.test(stripped);
+  if (isApprovalCommand) {
+    const activeDraft = await getWhatsAppTaskDraft(incoming.sender);
+    if (!activeDraft) {
+      console.log("[whatsapp draft] ACC received but no active draft found for sender:", incoming.sender);
+      const replyTarget = incoming.isGroup
+        ? (incoming.groupId || getDefaultGroupId())
+        : (incoming.sender || incoming.groupId || getDefaultGroupId());
+      const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
+      await baseSendWhatsAppMessage({
+        target: replyTarget,
+        message: "⚠️ Tidak ada draf tugas yang sedang menunggu persetujuan. Kirim Voice Note baru untuk membuat tugas.",
+        type: isGroupTarget ? "group" : "phone",
+        provider: incoming.provider,
+      });
+      return NextResponse.json({
+        ok: true,
+        stopFurtherProcessing: true,
+        reason: "no_active_draft_for_approval",
+      });
+    }
+
+    console.log("[whatsapp draft] Approving draft for sender:", incoming.sender);
+    return await approveAndPublishTaskDraft(incoming, activeDraft);
+  }
+
+  const isCancelCommand = /^(?:[!/]tugas\s+batal|[!/]batal|batal)$/i.test(stripped);
+  if (isCancelCommand) {
+    const activeDraft = await getWhatsAppTaskDraft(incoming.sender);
+    if (activeDraft) {
+      console.log("[whatsapp draft] Cancelling active draft for sender:", incoming.sender);
+      await deleteWhatsAppTaskDraft(incoming.sender);
+      const replyTarget = incoming.isGroup
+        ? (incoming.groupId || getDefaultGroupId())
+        : (incoming.sender || incoming.groupId || getDefaultGroupId());
+      const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
+      await baseSendWhatsAppMessage({
+        target: replyTarget,
+        message: "🗑️ Draf tugas berhasil dibatalkan dan dihapus.",
+        type: isGroupTarget ? "group" : "phone",
+        provider: incoming.provider,
+      });
+      return NextResponse.json({
+        ok: true,
+        stopFurtherProcessing: true,
+        reason: "draft_cancelled",
+      });
+    }
+  }
+
   const activeDraft = await getWhatsAppTaskDraft(incoming.sender);
   if (activeDraft) {
     const isExplicitSystemCommand =
@@ -669,7 +720,7 @@ export async function executeWhatsAppWebhook(
       );
 
     if (!isExplicitSystemCommand) {
-      console.log("[whatsapp draft] Active draft found for sender:", incoming.sender, {
+      console.log("[whatsapp draft] Active draft found for sender, processing revision/follow-up:", incoming.sender, {
         course: activeDraft.course_name,
         name: activeDraft.name,
         missing: activeDraft.missing_fields,
