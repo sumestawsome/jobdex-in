@@ -97,5 +97,24 @@ export default async function PublicClassSchedulePage() {
     initialTasks = [];
   }
 
-  return <PublicClassScheduleView initialTasks={initialTasks} />;
+  return (
+    <>
+      <script
+        id="ilkom-b-light-default"
+        dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              try {
+                var stored = localStorage.getItem('jobdex-theme');
+                if (!stored) {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch(e) {}
+            })();
+          `,
+        }}
+      />
+      <PublicClassScheduleView initialTasks={initialTasks} />
+    </>
+  );
 }

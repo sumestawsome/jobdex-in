@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import type { Task } from "@/types";
 import { getCalendarGrid, isSameDay } from "@/lib/calendar-utils";
 import { getTaskDeadlineDiffDays, getRiskLevelFromTask } from "@/lib/task-risk";
+import { useTheme } from "@/components/theme/theme-provider";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -15,11 +15,12 @@ import {
   GraduationCap,
   RefreshCw,
   Search,
-  Filter,
   CheckCircle2,
   AlertTriangle,
   Flame,
   Info,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 type Props = {
@@ -87,7 +88,7 @@ function getRiskDotClass(level: "none" | "yellow" | "orange" | "red"): string {
       return "bg-amber-400";
     case "none":
     default:
-      return "bg-emerald-500";
+      return "bg-secondary";
   }
 }
 
@@ -98,6 +99,20 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [onlyUrgent, setOnlyUrgent] = useState(false);
+
+  // Theme integration (default to Light Mode)
+  const { theme, setTheme, toggleTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem("jobdex-theme") : null;
+    if (!saved) {
+      setTheme("light");
+    }
+  }, [setTheme]);
+
+  const isDark = mounted ? theme === "dark" : false;
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
@@ -193,95 +208,115 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
   });
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
-      {/* ── Top Announcement Bar ── */}
-      <div className="border-b border-zinc-800 bg-zinc-900/60 px-4 py-2 text-xs text-zinc-400 text-center flex items-center justify-center gap-2">
-        <span className="inline-block size-2 rounded-none bg-emerald-500 animate-pulse" />
-        <span>Jadwal Resmi Tugas Kuliah Kelas Ilmu Komputer 2024 (Ilkom B) Undiksha</span>
-      </div>
-
-      {/* ── Header Minimalis Sesuai AGENT_RULES.md ── */}
-      <header className="border-b border-zinc-800 bg-zinc-950/90 backdrop-blur sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="relative size-11 shrink-0 border border-zinc-800 bg-zinc-900 rounded-none flex items-center justify-center overflow-hidden">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col font-sans selection:bg-primary selection:text-white">
+      {/* ── Compact & Mobile-First Header (Single Inline Bar) ── */}
+      <header className="sticky top-0 z-30 border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2">
+          {/* Left: Brand Identity */}
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="relative size-8 sm:size-9 shrink-0 border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 rounded-none flex items-center justify-center overflow-hidden">
               <Image
                 src="https://cdn.undiksha.ac.id/wp-content/uploads/2021/12/27081301/logo-undiksha.png"
                 alt="Logo Undiksha"
-                width={36}
-                height={36}
+                width={28}
+                height={28}
                 className="object-contain"
                 unoptimized
               />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono tracking-wider uppercase text-zinc-400">
-                  Undiksha • Ilkom B 2024
-                </span>
-                <span className="inline-flex items-center px-1.5 py-0.2 rounded-none text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                  PUBLIC READ-ONLY
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="text-sm sm:text-base font-black text-zinc-900 dark:text-zinc-100 tracking-tight leading-none truncate">
+                  Ilkom B 2024
+                </h1>
+                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-none text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 leading-none">
+                  PUBLIK
                 </span>
               </div>
-              <h1 className="text-lg sm:text-xl font-black text-zinc-100 tracking-tight leading-tight">
-                Jadwal & Tenggat Tugas Ilkom B 2024
-              </h1>
+              <p className="text-[10px] sm:text-[11px] font-mono text-zinc-500 dark:text-zinc-400 truncate leading-tight mt-0.5">
+                Undiksha • Jadwal Kuliah
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 self-end sm:self-center">
-            <div className="px-3 py-1.5 rounded-none border border-amber-500/30 bg-amber-500/10 text-amber-400 font-mono text-xs font-semibold flex items-center gap-1.5 shadow-none">
-              <span className="size-2 rounded-none bg-amber-400" />
-              <span>{tasks.length} Tugas Aktif</span>
+          {/* Right: Counter Badge + Refresh Button + Theme Toggle */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Counter Badge */}
+            <div className="px-2 sm:px-2.5 py-1 rounded-none border border-amber-500/40 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-400 font-mono text-[11px] sm:text-xs font-bold flex items-center gap-1.5 shadow-none">
+              <span className="size-1.5 rounded-none bg-amber-500 dark:bg-amber-400" />
+              <span>
+                {tasks.length}{" "}
+                <span className="hidden sm:inline">Tugas Aktif</span>
+                <span className="sm:hidden">Tugas</span>
+              </span>
             </div>
+
+            {/* Refresh Button */}
             <button
               type="button"
               onClick={refreshTasks}
               disabled={isRefreshing}
-              className="h-9 px-3 rounded-none border border-zinc-800 bg-zinc-900 hover:bg-zinc-800/80 text-zinc-300 hover:text-zinc-100 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-none disabled:opacity-50"
+              className="size-8 sm:h-8 sm:px-2.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-semibold flex items-center justify-center sm:gap-1.5 transition-colors cursor-pointer shadow-none disabled:opacity-50"
               title="Segarkan data terbaru"
+              aria-label="Segarkan data terbaru"
             >
-              <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin text-indigo-400" : ""}`} />
+              <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin text-primary" : ""}`} />
               <span className="hidden sm:inline">{isRefreshing ? "Memuat..." : "Segarkan"}</span>
+            </button>
+
+            {/* Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="size-8 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center transition-colors cursor-pointer shadow-none"
+              title={isDark ? "Ganti ke Mode Terang" : "Ganti ke Mode Gelap"}
+              aria-label={isDark ? "Ganti ke Mode Terang" : "Ganti ke Mode Gelap"}
+            >
+              {isDark ? (
+                <Sun className="size-4 text-amber-500" />
+              ) : (
+                <Moon className="size-4 text-primary" />
+              )}
             </button>
           </div>
         </div>
       </header>
 
       {/* ── Main Container ── */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
-        {/* ── Filter & Search Toolbar ── */}
-        <div className="border border-zinc-800 bg-zinc-900/40 p-3 sm:p-4 rounded-none shadow-none flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="relative flex-1">
-            <Search className="size-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4">
+        {/* ── Compact Filter & Search Toolbar ── */}
+        <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-2 sm:p-2.5 rounded-none shadow-none flex flex-row items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="size-3.5 text-zinc-400 dark:text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Cari mata kuliah, tugas, atau ketentuan..."
+              placeholder="Cari mata kuliah, tugas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-9 pr-3 text-xs sm:text-sm bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 rounded-none focus:outline-none focus:border-indigo-500 shadow-none"
+              className="w-full h-8 sm:h-9 pl-8 pr-2.5 text-xs sm:text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 rounded-none focus:outline-none focus:border-primary shadow-none"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setOnlyUrgent(!onlyUrgent)}
-              className={`h-10 px-3.5 text-xs font-semibold rounded-none border flex items-center gap-1.5 transition-all shadow-none cursor-pointer ${
+              className={`h-8 sm:h-9 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-none border flex items-center gap-1.5 transition-colors shadow-none cursor-pointer ${
                 onlyUrgent
-                  ? "bg-rose-500/20 text-rose-300 border-rose-500/50"
-                  : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
+                  ? "bg-rose-50 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-500/50"
+                  : "bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               }`}
             >
-              <Flame className="size-3.5 text-rose-400" />
-              <span>Deadline Mepet (≤ 3 Hari)</span>
+              <Flame className="size-3.5 text-rose-500 shrink-0" />
+              <span className="hidden sm:inline">Deadline Mepet (≤ 3 Hari)</span>
+              <span className="sm:hidden">Mepet</span>
             </button>
 
             {selectedDate && (
               <button
                 type="button"
                 onClick={() => setSelectedDate(null)}
-                className="h-10 px-3 text-xs font-semibold rounded-none border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 flex items-center gap-1 transition-colors cursor-pointer shadow-none"
+                className="h-8 sm:h-9 px-2.5 text-[11px] sm:text-xs font-semibold rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center gap-1 transition-colors cursor-pointer shadow-none"
                 title="Hapus filter tanggal"
               >
                 <span>Reset Tanggal</span>
@@ -292,37 +327,37 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
 
         {/* ── Active Date Filter Notice (if selected) ── */}
         {selectedDate && (
-          <div className="border border-indigo-500/30 bg-indigo-500/10 px-4 py-2.5 rounded-none flex items-center justify-between gap-3 text-xs text-indigo-300">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="size-4 shrink-0 text-indigo-400" />
-              <span>
-                Menampilkan tugas untuk tanggal:{" "}
-                <strong className="text-zinc-100">
+          <div className="border border-primary/30 bg-primary/5 dark:bg-primary/10 px-3 py-2 rounded-none flex items-center justify-between gap-2 text-xs text-primary dark:text-primary-foreground">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <CalendarIcon className="size-3.5 shrink-0 text-primary" />
+              <span className="truncate">
+                Tugas tanggal:{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">
                   {selectedDate.getDate()} {monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}
                 </strong>{" "}
-                ({filteredTasks.length} tugas ditemukan)
+                ({filteredTasks.length} tugas)
               </span>
             </div>
             <button
               type="button"
               onClick={() => setSelectedDate(null)}
-              className="text-xs underline font-semibold text-indigo-300 hover:text-white cursor-pointer"
+              className="text-xs underline font-semibold text-primary hover:text-primary/80 shrink-0 cursor-pointer"
             >
-              Tampilkan Semua Tugas
+              Tampilkan Semua
             </button>
           </div>
         )}
 
         {/* ── Content Grid: Left Calendar + Right Tasks List ── */}
-        <div className="grid gap-6 lg:grid-cols-12">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-12">
           {/* ── Left Column: Aspect-Square Precise Calendar (5 cols) ── */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="border border-zinc-800 bg-zinc-900/60 p-4 sm:p-5 rounded-none shadow-none space-y-4">
+          <div className="lg:col-span-5 space-y-3 sm:space-y-4">
+            <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-3.5 sm:p-4 rounded-none shadow-none space-y-3">
               {/* Calendar Header with Navigation */}
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <CalendarIcon className="size-4 text-indigo-400" />
-                  <h2 className="text-sm sm:text-base font-bold text-zinc-100 tracking-tight">
+                  <CalendarIcon className="size-4 text-primary" />
+                  <h2 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
                     {monthNames[currentMonth]} {currentYear}
                   </h2>
                 </div>
@@ -330,7 +365,7 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                   <button
                     type="button"
                     onClick={prevMonth}
-                    className="size-8 rounded-none border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 flex items-center justify-center transition-colors shadow-none cursor-pointer"
+                    className="size-7 sm:size-8 rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 flex items-center justify-center transition-colors shadow-none cursor-pointer"
                     title="Bulan Sebelumnya"
                   >
                     <ChevronLeft className="size-4" />
@@ -338,14 +373,14 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                   <button
                     type="button"
                     onClick={setToday}
-                    className="h-8 px-2.5 rounded-none border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 text-[11px] font-semibold flex items-center gap-1 transition-colors shadow-none cursor-pointer"
+                    className="h-7 sm:h-8 px-2 rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 text-[11px] font-semibold flex items-center transition-colors shadow-none cursor-pointer"
                   >
                     Hari Ini
                   </button>
                   <button
                     type="button"
                     onClick={nextMonth}
-                    className="size-8 rounded-none border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 flex items-center justify-center transition-colors shadow-none cursor-pointer"
+                    className="size-7 sm:size-8 rounded-none border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 flex items-center justify-center transition-colors shadow-none cursor-pointer"
                     title="Bulan Berikutnya"
                   >
                     <ChevronRight className="size-4" />
@@ -354,7 +389,7 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
               </div>
 
               {/* Day Names Header */}
-              <div className="grid grid-cols-7 text-center text-[10px] sm:text-[11px] font-mono uppercase text-zinc-500 tracking-wider">
+              <div className="grid grid-cols-7 text-center text-[10px] sm:text-[11px] font-mono uppercase text-zinc-400 dark:text-zinc-500 tracking-wider">
                 <div>Min</div>
                 <div>Sen</div>
                 <div>Sel</div>
@@ -396,12 +431,12 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                           setSelectedDate(day);
                         }
                       }}
-                      className={`relative aspect-square p-1 rounded-none border text-left flex flex-col justify-between transition-all cursor-pointer shadow-none overflow-hidden ${
+                      className={`relative aspect-square p-1 rounded-none border text-left flex flex-col justify-between transition-colors cursor-pointer shadow-none overflow-hidden ${
                         isSelected
-                          ? "bg-indigo-600 border-indigo-500 text-white z-10 font-bold"
+                          ? "bg-primary border-primary text-primary-foreground z-10 font-bold"
                           : isCurrentMonth
-                          ? "bg-zinc-950/70 border-zinc-800/80 text-zinc-200 hover:bg-zinc-800/50 hover:border-zinc-700"
-                          : "bg-zinc-950/30 border-zinc-900/60 text-zinc-600 hover:bg-zinc-900/40"
+                          ? "bg-white dark:bg-zinc-950/70 border-zinc-200 dark:border-zinc-800/80 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:border-zinc-300 dark:hover:border-zinc-700"
+                          : "bg-zinc-100/50 dark:bg-zinc-950/30 border-zinc-200/60 dark:border-zinc-900/60 text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
                       }`}
                     >
                       <div className="flex justify-between items-start w-full leading-none">
@@ -409,8 +444,8 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                           className={`text-[11px] font-mono ${
                             isToday
                               ? isSelected
-                                ? "bg-white text-indigo-600 px-1 py-0.5 font-bold"
-                                : "bg-zinc-100 text-zinc-950 px-1 py-0.5 font-bold"
+                                ? "bg-white text-primary px-1 py-0.5 font-bold"
+                                : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 px-1 py-0.5 font-bold"
                               : ""
                           }`}
                         >
@@ -429,8 +464,8 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                           <span
                             className={`text-[9px] font-mono font-semibold px-1 py-0.2 rounded-none ${
                               isSelected
-                                ? "bg-indigo-800 text-white"
-                                : "bg-zinc-800 text-zinc-300"
+                                ? "bg-primary-hover text-white"
+                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
                             }`}
                           >
                             {dayTasks.length}
@@ -443,77 +478,77 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
               </div>
 
               {/* Calendar Legend */}
-              <div className="border-t border-zinc-800 pt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-zinc-400">
+              <div className="border-t border-zinc-200 dark:border-zinc-800 pt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-600 dark:text-zinc-400">
                 <span className="font-semibold text-zinc-500">Keterangan:</span>
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1">
                   <span className="size-2 rounded-none bg-rose-500" />
                   <span>≤ 1 Hari / Lewat</span>
                 </span>
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1">
                   <span className="size-2 rounded-none bg-orange-500" />
                   <span>2-3 Hari</span>
                 </span>
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1">
                   <span className="size-2 rounded-none bg-amber-400" />
                   <span>4-5 Hari</span>
                 </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-none bg-emerald-500" />
+                <span className="inline-flex items-center gap-1">
+                  <span className="size-2 rounded-none bg-secondary" />
                   <span>{">"} 5 Hari</span>
                 </span>
               </div>
             </div>
 
             {/* WhatsApp Bot Instructions Box */}
-            <div className="border border-zinc-800 bg-zinc-900/30 p-4 rounded-none shadow-none space-y-2 text-xs text-zinc-400">
-              <div className="flex items-center gap-2 text-zinc-200 font-semibold">
-                <Info className="size-4 text-indigo-400" />
+            <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 p-3 sm:p-3.5 rounded-none shadow-none space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+              <div className="flex items-center gap-1.5 text-zinc-800 dark:text-zinc-200 font-semibold">
+                <Info className="size-3.5 text-primary" />
                 <span>Info WhatsApp Bot Ilkom B:</span>
               </div>
-              <p className="leading-relaxed">
-                Rekan mahasiswa Ilkom B dapat mengecek tugas langsung di grup kelas atau japri bot:
+              <p className="leading-relaxed text-[11px]">
+                Cek tugas langsung via WhatsApp bot di grup kelas atau japri bot:
               </p>
-              <div className="font-mono text-[11px] space-y-1 bg-zinc-950 p-2.5 border border-zinc-800/80 text-zinc-300 rounded-none">
-                <div>• <code className="text-indigo-400">!tugas list</code> : Daftar semua tugas aktif</div>
-                <div>• <code className="text-indigo-400">!tugas mepet</code> : Tugas sisa ≤ 3 hari</div>
-                <div>• <code className="text-indigo-400">!tugas menu</code> : Panduan perintah bot</div>
+              <div className="font-mono text-[11px] space-y-0.5 bg-zinc-50 dark:bg-zinc-950 p-2 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 rounded-none">
+                <div>• <code className="text-primary font-bold">!tugas list</code> : Daftar semua tugas aktif</div>
+                <div>• <code className="text-primary font-bold">!tugas mepet</code> : Tugas sisa ≤ 3 hari</div>
+                <div>• <code className="text-primary font-bold">!tugas menu</code> : Panduan perintah bot</div>
               </div>
             </div>
           </div>
 
           {/* ── Right Column: Read-Only Task Cards (7 cols) ── */}
-          <div className="lg:col-span-7 space-y-4">
-            <div className="flex items-center justify-between pb-1">
-              <h2 className="text-base sm:text-lg font-bold text-zinc-100 flex items-center gap-2">
+          <div className="lg:col-span-7 space-y-3 sm:space-y-4">
+            <div className="flex items-center justify-between pb-0.5">
+              <h2 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                 <span>Daftar Tugas Kuliah</span>
-                <span className="text-xs font-mono font-normal text-zinc-400">
-                  ({filteredTasks.length} ditampilkan)
+                <span className="text-xs font-mono font-normal text-zinc-500 dark:text-zinc-400">
+                  ({filteredTasks.length})
                 </span>
               </h2>
               {onlyUrgent && (
-                <span className="text-xs font-semibold text-rose-400 flex items-center gap-1">
+                <span className="text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1">
                   <Flame className="size-3.5" />
-                  <span>Mode Mepet Aktif</span>
+                  <span>Mode Mepet</span>
                 </span>
               )}
             </div>
 
             {filteredTasks.length === 0 ? (
-              <div className="border border-zinc-800 bg-zinc-900/40 p-8 text-center rounded-none shadow-none space-y-3">
-                <div className="size-12 rounded-none bg-zinc-900 border border-zinc-800 mx-auto flex items-center justify-center text-zinc-500">
-                  <CheckCircle2 className="size-6 text-emerald-500" />
+              <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-6 sm:p-8 text-center rounded-none shadow-none space-y-2.5">
+                <div className="size-10 rounded-none bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 mx-auto flex items-center justify-center text-zinc-500">
+                  <CheckCircle2 className="size-5 text-emerald-500" />
                 </div>
-                <h3 className="text-base font-bold text-zinc-200">
+                <h3 className="text-sm sm:text-base font-bold text-zinc-800 dark:text-zinc-200">
                   {selectedDate
                     ? "Tidak ada tugas jatuh tempo pada tanggal ini"
                     : onlyUrgent
                     ? "Aman! Tidak ada tugas dengan deadline mepet (≤ 3 hari)"
                     : "Belum ada jadwal tugas"}
                 </h3>
-                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
                   {selectedDate || onlyUrgent || searchQuery
-                    ? "Coba ubah kata kunci pencarian atau hapus filter tanggal untuk melihat semua tugas."
-                    : "Semua tugas kuliah telah selesai atau belum ada tugas baru yang ditambahkan oleh Admin Komunitas."}
+                    ? "Coba ubah kata kunci pencarian atau reset filter tanggal untuk melihat semua tugas."
+                    : "Semua tugas kuliah telah selesai atau belum ada tugas baru yang ditambahkan."}
                 </p>
                 {(selectedDate || onlyUrgent || searchQuery) && (
                   <button
@@ -523,14 +558,14 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                       setOnlyUrgent(false);
                       setSearchQuery("");
                     }}
-                    className="h-8 px-4 text-xs font-semibold rounded-none border border-indigo-500/40 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition-colors shadow-none cursor-pointer"
+                    className="h-7 px-3 text-xs font-semibold rounded-none border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors shadow-none cursor-pointer"
                   >
                     Tampilkan Semua Tugas
                   </button>
                 )}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {filteredTasks.map((task, idx) => {
                   const courseName = task.course_name || task.subject_name || "Mata Kuliah";
                   const taskTitle = task.name || task.title || "Tugas Kuliah";
@@ -543,35 +578,35 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                   let urgencyBadge = null;
                   if (diffDays < 0) {
                     urgencyBadge = (
-                      <span className="px-2 py-0.5 rounded-none text-[11px] font-mono font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/30 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-none text-[11px] font-mono font-semibold bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-500/30 flex items-center gap-1">
                         <AlertTriangle className="size-3" />
                         <span>Lewat Tenggat</span>
                       </span>
                     );
                   } else if (diffDays === 0) {
                     urgencyBadge = (
-                      <span className="px-2 py-0.5 rounded-none text-[11px] font-mono font-bold bg-rose-600/20 text-rose-300 border border-rose-600/40 flex items-center gap-1 animate-pulse">
+                      <span className="px-2 py-0.5 rounded-none text-[11px] font-mono font-bold bg-rose-100 dark:bg-rose-600/20 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-600/40 flex items-center gap-1 animate-pulse">
                         <Flame className="size-3" />
                         <span>Tenggat Hari Ini!</span>
                       </span>
                     );
                   } else if (diffDays === 1) {
                     urgencyBadge = (
-                      <span className="px-2 py-0.5 rounded-none text-[11px] font-mono font-bold bg-orange-500/15 text-orange-400 border border-orange-500/30 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-none text-[11px] font-mono font-bold bg-orange-50 dark:bg-orange-500/15 text-orange-700 dark:text-orange-400 border border-orange-300 dark:border-orange-500/30 flex items-center gap-1">
                         <Flame className="size-3" />
                         <span>Deadline Besok</span>
                       </span>
                     );
                   } else if (diffDays <= 3) {
                     urgencyBadge = (
-                      <span className="px-2 py-0.5 rounded-none text-[11px] font-mono font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-none text-[11px] font-mono font-semibold bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-500/30 flex items-center gap-1">
                         <Clock className="size-3" />
                         <span>Sisa {diffDays} hari</span>
                       </span>
                     );
                   } else if (diffDays !== Number.MAX_SAFE_INTEGER) {
                     urgencyBadge = (
-                      <span className="px-2 py-0.5 rounded-none text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className="px-2 py-0.5 rounded-none text-[11px] font-mono font-medium bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/20">
                         {diffDays} hari lagi
                       </span>
                     );
@@ -580,11 +615,11 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                   return (
                     <article
                       key={task.id || idx}
-                      className="border border-zinc-800 bg-zinc-900/60 p-5 rounded-none shadow-none space-y-3.5 transition-all hover:border-zinc-700"
+                      className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-4 sm:p-4.5 rounded-none shadow-none space-y-3 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700"
                     >
                       {/* Top Badges */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
-                        <span className="px-2.5 py-1 rounded-none text-xs font-mono font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/25">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 dark:border-zinc-800/80 pb-2.5">
+                        <span className="px-2 py-0.5 rounded-none text-xs font-mono font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                           {courseName}
                         </span>
                         {urgencyBadge}
@@ -592,12 +627,12 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
 
                       {/* Title & Instructions */}
                       <div className="space-y-1.5">
-                        <h3 className="text-base sm:text-lg font-bold text-zinc-100 tracking-tight leading-snug">
+                        <h3 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight leading-snug">
                           {taskTitle}
                         </h3>
                         {task.description && (
-                          <div className="text-xs sm:text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed bg-zinc-950/60 p-3 border border-zinc-800/60 rounded-none">
-                            <span className="text-[11px] font-mono uppercase text-zinc-500 block mb-1">
+                          <div className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed bg-zinc-50 dark:bg-zinc-950/60 p-2.5 sm:p-3 border border-zinc-200 dark:border-zinc-800/80 rounded-none">
+                            <span className="text-[10px] sm:text-[11px] font-mono uppercase text-zinc-500 block mb-1">
                               Ketentuan / Deskripsi:
                             </span>
                             {task.description}
@@ -605,22 +640,22 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                         )}
                       </div>
 
-                      {/* Metadata Row: Deadline & Submission LMS (Purely Read-Only) */}
-                      <div className="pt-2 border-t border-zinc-800/80 grid sm:grid-cols-2 gap-3 text-xs">
+                      {/* Metadata Row: Deadline & Submission LMS */}
+                      <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 grid sm:grid-cols-2 gap-2.5 text-xs">
                         {/* Waktu Tenggat */}
-                        <div className="space-y-1">
-                          <span className="text-zinc-500 font-mono text-[11px] uppercase block">
+                        <div className="space-y-0.5">
+                          <span className="text-zinc-500 font-mono text-[10px] sm:text-[11px] uppercase block">
                             Waktu Tenggat:
                           </span>
-                          <div className="flex items-center gap-1.5 font-mono text-zinc-200">
+                          <div className="flex items-center gap-1.5 font-mono text-zinc-800 dark:text-zinc-200">
                             <Clock className="size-3.5 text-zinc-400 shrink-0" />
                             <span>{deadlineStr}</span>
                           </div>
                         </div>
 
                         {/* Tempat Pengumpulan */}
-                        <div className="space-y-1">
-                          <span className="text-zinc-500 font-mono text-[11px] uppercase block">
+                        <div className="space-y-0.5">
+                          <span className="text-zinc-500 font-mono text-[10px] sm:text-[11px] uppercase block">
                             Tempat Pengumpulan / LMS:
                           </span>
                           {isUrl ? (
@@ -628,13 +663,13 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
                               href={submission.trim()}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-medium underline underline-offset-2 break-all cursor-pointer transition-colors"
+                              className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 font-medium underline underline-offset-2 break-all cursor-pointer transition-colors"
                             >
                               <ExternalLink className="size-3.5 shrink-0" />
                               <span>{submission.trim()}</span>
                             </a>
                           ) : (
-                            <div className="flex items-center gap-1.5 text-zinc-200">
+                            <div className="flex items-center gap-1.5 text-zinc-800 dark:text-zinc-200">
                               <GraduationCap className="size-3.5 text-zinc-400 shrink-0" />
                               <span className="font-medium">{submission}</span>
                             </div>
@@ -650,13 +685,13 @@ export function PublicClassScheduleView({ initialTasks }: Props) {
         </div>
       </main>
 
-      {/* ── Footer Minimalis ── */}
-      <footer className="border-t border-zinc-800 bg-zinc-950 px-4 sm:px-6 py-6 mt-12 text-center text-xs text-zinc-500 space-y-2">
+      {/* ── Compact Footer ── */}
+      <footer className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 sm:px-6 py-4 mt-8 text-center text-xs text-zinc-500 dark:text-zinc-400 space-y-1">
         <p>
           &copy; {new Date().getFullYear()} Ruang Kerja Kelas Ilmu Komputer 2024 (Ilkom B) • Universitas Pendidikan Ganesha
         </p>
-        <p className="text-[11px] text-zinc-600">
-          Halaman ini bersifat publik dan hanya dapat dibaca (read-only) untuk seluruh mahasiswa. Pembaruan data dikelola oleh Admin Komunitas.
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-600">
+          Halaman publik read-only. Pembaruan data dikelola oleh Admin Komunitas.
         </p>
       </footer>
     </div>
