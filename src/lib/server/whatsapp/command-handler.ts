@@ -592,16 +592,44 @@ async function handleJobdeskSummary(
   return lines.join("\n");
 }
 
+const commandDedupeLocks = new Map<string, number>();
+const COMMAND_DEDUPE_TTL_MS = 10 * 60 * 1000; // 10 menit
+
+function pruneExpiredCommandLocks(now: number) {
+  for (const [key, expiresAt] of commandDedupeLocks.entries()) {
+    if (now > expiresAt) {
+      commandDedupeLocks.delete(key);
+    }
+  }
+}
+
 export async function executeWhatsAppWebhook(
   incoming: NormalizedIncomingWhatsAppMessage,
   payload: unknown
 ): Promise<NextResponse> {
   const messagePreview = incoming.message?.slice(0, 40) || "";
+
+  // Deduplikasi pesan menggunakan rawMessageId atau fingerprint
+  const rawId = incoming.rawMessageId ? String(incoming.rawMessageId).trim() : "";
+  const dedupeKey = rawId || (incoming.sender && incoming.message ? `${incoming.sender}:${incoming.message.slice(0, 50)}:${incoming.timestamp || ""}` : "");
+
+  if (dedupeKey) {
+    const now = Date.now();
+    pruneExpiredCommandLocks(now);
+    const existingLock = commandDedupeLocks.get(dedupeKey);
+    if (existingLock && now < existingLock) {
+      console.log("[whatsapp command] Duplicate message dropped by command-handler dedupe:", dedupeKey);
+      return NextResponse.json({ status: "already_processed", deduped: true }, { status: 200 });
+    }
+    commandDedupeLocks.set(dedupeKey, now + COMMAND_DEDUPE_TTL_MS);
+  }
+
   console.log("[whatsapp command] incoming", {
     provider: incoming.provider,
     isGroup: incoming.isGroup,
     groupId: incoming.groupId,
     hasSender: Boolean(incoming.sender),
+    rawMessageId: incoming.rawMessageId,
     messagePreview,
   });
 

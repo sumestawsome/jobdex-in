@@ -538,6 +538,190 @@ export async function deleteWhatsAppTaskDraft(sender: string): Promise<void> {
 }
 
 /**
+ * Merges an existing active draft with a new voice note revision.
+ * Transcribes and analyzes the audio directly with Gemini Flash while providing full context of the existing draft.
+ * Preserves all already valid fields (course_name, deadline, name, submission_url, description)
+ * unless the voice note explicitly changes them.
+ * Never resets deadline or triggers deadline clarification questions if the previous draft deadline was valid.
+ */
+export async function mergeVoiceNoteCorrectionWithDraft(
+  existingDraft: TaskDraft,
+  audioSource: string | Buffer,
+  mimeTypeOverride?: string
+): Promise<ExtractedVoiceTask> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY belum dikonfigurasi.");
+  }
+
+  let base64Audio = "";
+  let mimeType = mimeTypeOverride || "audio/ogg";
+
+  if (Buffer.isBuffer(audioSource)) {
+    console.log(`[VoiceTaskProcessor] Processing raw revision audio buffer (${audioSource.byteLength} bytes)`);
+    base64Audio = audioSource.toString("base64");
+  } else {
+    console.log(`[VoiceTaskProcessor] Fetching revision audio from URL: ${audioSource.slice(0, 60)}...`);
+    const audioRes = await fetch(audioSource, {
+      headers: { "User-Agent": "JobDex-In-VoiceProcessor/1.0" },
+    });
+    if (!audioRes.ok) {
+      throw new Error(`Failed to download audio file: HTTP status ${audioRes.status}`);
+    }
+    const contentTypeHeader = audioRes.headers.get("content-type");
+    mimeType = mimeTypeOverride || resolveAudioMimeType(audioSource, contentTypeHeader);
+    const arrayBuffer = await audioRes.arrayBuffer();
+    base64Audio = Buffer.from(arrayBuffer).toString("base64");
+  }
+
+  const systemPrompt = `Kamu adalah asisten pengelola tugas akademik Ilkom B Undiksha yang sangat teliti.
+Pengguna saat ini SUDAH memiliki draf tugas aktif yang tersimpan di sistem:
+- Mata Kuliah: ${existingDraft.course_name || "Belum disebutkan (null)"}
+- Nama/Judul Tugas: ${existingDraft.name || existingDraft.title || "Belum disebutkan (null)"}
+- Tenggat Waktu (Deadline): ${existingDraft.deadline || "Belum disebutkan (null)"}
+- Tempat Pengumpulan: ${existingDraft.submission_url || "E-Learning Undiksha"}
+- Deskripsi/Ketentuan: ${existingDraft.description || "Belum ada (null)"}
+
+Basis Waktu: Hari ini adalah Minggu, 25 Oktober 2026.
+
+Pesan suara berikut adalah KOREKSI / TAMBAHAN / REVISI PARSIAL untuk draf tugas di atas.
+Tugasmu:
+1. Dengarkan rekaman suara koreksi ini dengan saksama.
+2. Perbarui HANYA informasi yang secara eksplisit dikoreksi, diubah, atau ditambahkan oleh pengguna (misal link baru, judul baru, ketentuan baru, atau deadline baru jika disebutkan).
+3. WAJIB PERTAHANKAN seluruh informasi lama yang sudah valid di atas (${existingDraft.course_name ? "course_name: '" + existingDraft.course_name + "', " : ""}${existingDraft.name ? "name: '" + existingDraft.name + "', " : ""}${existingDraft.deadline ? "deadline: '" + existingDraft.deadline + "'" : ""}).
+4. JANGAN PERNAH mereset deadline menjadi null atau memicu pertanyaan tenggat jika deadline di draf lama (${existingDraft.deadline || "tidak ada"}) sudah valid dan pengguna tidak mengoreksinya!
+5. Jika draf lama sudah memiliki course_name, name, dan deadline yang valid, maka status AKHIR WAJIB "ready", missing_fields WAJIB [], dan clarification_question WAJIB null.
+
+Format JSON WAJIB valid tanpa markdown:
+{
+  "status": "ready" | "needs_clarification",
+  "course_name": "Nama mata kuliah yang dipertahankan atau diperbarui",
+  "name": "Judul tugas yang dipertahankan atau diperbarui",
+  "title": "Sama dengan name (alias)",
+  "description": "Deskripsi atau ketentuan pengerjaan",
+  "deadline": "Format YYYY-MM-DD HH:mm (WITA) yang dipertahankan atau diperbarui",
+  "submission_url": "Tempat pengumpulan (default: 'E-Learning Undiksha' atau dipertahankan dari draf)",
+  "missing_fields": [],
+  "clarification_question": null
+}`;
+
+  const userInstruction = `Dengarkan rekaman suara koreksi ini dan gabungkan dengan draf yang sudah ada sesuai format JSON yang ditentukan.`;
+
+  const modelsToTry = [
+    process.env.GEMINI_MODEL,
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-pro-latest",
+  ].filter(Boolean) as string[];
+  const uniqueModels = [...new Set(modelsToTry)];
+
+  let rawJsonText = "";
+  let lastError: Error | null = null;
+
+  for (const model of uniqueModels) {
+    try {
+      console.log(`[VoiceTaskProcessor] Sending multimodal revision audio request to Gemini model: ${model}`);
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const geminiRes = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: base64Audio,
+                  },
+                },
+                { text: userInstruction },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            response_mime_type: "application/json",
+          },
+        }),
+      });
+
+      const responseData = (await geminiRes.json()) as {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{ text?: string }>;
+          };
+        }>;
+        error?: { message?: string };
+      };
+
+      if (!geminiRes.ok) {
+        throw new Error(
+          responseData.error?.message
+            ? `Gemini (${model}) error: ${responseData.error.message}`
+            : `Gemini (${model}) failed with HTTP status ${geminiRes.status}`
+        );
+      }
+
+      const answerText = responseData.candidates?.[0]?.content?.parts
+        ?.map((p) => p.text ?? "")
+        .join("")
+        .trim();
+
+      if (answerText) {
+        rawJsonText = answerText;
+        break;
+      }
+    } catch (modelErr) {
+      lastError = modelErr instanceof Error ? modelErr : new Error(String(modelErr));
+      console.warn(`[VoiceTaskProcessor] Model ${model} failed revision:`, lastError.message);
+    }
+  }
+
+  if (!rawJsonText) {
+    throw lastError || new Error("Gemini API failed to return text candidate during revision merge.");
+  }
+
+  const cleaned = cleanJsonMarkdown(rawJsonText);
+  const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+
+  // Programmatic preservation of existing draft fields
+  const courseName: string | null = parsed.course_name ? String(parsed.course_name).trim() : (existingDraft.course_name || null);
+  const name: string | null = parsed.name
+    ? String(parsed.name).trim()
+    : parsed.title
+    ? String(parsed.title).trim()
+    : (existingDraft.name || existingDraft.title || null);
+  const deadline: string | null = parsed.deadline ? String(parsed.deadline).trim() : (existingDraft.deadline || null);
+  const description: string = parsed.description ? String(parsed.description).trim() : (existingDraft.description || "");
+  const submissionUrl: string = parsed.submission_url ? String(parsed.submission_url).trim() : (existingDraft.submission_url || "E-Learning Undiksha");
+
+  const missing: string[] = [];
+  if (!courseName) missing.push("course_name");
+  if (!name) missing.push("name");
+  if (!deadline) missing.push("deadline");
+
+  const status: "ready" | "needs_clarification" = missing.length === 0 ? "ready" : "needs_clarification";
+
+  return {
+    status,
+    course_name: courseName,
+    name,
+    title: name,
+    description,
+    deadline,
+    submission_url: submissionUrl,
+    missing_fields: missing,
+    clarification_question: status === "ready" ? null : (parsed.clarification_question ? String(parsed.clarification_question).trim() : null),
+  };
+}
+
+/**
  * Merges an existing draft with a follow-up user clarification text via Gemini.
  */
 export async function mergeTaskDraftWithFollowUp(
@@ -550,7 +734,7 @@ export async function mergeTaskDraftWithFollowUp(
   }
 
   const systemPrompt = `Kamu adalah asisten pengelola tugas kuliah mahasiswa Ilkom Undiksha yang sangat teliti.
-Pengguna sebelumnya telah memulai pencatatan tugas kuliah, namun informasinya belum lengkap dan tersimpan sebagai draf:
+Pengguna sebelumnya telah memulai pencatatan tugas kuliah, dan tersimpan sebagai draf:
 - Mata Kuliah: ${existingDraft.course_name || "Belum disebutkan (null)"}
 - Nama/Judul Tugas: ${existingDraft.name || existingDraft.title || "Belum disebutkan (null)"}
 - Deskripsi: ${existingDraft.description || "Belum ada (null)"}
@@ -560,18 +744,18 @@ Pengguna sebelumnya telah memulai pencatatan tugas kuliah, namun informasinya be
 
 Basis Waktu: Hari ini adalah Minggu, 25 Oktober 2026.
 
-Sekarang pengguna mengirim pesan susulan untuk melengkapi draf ini:
+Sekarang pengguna mengirim pesan susulan untuk melengkapi atau mengoreksi draf ini:
 "${followUpText}"
 
 Tugasmu:
 1. Gabungkan informasi pada draf lama dengan informasi baru yang diberikan oleh pengguna.
-2. Pertahankan informasi lama yang sudah ada, kecuali jika pesan baru pengguna secara jelas mengoreksi atau mengubahnya.
-3. Lengkapi informasi yang sebelumnya kosong/null dari pesan susulan ini.
+2. Pertahankan informasi lama yang sudah ada dan valid (${existingDraft.course_name ? "course_name: '" + existingDraft.course_name + "', " : ""}${existingDraft.name ? "name: '" + existingDraft.name + "', " : ""}${existingDraft.deadline ? "deadline: '" + existingDraft.deadline + "'" : ""}), kecuali jika pesan baru pengguna secara jelas mengoreksi atau mengubahnya.
+3. JANGAN PERNAH mereset deadline menjadi null jika deadline di draf lama (${existingDraft.deadline || "tidak ada"}) sudah valid dan pengguna tidak mengubahnya!
 4. Buang kata filler/basa-basi santai.
 
 Aturan Status & Kelengkapan:
-- Jika ketiga entitas inti (course_name, name, dan deadline) sekarang terdeteksi lengkap, set "status": "ready" dan "missing_fields": [].
-- Jika masih ada entitas inti yang belum lengkap, set "status": "needs_clarification", isi field yang belum ada dengan null, sebutkan di "missing_fields" (misal: ["deadline"]), dan buatkan "clarification_question" yang ramah dan spesifik menanyakan informasi yang masih kurang (misal: 'Tugas RPL sudah dicatat, tapi kapan tenggat waktunya ya?').
+- Jika ketiga entitas inti (course_name, name, dan deadline) sekarang lengkap (baik dari pesan baru maupun dipertahankan dari draf lama), set "status": "ready", "missing_fields": [], dan "clarification_question": null.
+- Jika masih ada entitas inti yang belum lengkap, set "status": "needs_clarification", isi field yang belum ada dengan null, sebutkan di "missing_fields" (misal: ["deadline"]), dan buatkan "clarification_question" yang ramah dan spesifik menanyakan informasi yang masih kurang.
 
 Format JSON WAJIB murni tanpa markdown:
 {
@@ -582,8 +766,8 @@ Format JSON WAJIB murni tanpa markdown:
   "description": "Deskripsi atau ketentuan pengerjaan",
   "deadline": "Format YYYY-MM-DD HH:mm (WITA) atau null jika belum ada",
   "submission_url": "Tempat pengumpulan (default: 'E-Learning Undiksha')",
-  "missing_fields": ["deadline"],
-  "clarification_question": "Pertanyaan ramah menanyakan bagian yang masih kurang atau null jika status ready"
+  "missing_fields": [],
+  "clarification_question": null
 }`;
 
   const modelsToTry = [
@@ -665,27 +849,22 @@ Format JSON WAJIB murni tanpa markdown:
   const cleaned = cleanJsonMarkdown(rawJsonText);
   const parsed = JSON.parse(cleaned) as Record<string, unknown>;
 
-  const courseName = parsed.course_name ? String(parsed.course_name).trim() : (existingDraft.course_name || null);
-  const name = parsed.name
+  const courseName: string | null = parsed.course_name ? String(parsed.course_name).trim() : (existingDraft.course_name || null);
+  const name: string | null = parsed.name
     ? String(parsed.name).trim()
     : parsed.title
     ? String(parsed.title).trim()
     : (existingDraft.name || existingDraft.title || null);
-  const deadline = parsed.deadline ? String(parsed.deadline).trim() : (existingDraft.deadline || null);
-  const description = parsed.description ? String(parsed.description).trim() : (existingDraft.description || "");
-  const submissionUrl = parsed.submission_url
-    ? String(parsed.submission_url).trim()
-    : (existingDraft.submission_url || "E-Learning Undiksha");
+  const deadline: string | null = parsed.deadline ? String(parsed.deadline).trim() : (existingDraft.deadline || null);
+  const description: string = parsed.description ? String(parsed.description).trim() : (existingDraft.description || "");
+  const submissionUrl: string = parsed.submission_url ? String(parsed.submission_url).trim() : (existingDraft.submission_url || "E-Learning Undiksha");
 
   const missing: string[] = [];
   if (!courseName) missing.push("course_name");
   if (!name) missing.push("name");
   if (!deadline) missing.push("deadline");
 
-  const status: "ready" | "needs_clarification" =
-    missing.length === 0 && parsed.status !== "needs_clarification"
-      ? "ready"
-      : "needs_clarification";
+  const status: "ready" | "needs_clarification" = missing.length === 0 ? "ready" : "needs_clarification";
 
   return {
     status,
@@ -696,9 +875,7 @@ Format JSON WAJIB murni tanpa markdown:
     deadline,
     submission_url: submissionUrl,
     missing_fields: missing,
-    clarification_question: parsed.clarification_question
-      ? String(parsed.clarification_question).trim()
-      : null,
+    clarification_question: status === "ready" ? null : (parsed.clarification_question ? String(parsed.clarification_question).trim() : null),
   };
 }
 
@@ -726,6 +903,7 @@ export function buildDraftPreviewCard(
     "👉 Ketik *!tugas acc* (atau *acc*) untuk mempublikasikan.",
     "👉 Ketik *!tugas batal* (atau *batal*) untuk membuang draf.",
     '👉 Atau kirim pesan/VN perbaikan jika ada kata yang salah (contoh: "ganti judulnya jadi Latihan 9").',
+    "👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
   ].join("\n");
 }
 
@@ -877,6 +1055,7 @@ export async function approveAndPublishTaskDraft(
     `⏰ *Tenggat:* ${formattedDeadline} WITA`,
     "",
     "Tugas telah tersimpan di JobDex dan disiarkan ke kelas.",
+    "👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
   ].join("\n");
 
   await sendWhatsAppMessage({
@@ -1162,22 +1341,123 @@ export async function handleWhatsAppVoiceTask(
     "⚠️ Maaf, bot tidak dapat mengenali detail tugas dari pesan suara tersebut. Pastikan suara terdengar jelas dan menyebutkan mata kuliah serta tenggat waktunya.";
 
   try {
-    // 3. Cek apakah pengirim sudah memiliki draf aktif
+    // 3. Cek apakah pengirim sudah memiliki draf aktif (KOREKSI/TAMBAHAN DRAF PARSIAL)
     const existingDraft = await getWhatsAppTaskDraft(incoming.sender);
     if (existingDraft) {
-      console.log("[VoiceTaskProcessor] Active draft exists for sender, processing voice note as follow-up");
-      const extractedVoice = await extractTaskFromVoiceNote(audioSource, audioMimeType);
-      if (extractedVoice.error !== "not_a_task") {
-        const followUpParts: string[] = [];
-        if (extractedVoice.course_name) followUpParts.push(`Mata kuliah: ${extractedVoice.course_name}`);
-        if (extractedVoice.name || extractedVoice.title) followUpParts.push(`Judul tugas: ${extractedVoice.name || extractedVoice.title}`);
-        if (extractedVoice.deadline) followUpParts.push(`Tenggat waktu: ${extractedVoice.deadline}`);
-        if (extractedVoice.description) followUpParts.push(`Ketentuan: ${extractedVoice.description}`);
-        if (extractedVoice.submission_url) followUpParts.push(`Tempat pengumpulan: ${extractedVoice.submission_url}`);
+      console.log("[VoiceTaskProcessor] Active draft exists for sender, processing voice note as partial revision:", {
+        sender: incoming.sender,
+        status: existingDraft.status,
+        course: existingDraft.course_name,
+        name: existingDraft.name,
+        deadline: existingDraft.deadline,
+      });
 
-        const followUpText = followUpParts.join(". ") || "Melengkapi draf tugas via suara";
-        return await handleDraftFollowUpMessage(incoming, existingDraft, followUpText);
+      // Proses VN baru sebagai KOREKSI / TAMBAHAN / REVISI PARSIAL draf yang sudah ada
+      const merged = await mergeVoiceNoteCorrectionWithDraft(existingDraft, audioSource, audioMimeType);
+      console.log("[VoiceTaskProcessor] Merged voice revision result:", merged);
+
+      // Pastikan seluruh field lama yang sudah valid dipertahankan jika tidak diubah
+      const courseName: string | null = merged.course_name ? merged.course_name.trim() : (existingDraft.course_name || null);
+      const taskTitle: string | null = (merged.name || merged.title)
+        ? (merged.name || merged.title)!.trim()
+        : (existingDraft.name || existingDraft.title || null);
+      const rawDeadline: string | null = merged.deadline ? merged.deadline.trim() : (existingDraft.deadline || null);
+      const description: string = merged.description
+        ? merged.description.trim()
+        : (existingDraft.description || `Tugas mata kuliah ${courseName || ""}. Selesaikan dan kumpulkan sesuai instruksi dosen pengampu.`);
+      const submissionUrl: string = merged.submission_url
+        ? merged.submission_url.trim()
+        : (existingDraft.submission_url || "E-Learning Undiksha");
+
+      const hasCore = Boolean(courseName && taskTitle && rawDeadline);
+
+      if (hasCore) {
+        const cleanDeadlineStr = rawDeadline!.replace(/\(wita\)/i, "").trim();
+        const deadlineDate = parseAcademicDeadline(cleanDeadlineStr);
+
+        if (deadlineDate && !isNaN(deadlineDate.getTime())) {
+          const formattedDeadline = formatVoiceDeadlineWita(deadlineDate);
+
+          existingDraft.course_name = courseName!;
+          existingDraft.name = taskTitle!;
+          existingDraft.title = taskTitle!;
+          existingDraft.description = description;
+          existingDraft.deadline = rawDeadline!.trim();
+          existingDraft.submission_url = submissionUrl;
+          existingDraft.missing_fields = [];
+          existingDraft.clarification_question = null;
+          existingDraft.status = "awaiting_approval";
+          existingDraft.reply_target = replyTarget;
+          existingDraft.is_group_target = isGroupTarget;
+          existingDraft.expires_at_ms = Date.now() + DRAFT_TTL_MS;
+
+          await saveWhatsAppTaskDraft(existingDraft);
+
+          // Kirim HANYA 1 pesan balasan pratinjau draf yang telah diperbarui
+          const previewMsg = buildDraftPreviewCard(
+            courseName!,
+            taskTitle!,
+            formattedDeadline,
+            description,
+            submissionUrl
+          );
+
+          await sendWhatsAppMessage({
+            target: replyTarget,
+            message: previewMsg,
+            type: isGroupTarget ? "group" : "phone",
+            org_id: workspaceId,
+            provider: incoming.provider,
+          });
+
+          return NextResponse.json({
+            ok: true,
+            status: "awaiting_approval",
+            stopFurtherProcessing: true,
+            draft: existingDraft,
+          });
+        }
       }
+
+      // Jika field inti memang belum lengkap sejak awal (misal belum ada mata kuliah atau deadline):
+      existingDraft.course_name = courseName;
+      existingDraft.name = taskTitle;
+      existingDraft.title = taskTitle;
+      existingDraft.description = description;
+      existingDraft.deadline = rawDeadline;
+      existingDraft.submission_url = submissionUrl;
+      existingDraft.missing_fields = merged.missing_fields;
+      existingDraft.status = "needs_clarification";
+      existingDraft.reply_target = replyTarget;
+      existingDraft.is_group_target = isGroupTarget;
+
+      await saveWhatsAppTaskDraft(existingDraft);
+
+      const clarifMsg = [
+        "📝 *Draf Tugas Diperbarui!*",
+        "",
+        `📚 *Mata Kuliah:* ${existingDraft.course_name || "Belum disebutkan"}`,
+        `📌 *Tugas:* ${existingDraft.name || "Belum disebutkan"}`,
+        ...(existingDraft.deadline ? [`⏰ *Tenggat:* ${existingDraft.deadline}`] : []),
+        "",
+        `❓ ${merged.clarification_question || "Mohon lengkapi bagian yang masih kurang."}`,
+        "*(Balas chat ini langsung dengan detailnya, atau ketik 'batal' untuk membatalkan)*",
+      ].join("\n");
+
+      await sendWhatsAppMessage({
+        target: replyTarget,
+        message: clarifMsg,
+        type: isGroupTarget ? "group" : "phone",
+        org_id: workspaceId,
+        provider: incoming.provider,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        status: "needs_clarification",
+        stopFurtherProcessing: true,
+        draft: existingDraft,
+      });
     }
 
     // 4. Ekstraksi Multimodal menggunakan Gemini Flash API

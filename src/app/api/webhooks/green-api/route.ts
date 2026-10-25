@@ -10,9 +10,9 @@ import type { NormalizedIncomingWhatsAppMessage } from "@/types";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// In-memory dedupe lock cache (TTL 15 detik) untuk mencegah duplicate retry dari Green-API
+// In-memory dedupe lock cache (TTL 10 menit) untuk mencegah infinite webhook retry storm dari Green-API
 const inMemoryDedupeLocks = new Map<string, number>();
-const DEDUPE_TTL_MS = 15 * 1000;
+const DEDUPE_TTL_MS = 10 * 60 * 1000; // 10 menit
 
 function pruneExpiredMemoryLocks(now: number) {
   for (const [key, expiresAt] of inMemoryDedupeLocks.entries()) {
@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
   }
 
   const root = payload as Record<string, unknown>;
-  const typeWebhook = String(root.typeWebhook || "");
+  const typeWebhook = String(root.typeWebhook || "").trim();
 
-  // Hanya proses tipe incomingMessageReceived
+  // 1. Abaikan event jika pesan bukan incomingMessageReceived (misal outgoingMessageReceived, dsb.)
   if (typeWebhook !== "incomingMessageReceived") {
     return NextResponse.json({
       status: "success",
@@ -62,6 +62,10 @@ export async function POST(request: NextRequest) {
 
   const senderData = (root.senderData && typeof root.senderData === "object"
     ? root.senderData
+    : {}) as Record<string, unknown>;
+
+  const instanceData = (root.instanceData && typeof root.instanceData === "object"
+    ? root.instanceData
     : {}) as Record<string, unknown>;
 
   const messageData = (root.messageData && typeof root.messageData === "object"
@@ -103,6 +107,16 @@ export async function POST(request: NextRequest) {
     .replace(/[^\d]/g, "")
     .replace(/^0/, "62");
 
+  // Deteksi jika pesan dikirim oleh nomor bot sendiri (instanceData.wid / sender)
+  const botWid = String(instanceData.wid || "").replace(/[^\d]/g, "");
+  if (botWid && cleanSender === botWid) {
+    return NextResponse.json({
+      status: "success",
+      ignored: true,
+      reason: "bot_self_message",
+    });
+  }
+
   if (!cleanSender) {
     console.warn("[green-api webhook] Warning: Failed to extract valid sender phone number from payload:", {
       idMessage: root.idMessage,
@@ -114,6 +128,66 @@ export async function POST(request: NextRequest) {
   }
 
   const senderName = String(senderData.senderName || senderData.senderContactName || "");
+
+  // Ekstrak idMessage dari payload Green-API
+  const idMessage = String(
+    root.idMessage ||
+    messageData.idMessage ||
+    root.id ||
+    ""
+  ).trim();
+  const timestamp = root.timestamp;
+
+  // Deduplikasi menggunakan idMessage atau hash fallback
+  const dedupeKey = idMessage || crypto.createHash("sha256").update([
+    "green-api",
+    rawChatId || "personal",
+    cleanSender || "unknown",
+    String(timestamp || Date.now()),
+  ].join("|")).digest("hex");
+
+  const now = Date.now();
+  pruneExpiredMemoryLocks(now);
+
+  // A. Cek cache in-memory: jika sudah diproses dalam 10 menit terakhir, Fast ACK return already_processed
+  const memExpiresAt = inMemoryDedupeLocks.get(dedupeKey);
+  if (memExpiresAt && now < memExpiresAt) {
+    console.log("[green-api webhook] Fast ACK - idMessage already processed (in-memory):", dedupeKey);
+    return NextResponse.json({ status: "already_processed" }, { status: 200 });
+  }
+
+  // B. Cek cache Firestore
+  try {
+    const db = getAdminDb();
+    const docRef = db.collection("green_api_dedupe").doc(dedupeKey);
+    const snap = await docRef.get();
+    if (snap.exists) {
+      const data = snap.data();
+      const expiresAtMs = typeof data?.expires_at_ms === "number" ? data.expires_at_ms : 0;
+      if (now < expiresAtMs) {
+        console.log("[green-api webhook] Fast ACK - idMessage already processed (firestore):", dedupeKey);
+        inMemoryDedupeLocks.set(dedupeKey, expiresAtMs);
+        return NextResponse.json({ status: "already_processed" }, { status: 200 });
+      }
+    }
+
+    // Simpan idMessage ke cache deduplikasi SEBELUM memproses audio atau pesan
+    inMemoryDedupeLocks.set(dedupeKey, now + DEDUPE_TTL_MS);
+    await docRef.set({
+      dedupeKey,
+      idMessage: idMessage || null,
+      sender: cleanSender || null,
+      chatId: rawChatId || null,
+      processed_at_ms: now,
+      expires_at_ms: now + DEDUPE_TTL_MS,
+      created_at: FieldValue.serverTimestamp(),
+    }).catch((fsErr) => {
+      console.warn("[green-api webhook] Warning: Failed to write Firestore dedupe lock:", fsErr);
+    });
+  } catch (dbErr) {
+    console.warn("[green-api webhook] Firestore dedupe check error, falling back to in-memory lock:", dbErr);
+    inMemoryDedupeLocks.set(dedupeKey, now + DEDUPE_TTL_MS);
+  }
 
   // Ekstrak media dan teks pesan
   const typeMessage = String(messageData.typeMessage || "");
@@ -128,27 +202,6 @@ export async function POST(request: NextRequest) {
     messageData.caption ||
     ""
   ).trim();
-
-  const idMessage = String(root.idMessage || root.id || "");
-  const timestamp = root.timestamp;
-
-  // Deduplikasi menggunakan hash (in-memory + firestore lock)
-  const dedupeKeySource = [
-    "green-api",
-    rawChatId || "personal",
-    cleanSender || "unknown",
-    idMessage || String(timestamp || Date.now()),
-  ].join("|");
-
-  const dedupeKey = crypto.createHash("sha256").update(dedupeKeySource).digest("hex");
-  const now = Date.now();
-  pruneExpiredMemoryLocks(now);
-
-  if (inMemoryDedupeLocks.has(dedupeKey)) {
-    console.log("[green-api webhook] in-memory dedupe hit:", dedupeKey.slice(0, 16));
-    return NextResponse.json({ status: "success", deduped: true });
-  }
-  inMemoryDedupeLocks.set(dedupeKey, now + DEDUPE_TTL_MS);
 
   // Deteksi pesan suara / audio attachment
   const isAudio =
