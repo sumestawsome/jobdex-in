@@ -31,6 +31,7 @@ export interface ExtractedVoiceTask {
 export interface TaskDraft {
   sender: string;
   status?: "awaiting_approval" | "needs_clarification" | "processing";
+  workspace_id?: string | null;
   course_name?: string | null;
   name?: string | null;
   title?: string | null;
@@ -1055,7 +1056,8 @@ export async function approveAndPublishTaskDraft(
     ...lockedDraft,
   };
 
-  const { adminUser, replyTarget, isGroupTarget } = await verifyAdminKomunitas(incoming, db);
+  const { adminUser, replyTarget, isGroupTarget, workspaceConfig } = await verifyAdminKomunitas(incoming, db);
+  const effectiveWorkspaceId = draftToPublish.workspace_id || workspaceConfig?.id || workspaceId;
   const effectiveReplyTarget = replyTarget || draftToPublish.reply_target || incoming.sender;
   const effectiveIsGroup = isGroupTarget ?? draftToPublish.is_group_target ?? false;
 
@@ -1140,14 +1142,14 @@ export async function approveAndPublishTaskDraft(
     `Tugas mata kuliah ${courseName}. Selesaikan dan kumpulkan sesuai instruksi dosen pengampu.`;
   const submissionUrl = draftToPublish.submission_url?.trim() || "E-Learning Undiksha";
 
-  // 5. Simpan tugas secara resmi ke koleksi Firestore tasks pada workspace ws_ilkom_2024
+  // 5. Simpan tugas secara resmi ke koleksi Firestore tasks pada workspace kelas dinamis
   const newTaskRef = db.collection("tasks").doc();
   const taskData: Record<string, unknown> = {
     id: newTaskRef.id,
-    workspace_id: workspaceId,
-    organization_id: workspaceId,
-    org_id: workspaceId,
-    orgId: workspaceId,
+    workspace_id: effectiveWorkspaceId,
+    organization_id: effectiveWorkspaceId,
+    org_id: effectiveWorkspaceId,
+    orgId: effectiveWorkspaceId,
     campus_id: "univ-undiksha",
     campusId: "univ-undiksha",
     univ_id: "univ-undiksha",
@@ -1458,11 +1460,15 @@ export async function handleWhatsAppVoiceTask(
   audioMimeType?: string
 ): Promise<NextResponse> {
   const db = getAdminDb();
-  const workspaceId = DEFAULT_CLASS_WORKSPACE_ID;
-  const ANNOUNCEMENT_GROUP_ID = DEFAULT_CLASS_GROUP_ID; // 120363411033795051@g.us
-  const DISCUSSION_GROUP_ID = DEFAULT_CLASS_DISCUSSION_GROUP_ID; // 120363432766465224@g.us
 
-  // 1. Verifikasi Jalur Pengiriman:
+  // 1. Validasi Hak Akses & Resolusi Workspace Dinamis (termasuk 3-Chat Limit Guard)
+  const { isAdmin, adminUser, replyTarget, isGroupTarget, workspaceConfig, isDmAllowed } = await verifyAdminKomunitas(incoming, db);
+
+  const workspaceId = workspaceConfig?.id || DEFAULT_CLASS_WORKSPACE_ID;
+  const ANNOUNCEMENT_GROUP_ID = workspaceConfig?.announcementGroupId || DEFAULT_CLASS_GROUP_ID;
+  const DISCUSSION_GROUP_ID = workspaceConfig?.discussionGroupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID;
+
+  // Verifikasi Jalur Pengiriman:
   // - Grup pengumuman komunitas: BLOKIR TOTAL
   const cleanIncomingGroup = incoming.groupId ? incoming.groupId.replace(/\D/g, "") : "";
   const cleanAnnouncementGroup = ANNOUNCEMENT_GROUP_ID.replace(/\D/g, "");
@@ -1487,8 +1493,31 @@ export async function handleWhatsAppVoiceTask(
     });
   }
 
-  // 2. Validasi Hak Akses Admin Komunitas / Super Admin
-  const { isAdmin, adminUser, replyTarget, isGroupTarget } = await verifyAdminKomunitas(incoming, db);
+  // - Evaluasi 3-Chat Limit Guard untuk Personal Chat (DM)
+  if (!incoming.isGroup && isDmAllowed === false) {
+    console.warn(`[VoiceTaskProcessor] Voice note DM slot limit guard triggered for ${incoming.sender}`);
+    const friendlyDMMsg = [
+      "⚠️ *Akses Voice Note Jalur Pribadi Dibatasi*",
+      "",
+      "Halo! Untuk menjaga efisiensi alur bot dan kuota chat, pembuatan tugas via Voice Note di jalur pesan pribadi hanya dibuka untuk Admin Komunitas (Korti & Wakil Korti).",
+      "",
+      "Silakan kirimkan Voice Note Anda di *Grup Diskusi Kelas* agar dapat diproses oleh bot. Terima kasih! 🙏",
+    ].join("\n");
+
+    await sendWhatsAppMessage({
+      target: replyTarget,
+      message: friendlyDMMsg,
+      type: isGroupTarget ? "group" : "phone",
+      org_id: workspaceId,
+      provider: incoming.provider,
+    });
+
+    return NextResponse.json({
+      ok: false,
+      ignored: true,
+      reason: "voice_note_dm_restricted_use_discussion_group",
+    }, { status: 403 });
+  }
 
   if (!isAdmin || !adminUser) {
     console.warn(`[VoiceTaskProcessor] Unauthorized voice note attempt from sender: ${incoming.sender}`);
@@ -1666,6 +1695,7 @@ export async function handleWhatsAppVoiceTask(
       const draft: TaskDraft = {
         sender: incoming.sender,
         status: "needs_clarification",
+        workspace_id: workspaceId,
         course_name: extracted.course_name?.trim() || null,
         name: (extracted.name || extracted.title)?.trim() || null,
         title: (extracted.name || extracted.title)?.trim() || null,
@@ -1752,6 +1782,7 @@ export async function handleWhatsAppVoiceTask(
     const draft: TaskDraft = {
       sender: incoming.sender,
       status: "awaiting_approval",
+      workspace_id: workspaceId,
       course_name: courseName,
       name: taskTitle,
       title: taskTitle,

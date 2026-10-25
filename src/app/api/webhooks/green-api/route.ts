@@ -250,9 +250,22 @@ export async function POST(request: NextRequest) {
       extension: fileName ? fileName.split(".").pop() : "ogg",
     };
 
-    // Validasi nomor pengirim: pastikan pengirim adalah Admin Komunitas atau Super Admin.
     const db = getAdminDb();
-    const { isAdmin, adminUser } = await verifyAdminKomunitas(incoming, db);
+    const { isAdmin, adminUser, isDmAllowed } = await verifyAdminKomunitas(incoming, db);
+
+    if (!incoming.isGroup && isDmAllowed === false) {
+      console.warn(`[green-api webhook] Voice note DM slot limit guard triggered for ${cleanSender}`);
+      const friendlyDMMsg = [
+        "⚠️ *Akses Voice Note Jalur Pribadi Dibatasi*",
+        "",
+        "Halo! Untuk menjaga efisiensi alur bot dan kuota chat, pembuatan tugas via Voice Note di jalur pesan pribadi hanya dibuka untuk Admin Komunitas (Korti & Wakil Korti).",
+        "",
+        "Silakan kirimkan rekaman suara Anda di *Grup Diskusi Kelas* agar dapat diproses oleh bot. Terima kasih! 🙏",
+      ].join("\n");
+
+      await sendGreenApiTextMessage(rawChatId, friendlyDMMsg);
+      return NextResponse.json({ status: "success", reason: "voice_note_dm_restricted" });
+    }
 
     if (!isAdmin || !adminUser) {
       console.warn(`[green-api webhook] Unauthorized voice note attempt from ${cleanSender}`);

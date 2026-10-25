@@ -2,13 +2,30 @@ import "server-only";
 
 import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
 import { sendWhatsAppMessage } from "@/lib/server/whatsapp";
+import { sendGreenApiTextMessage } from "@/lib/server/green-api";
 import type { Task, UserProfile } from "@/types";
+import type { ClassWorkspaceGateways, ClassWorkspaceAdmin } from "@/types/workspace";
 import { getTaskDeadlineDiffDays } from "@/lib/task-risk";
 
 export const DEFAULT_CLASS_GROUP_ID = "120363411033795051@g.us"; // Coba JobdexIn (Broadcast Only)
 export const DEFAULT_CLASS_DISCUSSION_GROUP_ID = "120363432766465224@g.us"; // CONTOH KELAS (Diskusi & Command)
 export const DEFAULT_CLASS_WORKSPACE_ID = "ws_ilkom_2024";
 export const DEFAULT_CLASS_WORKSPACE_NAME = "Ilkom B";
+
+export type ClassWorkspaceConfig = {
+  id: string;
+  name: string;
+  groupId: string;
+  announcementGroupId: string;
+  discussionGroupId: string;
+  gateways?: ClassWorkspaceGateways;
+  authorized_admins?: {
+    admin_1?: ClassWorkspaceAdmin;
+    admin_2?: ClassWorkspaceAdmin;
+    super_admin?: ClassWorkspaceAdmin;
+    [key: string]: ClassWorkspaceAdmin | undefined;
+  };
+};
 
 /**
  * Checks whether a task belongs to an academic class workspace.
@@ -70,18 +87,25 @@ export function formatWitaDate(dateObj: unknown): string {
 }
 
 /**
+ * Normalizes phone numbers to standard Indonesian format (e.g. 628...).
+ */
+function normalizePhoneNumber(value?: string | null): string {
+  if (!value) return "";
+  return value
+    .replace(/@s\.whatsapp\.net$/i, "")
+    .replace(/@c\.us$/i, "")
+    .replace(/\D/g, "")
+    .replace(/^0/, "62")
+    .replace(/^8/, "628");
+}
+
+/**
  * Retrieves configuration for a class workspace.
  */
 export async function getClassWorkspaceConfig(
   workspaceId: string = DEFAULT_CLASS_WORKSPACE_ID,
   customDb?: FirebaseFirestore.Firestore
-): Promise<{
-  id: string;
-  name: string;
-  groupId: string;
-  announcementGroupId: string;
-  discussionGroupId: string;
-}> {
+): Promise<ClassWorkspaceConfig> {
   const db = customDb || getAdminDb();
   try {
     const wsDoc = await db.collection("workspaces").doc(workspaceId).get();
@@ -98,12 +122,17 @@ export async function getClassWorkspaceConfig(
         data?.whatsapp_settings?.discussion_group_id ||
         DEFAULT_CLASS_DISCUSSION_GROUP_ID;
       const name = data?.name || DEFAULT_CLASS_WORKSPACE_NAME;
+      const gateways = (data?.whatsapp_settings?.gateways || undefined) as ClassWorkspaceGateways | undefined;
+      const authorized_admins = (data?.authorized_admins || undefined) as Record<string, ClassWorkspaceAdmin> | undefined;
+
       return {
         id: workspaceId,
         name,
         groupId: announcementGroupId,
         announcementGroupId,
         discussionGroupId,
+        gateways,
+        authorized_admins,
       };
     }
   } catch (err) {
@@ -119,9 +148,124 @@ export async function getClassWorkspaceConfig(
   };
 }
 
+/**
+ * Finds a class workspace dynamically from context:
+ * 1. Checks matching Group ID (discussion group or announcement group)
+ * 2. Checks matching Sender Phone in authorized_admins
+ * 3. Falls back to DEFAULT_CLASS_WORKSPACE_ID
+ */
+export async function findClassWorkspaceByContext(
+  context: {
+    groupId?: string | null;
+    sender?: string | null;
+    isGroup?: boolean;
+    workspaceId?: string | null;
+  },
+  customDb?: FirebaseFirestore.Firestore
+): Promise<ClassWorkspaceConfig> {
+  const db = customDb || getAdminDb();
+
+  // 1. Explicit workspaceId provided
+  if (context.workspaceId) {
+    return await getClassWorkspaceConfig(context.workspaceId, db);
+  }
+
+  try {
+    const snap = await db.collection("workspaces").where("type", "==", "kelas").get();
+    if (!snap.empty) {
+      const cleanGroup = context.groupId ? context.groupId.replace(/\D/g, "") : "";
+      const cleanSender = context.sender ? normalizePhoneNumber(context.sender) : "";
+
+      // 2a. Match by Group ID
+      if (cleanGroup) {
+        for (const doc of snap.docs) {
+          const data = doc.data();
+          const discGroup = (
+            data.whatsapp_settings?.discussion_group_id ||
+            data.whatsapp_discussion_group_id ||
+            ""
+          ).replace(/\D/g, "");
+          const annGroup = (
+            data.whatsapp_settings?.announcement_group_id ||
+            data.whatsapp_announcement_group_id ||
+            data.whatsapp_group_id ||
+            ""
+          ).replace(/\D/g, "");
+          if (cleanGroup === discGroup || cleanGroup === annGroup) {
+            return await getClassWorkspaceConfig(doc.id, db);
+          }
+        }
+      }
+
+      // 2b. Match by Sender Phone (admin_1, admin_2, or super_admin)
+      if (cleanSender) {
+        for (const doc of snap.docs) {
+          const data = doc.data();
+          const admins = data.authorized_admins || {};
+          const a1Phone = normalizePhoneNumber(admins.admin_1?.phone);
+          const a2Phone = normalizePhoneNumber(admins.admin_2?.phone);
+          const saPhone = normalizePhoneNumber(admins.super_admin?.phone);
+          if (cleanSender === a1Phone || cleanSender === a2Phone || cleanSender === saPhone) {
+            return await getClassWorkspaceConfig(doc.id, db);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[AcademicBroadcast] Error querying workspaces for context:", err);
+  }
+
+  // Fallback to default class workspace
+  return await getClassWorkspaceConfig(DEFAULT_CLASS_WORKSPACE_ID, db);
+}
+
+/**
+ * Dispatches broadcast messages to the class announcement group:
+ * If custom dedicated Instance B (outbound broadcast) is configured, dispatches directly via Green-API without watermark.
+ * Otherwise falls back to default system WhatsApp provider (Fonnte or Green-API default).
+ */
+export async function dispatchClassBroadcastMessage(
+  wsConfig: ClassWorkspaceConfig,
+  message: string
+): Promise<{ ok: boolean; idMessage?: string; error?: string }> {
+  const broadcastInstanceId = wsConfig.gateways?.broadcast_instance_id?.trim();
+  const broadcastToken = wsConfig.gateways?.broadcast_token?.trim();
+
+  if (broadcastInstanceId && broadcastToken) {
+    console.log(
+      `[AcademicBroadcast] Dispatching outbound broadcast via dedicated Instance B (${broadcastInstanceId}) to ${wsConfig.announcementGroupId}`
+    );
+    const result = await sendGreenApiTextMessage(wsConfig.announcementGroupId, message, {
+      idInstance: broadcastInstanceId,
+      apiTokenInstance: broadcastToken,
+    });
+    if (result.ok) {
+      return result;
+    }
+    console.warn(
+      `[AcademicBroadcast] Instance B dispatch failed (${result.error}), falling back to system provider`
+    );
+  }
+
+  // Fallback to default system sender
+  const fallback = await sendWhatsAppMessage({
+    target: wsConfig.announcementGroupId,
+    message,
+    type: "group",
+    org_id: wsConfig.id,
+  });
+
+  return {
+    ok: fallback.ok,
+    idMessage: fallback.responseText ? String(fallback.responseText) : undefined,
+    error: fallback.error,
+  };
+}
+
 export const DEFAULT_SUBMISSION_PLACE = "E-Learning Undiksha";
 export const OFFICIAL_APP_URL = "https://jobdexin.sumestawsome.xyz";
 export const PUBLIC_CLASS_SCHEDULE_URL = "https://jobdexin.sumestawsome.xyz/jadwal-tugas-ilkom-b";
+
 
 /**
  * Resolves the application base URL, strictly avoiding localhost in WhatsApp broadcasts.
@@ -465,12 +609,7 @@ export async function handleAcademicTaskCreated(
     });
 
     try {
-      const sendResult = await sendWhatsAppMessage({
-        target: wsConfig.groupId,
-        message,
-        type: "group",
-        org_id: targetWsId,
-      });
+      const sendResult = await dispatchClassBroadcastMessage(wsConfig, message);
 
       // Tandai milestone yang sudah terlewati agar tidak dikirim ganda oleh cron
       const milestonesToMark = ["instant_created", "h5", "h3"];
@@ -586,12 +725,7 @@ export async function handleAcademicTaskUpdated(
     });
 
     try {
-      const sendResult = await sendWhatsAppMessage({
-        target: wsConfig.groupId,
-        message,
-        type: "group",
-        org_id: targetWsId,
-      });
+      const sendResult = await dispatchClassBroadcastMessage(wsConfig, message);
 
       // Hitung ulang milestone jika deadline diundur
       const diffDays = getTaskDeadlineDiffDays(task);
@@ -648,12 +782,7 @@ export async function handleAcademicTaskUpdated(
     });
 
     try {
-      const sendResult = await sendWhatsAppMessage({
-        target: wsConfig.groupId,
-        message,
-        type: "group",
-        org_id: targetWsId,
-      });
+      const sendResult = await dispatchClassBroadcastMessage(wsConfig, message);
 
       await db.collection("tasks").doc(taskId).update({
         reminders_sent: FieldValue.arrayUnion("updated_description"),
@@ -805,12 +934,7 @@ export async function processAcademicCronReminders(
       }
 
       try {
-        const sendResult = await sendWhatsAppMessage({
-          target: wsConfig.groupId,
-          message: messageContent,
-          type: "group",
-          org_id: targetWsId,
-        });
+        const sendResult = await dispatchClassBroadcastMessage(wsConfig, messageContent);
 
         await db.collection("tasks").doc(task.id).update({
           reminders_sent: FieldValue.arrayUnion(targetMilestone),

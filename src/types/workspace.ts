@@ -33,6 +33,46 @@ export interface WorkspaceDoc {
   korti_email?: string;
 }
 
+export interface ClassWorkspaceGateways {
+  interactive_instance_id?: string;
+  interactive_token?: string;
+  broadcast_instance_id?: string;
+  broadcast_token?: string;
+}
+
+export interface ClassWorkspaceAdmin {
+  phone: string;
+  name?: string;
+  allow_voice_note_dm?: boolean;
+  allow_voice_note_group?: boolean;
+}
+
+export interface ClassWorkspaceWhatsAppSettings {
+  group_id?: string;
+  announcement_group_id: string;
+  discussion_group_id: string;
+  channel_type?: "community_announcement" | "group";
+  enabled?: boolean;
+  gateways?: ClassWorkspaceGateways;
+}
+
+export interface ClassWorkspaceDoc {
+  id: string;
+  name: string;
+  type: "kelas";
+  status: "aktif" | "nonaktif";
+  whatsapp_settings: ClassWorkspaceWhatsAppSettings;
+  authorized_admins: {
+    admin_1: ClassWorkspaceAdmin;
+    admin_2?: ClassWorkspaceAdmin;
+    super_admin?: ClassWorkspaceAdmin;
+  };
+  created_at?: unknown;
+  updated_at?: unknown;
+  created_by?: string;
+}
+
+
 export interface Campus {
   id: string;
   name: string;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useTheme } from "@/components/theme/theme-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ import {
   SlidersHorizontal,
   Palette,
   Users,
+  GraduationCap,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -466,6 +468,16 @@ export default function SettingsPage() {
             <MessageSquare className="size-3.5" />
             <span>WhatsApp Gateway</span>
           </button>
+        )}
+
+        {isSuperAdmin && (
+          <Link
+            href="/dashboard/settings/workspaces"
+            className="px-3.5 py-1.5 text-xs font-semibold rounded-none border border-primary/40 text-primary bg-primary/5 hover:bg-primary/10 transition-all shrink-0 flex items-center gap-1.5 shadow-none"
+          >
+            <GraduationCap className="size-3.5 text-primary" />
+            <span>Kelola Kelas</span>
+          </Link>
         )}
       </div>
 

@@ -8,7 +8,7 @@ import { logoutUser } from "@/lib/firebase/auth";
 import { showSuccess } from "@/lib/swal";
 import { useTheme } from "@/components/theme/theme-provider";
 import { USER_ROLE_LABELS } from "@/lib/roles";
-import { Sun, Moon, LogOut, User, Home, ChevronDown, Menu, AlertTriangle } from "lucide-react";
+import { Sun, Moon, LogOut, User, Home, ChevronDown, Menu, AlertTriangle, GraduationCap } from "lucide-react";
 import { subscribeWhatsAppSystemSettings } from "@/lib/firebase/system-settings";
 import type { WhatsAppSystemSettings } from "@/types";
 import { WorkspaceNavSwitcher } from "@/components/workspace/workspace-nav-switcher";
@@ -24,6 +24,7 @@ function getPageTitle(pathname: string, isClass?: boolean): string {
   if (pathname.startsWith("/dashboard/references")) return "Referensi";
   if (pathname.startsWith("/dashboard/ai")) return "AI Assistant";
   if (pathname.startsWith("/dashboard/setup")) return "Setup";
+  if (pathname.startsWith("/dashboard/settings/workspaces")) return "Kelola Ruang Kerja Kelas";
   if (pathname.startsWith("/dashboard/settings")) return "Pengaturan";
   if (pathname.startsWith("/dashboard/profile")) return "Profil";
   return "Dashboard";
@@ -215,6 +216,16 @@ export function NeoTopbar(props: {
                     <Home size={14} className="text-zinc-500" />
                     <span>Halaman Utama</span>
                   </Link>
+                  {userProfile?.role === "super_admin" && (
+                    <Link
+                      href="/dashboard/settings/workspaces"
+                      className="flex items-center gap-2 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-semibold text-xs text-primary transition-colors"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <GraduationCap size={14} className="text-primary" />
+                      <span>Kelola Kelas</span>
+                    </Link>
+                  )}
                   <hr className="border-zinc-200 dark:border-zinc-800 my-1" />
                   <button
                     type="button"

@@ -68,6 +68,11 @@ export const dashboardNavigation: DashboardNavConfig[] = [
     href: "/dashboard/settings",
     visible: allUsers,
   },
+  {
+    label: "Kelola Kelas",
+    href: "/dashboard/settings/workspaces",
+    visible: (profile) => isSuperAdmin(profile),
+  },
 ];
 
 export function getDashboardNavigation(
@@ -77,7 +82,7 @@ export function getDashboardNavigation(
   const isClass = options?.isClassWorkspace;
 
   if (isClass) {
-    return [
+    const classNav = [
       {
         label: "Ringkasan",
         href: "/dashboard",
@@ -95,7 +100,17 @@ export function getDashboardNavigation(
         href: "/dashboard/profile",
       },
     ];
+
+    if (isSuperAdmin(profile)) {
+      classNav.push({
+        label: "Kelola Kelas",
+        href: "/dashboard/settings/workspaces",
+      });
+    }
+
+    return classNav;
   }
+
 
   return dashboardNavigation
     .filter((item) => {

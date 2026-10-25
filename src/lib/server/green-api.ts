@@ -190,3 +190,55 @@ export async function sendGreenApiFile(
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/**
+ * Checks Green-API instance status via GET /waInstance{idInstance}/getStateInstance/{apiTokenInstance}
+ */
+export async function checkGreenApiInstanceStatus(
+  credentials?: GreenApiCredentials
+): Promise<{ ok: boolean; stateInstance?: string; error?: string }> {
+  const { idInstance, apiTokenInstance, baseUrl } = getGreenApiConfig(credentials);
+
+  if (!idInstance || !apiTokenInstance) {
+    return { ok: false, error: "ID Instance dan Token Instance Green-API harus diisi." };
+  }
+
+  const endpoint = `${baseUrl}/waInstance${idInstance}/getStateInstance/${apiTokenInstance}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "GET",
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+    let data: Record<string, unknown> | null = null;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok) {
+      const errorMsg = (data?.message as string) || (data?.error as string) || text || `HTTP ${response.status}`;
+      return { ok: false, error: errorMsg };
+    }
+
+    const stateInstance = String(data?.stateInstance || "unknown");
+    return { ok: true, stateInstance };
+  } catch (err) {
+    const isTimeout =
+      (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) ||
+      String(err).toLowerCase().includes("abort") ||
+      String(err).toLowerCase().includes("timeout");
+    return {
+      ok: false,
+      error: isTimeout ? "Permintaan cek status timeout (15 detik)." : (err instanceof Error ? err.message : String(err)),
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+

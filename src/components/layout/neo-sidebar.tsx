@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Building2,
+  GraduationCap,
 } from "lucide-react";
 
 import { useState, useEffect } from "react";
@@ -35,8 +36,10 @@ const sidebarIconMap: Record<string, React.ComponentType<{ className?: string }>
   "/dashboard/ai": Bot,
   "/dashboard/setup": Wrench,
   "/dashboard/settings": Settings,
+  "/dashboard/settings/workspaces": GraduationCap,
   "/dashboard/profile": User,
 };
+
 
 type NeoSidebarProps = {
   isCollapsed?: boolean;

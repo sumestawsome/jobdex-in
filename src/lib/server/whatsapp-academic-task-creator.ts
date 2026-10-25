@@ -8,6 +8,7 @@ import {
   handleAcademicTaskUpdated,
   buildClassTaskCompletedMessage,
   getClassWorkspaceConfig,
+  findClassWorkspaceByContext,
   formatWitaDate,
   resolveSubmissionText,
   DEFAULT_CLASS_GROUP_ID,
@@ -15,6 +16,7 @@ import {
   DEFAULT_CLASS_WORKSPACE_ID,
   isAcademicClassTask,
   PUBLIC_CLASS_SCHEDULE_URL,
+  type ClassWorkspaceConfig,
 } from "@/lib/server/academic-broadcast";
 import { getTaskDeadlineDiffDays } from "@/lib/task-risk";
 import type { NormalizedIncomingWhatsAppMessage, Task, UserProfile } from "@/types";
@@ -76,6 +78,9 @@ export function parseAcademicDeadline(raw: string): Date | null {
 
 /**
  * Validates whether the message sender has Admin Komunitas / Korti / Super Admin privileges.
+ * Implements Green-API 3-Chat Limit Guard:
+ * - In Personal Chat (DM): Only registered Admin 1 and Admin 2 with allow_voice_note_dm !== false are allowed.
+ * - In Discussion Group: Admin 1, Admin 2, and Super Admin are allowed.
  */
 export async function verifyAdminKomunitas(
   incoming: NormalizedIncomingWhatsAppMessage,
@@ -85,52 +90,132 @@ export async function verifyAdminKomunitas(
   adminUser: UserProfile | null;
   replyTarget: string;
   isGroupTarget: boolean;
+  workspaceConfig?: ClassWorkspaceConfig;
+  isDmAllowed?: boolean;
+  dmRestrictionReason?: string;
 }> {
-  const workspaceId = DEFAULT_CLASS_WORKSPACE_ID;
+  // Cari workspace kelas yang cocok secara dinamis berdasarkan grup atau nomor pengirim
+  const wsConfig = await findClassWorkspaceByContext(
+    {
+      groupId: incoming.groupId,
+      sender: incoming.sender,
+      isGroup: incoming.isGroup,
+    },
+    db
+  );
+
+  const workspaceId = wsConfig?.id || DEFAULT_CLASS_WORKSPACE_ID;
   const replyTarget = incoming.isGroup
-    ? incoming.groupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID
-    : incoming.sender || incoming.groupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID;
+    ? incoming.groupId || wsConfig?.discussionGroupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID
+    : incoming.sender || incoming.groupId || wsConfig?.discussionGroupId || DEFAULT_CLASS_DISCUSSION_GROUP_ID;
   const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
 
   const senderPhone = normalizePhone(incoming.sender || "");
   let isAdmin = false;
   let adminUser: UserProfile | null = null;
+  let isDmAllowed = true;
+  let dmRestrictionReason: string | undefined = undefined;
 
-  try {
-    const usersSnap = await db.collection("users").get();
-    for (const doc of usersSnap.docs) {
-      const data = doc.data() as UserProfile;
-      const uPhone = normalizePhone(data.whatsapp_number || "");
-      if (uPhone && uPhone === senderPhone) {
-        const wsRole = data.workspace_roles?.[workspaceId];
-        if (
-          wsRole === "admin_komunitas" ||
-          wsRole === "korti" ||
-          wsRole === "super_admin" ||
-          data.role === "super_admin" ||
-          data.role === "korti" ||
-          data.role === "admin_komunitas"
-        ) {
-          isAdmin = true;
-          adminUser = { ...data, id: doc.id };
-          break;
-        }
+  // 1. Periksa authorized_admins dari konfigurasi workspace kelas
+  const admins = wsConfig?.authorized_admins || {};
+  const a1 = admins.admin_1;
+  const a2 = admins.admin_2;
+  const sa = admins.super_admin;
+
+  const a1Phone = a1?.phone ? normalizePhone(a1.phone) : "";
+  const a2Phone = a2?.phone ? normalizePhone(a2.phone) : "";
+  const saPhone = sa?.phone ? normalizePhone(sa.phone) : "";
+
+  const isA1 = Boolean(a1Phone && a1Phone === senderPhone);
+  const isA2 = Boolean(a2Phone && a2Phone === senderPhone);
+  const isSA = Boolean((saPhone && saPhone === senderPhone) || senderPhone === "6285119459703");
+
+  if (isA1 || isA2 || isSA) {
+    isAdmin = true;
+
+    // Evaluasi 3-Chat Limit Guard untuk jalur Personal Chat (DM)
+    if (!incoming.isGroup) {
+      if (isA1) {
+        isDmAllowed = a1?.allow_voice_note_dm !== false;
+      } else if (isA2) {
+        isDmAllowed = a2?.allow_voice_note_dm !== false;
+      } else if (isSA) {
+        // Super Admin dibatasi di DM agar slot 3-chat limit Green-API Instance A tidak terbuang
+        isDmAllowed = false;
+        dmRestrictionReason = "super_admin_dm_restricted";
       }
     }
-  } catch (err) {
-    console.error("[verifyAdminKomunitas] Error querying users:", err);
+
+    adminUser = {
+      id: isSA
+        ? "ls25IoTMA7dMP4NNb04XWeDxNAL2"
+        : isA1
+        ? `admin_1_${workspaceId}`
+        : `admin_2_${workspaceId}`,
+      name: isSA
+        ? "Putu Agus Sumerta Yasa (Super Admin)"
+        : isA1
+        ? a1?.name || "Admin Komunitas 1"
+        : a2?.name || "Admin Komunitas 2",
+      email: isSA
+        ? "agus.sumerta@student.undiksha.ac.id"
+        : `${senderPhone}@jobdexin.sumestawsome.xyz`,
+      whatsapp_number: senderPhone,
+      role: isSA ? "super_admin" : "admin_komunitas",
+      organization_id: workspaceId,
+      division_id: "humas_media_kreatif",
+      avatar_url: "",
+      is_active: true,
+    };
   }
 
-  // Hardcoded fallback checks for known Admin Komunitas numbers
+  // 2. Jika belum ditemukan di authorized_admins, periksa dokumen users di Firestore
+  if (!isAdmin) {
+    try {
+      const usersSnap = await db.collection("users").get();
+      for (const doc of usersSnap.docs) {
+        const data = doc.data() as UserProfile;
+        const uPhone = normalizePhone(data.whatsapp_number || "");
+        if (uPhone && uPhone === senderPhone) {
+          const wsRole = data.workspace_roles?.[workspaceId];
+          if (
+            wsRole === "admin_komunitas" ||
+            wsRole === "korti" ||
+            wsRole === "super_admin" ||
+            data.role === "super_admin" ||
+            data.role === "korti" ||
+            data.role === "admin_komunitas"
+          ) {
+            isAdmin = true;
+            adminUser = { ...data, id: doc.id };
+            if (!incoming.isGroup && (data.role === "super_admin" || wsRole === "super_admin")) {
+              isDmAllowed = false;
+              dmRestrictionReason = "super_admin_dm_restricted";
+            }
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[verifyAdminKomunitas] Error querying users:", err);
+    }
+  }
+
+  // 3. Fallback checks untuk nomor Admin Komunitas bawaan
   if (!isAdmin) {
     if (senderPhone === "6285119459703" || senderPhone === "628814878194") {
       isAdmin = true;
+      const isAgus = senderPhone === "6285119459703";
+      if (!incoming.isGroup && isAgus) {
+        isDmAllowed = false;
+        dmRestrictionReason = "super_admin_dm_restricted";
+      }
       adminUser = {
-        id: senderPhone === "6285119459703" ? "ls25IoTMA7dMP4NNb04XWeDxNAL2" : "iTR4JpIAn0WMjDtKIOi72VU2zO33",
-        name: senderPhone === "6285119459703" ? "Putu Agus Sumerta Yasa" : "Made Darma Tanaya",
-        email: senderPhone === "6285119459703" ? "agus.sumerta@student.undiksha.ac.id" : "cdnzidarma@gmail.com",
+        id: isAgus ? "ls25IoTMA7dMP4NNb04XWeDxNAL2" : "iTR4JpIAn0WMjDtKIOi72VU2zO33",
+        name: isAgus ? "Putu Agus Sumerta Yasa" : "Made Darma Tanaya",
+        email: isAgus ? "agus.sumerta@student.undiksha.ac.id" : "cdnzidarma@gmail.com",
         whatsapp_number: senderPhone,
-        role: "admin_komunitas",
+        role: isAgus ? "super_admin" : "admin_komunitas",
         organization_id: workspaceId,
         division_id: "humas_media_kreatif",
         avatar_url: "",
@@ -139,8 +224,17 @@ export async function verifyAdminKomunitas(
     }
   }
 
-  return { isAdmin, adminUser, replyTarget, isGroupTarget };
+  return {
+    isAdmin,
+    adminUser,
+    replyTarget,
+    isGroupTarget,
+    workspaceConfig: wsConfig,
+    isDmAllowed,
+    dmRestrictionReason,
+  };
 }
+
 
 /**
  * Searches active tasks by Dual Identifier:
