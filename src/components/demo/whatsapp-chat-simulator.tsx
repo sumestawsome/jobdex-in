@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   Phone,
@@ -14,51 +15,41 @@ import {
   Smile,
   Mic,
   CheckCheck,
-  Check,
+  Megaphone,
   Sparkles,
-  ShieldCheck,
-  Zap,
-  Info,
-  Calendar,
-  ExternalLink,
-  MessageSquare,
-  Volume2,
-  RefreshCw,
-  Clock,
-  Layers,
-  ArrowRight,
 } from "lucide-react";
 
 export type DemoScenario = "scenario_broadcast" | "scenario_voicenote" | "scenario_group";
 
-export function WhatsAppChatSimulator() {
-  const [activeScenario, setActiveScenario] = useState<DemoScenario>("scenario_voicenote");
+interface Props {
+  activeScenario: DemoScenario;
+  onScenarioChange?: (scenario: DemoScenario) => void;
+}
+
+export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Props) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
-  const [showTranscriptTooltip, setShowTranscriptTooltip] = useState(false);
   const [customInputValue, setCustomInputValue] = useState("");
-  const [scenarioStep, setScenarioStep] = useState<number>(3); // 3 shows all messages by default
+  const [vnHoverPos, setVnHoverPos] = useState<{ x: number; y: number } | null>(null);
   const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Reset audio playback on scenario change
+  // Reset audio playback when scenario changes
   useEffect(() => {
     setIsPlayingAudio(false);
     setAudioProgress(0);
-    setShowTranscriptTooltip(false);
-    setScenarioStep(3);
+    setVnHoverPos(null);
     if (audioIntervalRef.current) {
       clearInterval(audioIntervalRef.current);
     }
   }, [activeScenario]);
 
-  // Handle Voice Note Play / Pause simulation
+  // Voice Note Play / Pause simulation
   function toggleAudioPlayback() {
     if (isPlayingAudio) {
       setIsPlayingAudio(false);
       if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     } else {
       setIsPlayingAudio(true);
-      setShowTranscriptTooltip(true);
       const interval = setInterval(() => {
         setAudioProgress((prev) => {
           if (prev >= 100) {
@@ -73,72 +64,78 @@ export function WhatsAppChatSimulator() {
     }
   }
 
-  // Calculate audio seconds
+  // Calculate audio seconds display
   const currentSeconds = Math.floor((audioProgress / 100) * 22);
   const audioDisplayTime = `0:${currentSeconds < 10 ? "0" + currentSeconds : currentSeconds}`;
 
   return (
-    <div className="w-full max-w-4xl mx-auto rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-none overflow-hidden flex flex-col">
-      {/* ── 1. HEADER CHAT SIMULATOR (WhatsApp Neo-Flat Bar) ──────────────── */}
+    <div className="w-full max-w-3xl mx-auto rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-none overflow-hidden flex flex-col font-sans">
+      {/* ── 1. HEADER CHAT SIMULATOR (Authentic WhatsApp Web Style) ────────── */}
       <div className="bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-3 flex items-center justify-between gap-3 rounded-none shadow-none">
-        {/* Profile / Bot Identity */}
+        {/* Profile / Chat Identity */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="relative shrink-0">
-            <div className="size-10 rounded-none bg-primary text-white flex items-center justify-center font-black text-sm tracking-tighter border border-primary">
-              J
+          {activeScenario === "scenario_broadcast" && (
+            <div className="size-10 rounded-none bg-emerald-600 text-white flex items-center justify-center shrink-0 border border-emerald-700">
+              <Megaphone size={20} />
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 size-3 bg-emerald-500 border-2 border-white dark:border-zinc-900 rounded-none" title="Online" />
-          </div>
+          )}
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate tracking-tight">
-                {activeScenario === "scenario_broadcast"
-                  ? "📢 Saluran Komunitas Ilkom B"
-                  : activeScenario === "scenario_voicenote"
-                  ? "JobDex in AI (DM Korti)"
-                  : "👥 Kelas Ilmu Komputer B 2024"}
-              </h2>
-              <span className="px-1.5 py-0.2 rounded-none bg-primary/10 text-primary border border-primary/20 text-[9px] font-bold uppercase shrink-0">
-                Verified Bot
-              </span>
+          {activeScenario === "scenario_voicenote" && (
+            <div className="relative shrink-0">
+              <div className="size-10 rounded-none bg-primary text-white flex items-center justify-center font-black text-sm tracking-tighter border border-primary">
+                J
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 size-3 bg-emerald-500 border-2 border-white dark:border-zinc-900 rounded-none" />
             </div>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate flex items-center gap-1.5">
-              <span className="inline-block size-1.5 rounded-none bg-emerald-500" />
-              <span>
-                {activeScenario === "scenario_broadcast"
-                  ? "124 Pelanggan • Siaran Resmi"
-                  : activeScenario === "scenario_voicenote"
-                  ? "Online • Asisten Cerdas Suara"
-                  : "34 Anggota • Diskusi & Tugas"}
-              </span>
+          )}
+
+          {activeScenario === "scenario_group" && (
+            <div className="size-10 rounded-none bg-indigo-600 text-white flex items-center justify-center font-bold text-xs tracking-tight shrink-0 border border-indigo-700">
+              IK-B
+            </div>
+          )}
+
+          <div className="min-w-0 leading-tight">
+            <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
+              {activeScenario === "scenario_broadcast" && "Coba JobdexIn"}
+              {activeScenario === "scenario_voicenote" && "JobDex in AI"}
+              {activeScenario === "scenario_group" && "Diskusi Kelas Ilkom B 2024"}
+            </h2>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+              {activeScenario === "scenario_broadcast" && "Announcements"}
+              {activeScenario === "scenario_voicenote" && "online"}
+              {activeScenario === "scenario_group" && "Budi, Darma, Ayu, Korti, Anda, +29 lainnya"}
             </p>
           </div>
         </div>
 
         {/* Decorative Tools */}
         <div className="flex items-center gap-1 text-zinc-500 dark:text-zinc-400 shrink-0">
+          {activeScenario !== "scenario_broadcast" && (
+            <>
+              <button
+                type="button"
+                className="p-2 rounded-none hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors shadow-none cursor-pointer"
+                title="Panggilan Suara"
+                aria-label="Panggilan Suara"
+              >
+                <Phone size={16} />
+              </button>
+              <button
+                type="button"
+                className="p-2 rounded-none hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors shadow-none cursor-pointer"
+                title="Panggilan Video"
+                aria-label="Panggilan Video"
+              >
+                <Video size={16} />
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="p-2 rounded-none hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors shadow-none cursor-pointer"
-            title="Panggilan Suara"
-            aria-label="Panggilan Suara"
-          >
-            <Phone size={16} />
-          </button>
-          <button
-            type="button"
-            className="p-2 rounded-none hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors shadow-none cursor-pointer"
-            title="Panggilan Video"
-            aria-label="Panggilan Video"
-          >
-            <Video size={16} />
-          </button>
-          <button
-            type="button"
-            className="p-2 rounded-none hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors shadow-none cursor-pointer"
-            title="Pencarian Pesan"
-            aria-label="Pencarian Pesan"
+            title="Cari"
+            aria-label="Cari"
           >
             <Search size={16} />
           </button>
@@ -153,50 +150,11 @@ export function WhatsAppChatSimulator() {
         </div>
       </div>
 
-      {/* ── 2. SCENARIO TAB SWITCHER ────────────────────────────────────────── */}
-      <div className="bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 p-1.5 flex items-center gap-1 overflow-x-auto rounded-none shadow-none">
-        <button
-          type="button"
-          onClick={() => setActiveScenario("scenario_broadcast")}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-none transition-all cursor-pointer shrink-0 border flex items-center gap-1.5 shadow-none ${
-            activeScenario === "scenario_broadcast"
-              ? "bg-white dark:bg-zinc-900 text-primary border-primary font-bold"
-              : "text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-          }`}
-        >
-          <span>📢 Skenario 1: Saluran Pengumuman</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveScenario("scenario_voicenote")}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-none transition-all cursor-pointer shrink-0 border flex items-center gap-1.5 shadow-none ${
-            activeScenario === "scenario_voicenote"
-              ? "bg-white dark:bg-zinc-900 text-primary border-primary font-bold"
-              : "text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-          }`}
-        >
-          <span>🎙️ Skenario 2: DM Admin (Voice Note & ACC)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveScenario("scenario_group")}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-none transition-all cursor-pointer shrink-0 border flex items-center gap-1.5 shadow-none ${
-            activeScenario === "scenario_group"
-              ? "bg-white dark:bg-zinc-900 text-primary border-primary font-bold"
-              : "text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-          }`}
-        >
-          <span>👥 Skenario 3: Grup Diskusi Kelas</span>
-        </button>
-      </div>
-
-      {/* ── 3. CHAT CANVAS & CONVERSATION MESSAGES ──────────────────────────── */}
-      <div className="flex-1 min-h-[460px] p-4 sm:p-6 space-y-5 overflow-y-auto bg-zinc-50/70 dark:bg-zinc-950/70 relative">
+      {/* ── 2. CHAT CANVAS & CONVERSATIONS (Authentic Clean WhatsApp Format) ── */}
+      <div className="flex-1 min-h-[480px] p-4 sm:p-5 space-y-4 overflow-y-auto bg-zinc-100 dark:bg-zinc-950 relative select-text">
         {/* Date Chip */}
-        <div className="flex justify-center">
-          <span className="px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-none bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700 shadow-none">
+        <div className="flex justify-center my-1">
+          <span className="px-2.5 py-1 text-[11px] font-medium rounded-none bg-white/90 dark:bg-zinc-800/90 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shadow-none uppercase tracking-wider">
             Hari ini
           </span>
         </div>
@@ -205,477 +163,424 @@ export function WhatsAppChatSimulator() {
         {/* SKENARIO 1: SALURAN PENGUMUMAN KOMUNITAS */}
         {/* =================================================================== */}
         {activeScenario === "scenario_broadcast" && (
-          <>
-            {/* System banner */}
-            <div className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none text-xs text-zinc-600 dark:text-zinc-400 space-y-1 shadow-none">
-              <div className="flex items-center gap-1.5 font-bold text-zinc-900 dark:text-zinc-100">
-                <Info size={14} className="text-primary" />
-                <span>Saluran Informasi Resmi Kelas Ilkom B 2024</span>
-              </div>
-              <p className="text-[11px] leading-relaxed">
-                Saluran ini disiarkan secara outbound via <strong>Instance B Green-API</strong>. 100% bebas watermark pihak ketiga dan webhook dinonaktifkan sehingga risiko looping bernilai 0%.
-              </p>
-            </div>
-
-            {/* Pesan 1: Siaran Tugas Baru Kalkulus */}
-            <div className="flex flex-col items-start gap-1 max-w-xl">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-none bg-primary/10 text-primary border border-primary/20 uppercase">
-                  💡 Outbound Broadcast (Instance B)
-                </span>
-                <span className="text-[10px] text-zinc-400">10:00 WITA</span>
-              </div>
-
-              <div className="p-4 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 space-y-3 shadow-none w-full">
-                {/* Header Pengumuman */}
-                <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2">
-                  <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
-                    📢 *PENGUMUMAN TUGAS KULIAH* ✨
-                  </p>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
-                    Halo rekan-rekan *Ilkom B*! Ada tugas baru nih, jangan lupa dicatat dan dibuat ya Guys! 🙌
-                  </p>
-                </div>
-
-                {/* Detail Tugas */}
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-start gap-2">
-                    <span className="font-semibold text-zinc-700 dark:text-zinc-300 shrink-0">📚 Mata Kuliah:</span>
-                    <span className="font-bold text-zinc-900 dark:text-zinc-100">Kalkulus Lanjut</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="font-semibold text-zinc-700 dark:text-zinc-300 shrink-0">📝 Tugas:</span>
-                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">Problem Set 4 - Integral Lipat Dua</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="font-semibold text-zinc-700 dark:text-zinc-300 shrink-0">⏰ Tenggat:</span>
-                    <span className="font-bold text-rose-600 dark:text-rose-400">Sabtu, 31 Oktober 2026 (23:59 WITA)</span>
-                  </div>
-                  <div className="pt-1 text-[11px] text-zinc-600 dark:text-zinc-400">
-                    <span className="font-semibold text-zinc-700 dark:text-zinc-300 block mb-0.5">📌 Ketentuan / Deskripsi:</span>
-                    <p className="p-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 rounded-none leading-relaxed">
-                      Kerjakan pada kertas double folio bergaris dengan tulisan tangan rapi beserta langkah pengerjaan lengkap. Scan dan unggah dalam format PDF maksimal 10MB.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className="font-semibold text-zinc-700 dark:text-zinc-300 shrink-0">🔗 Tempat Kumpul:</span>
-                    <span className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-mono text-[11px] rounded-none border border-zinc-200 dark:border-zinc-700">
-                      E-Learning Undiksha
-                    </span>
-                  </div>
-                </div>
-
-                {/* Footer Tautan */}
-                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-500">Yuk cicil dari sekarang! 💪</span>
-                  <Link
-                    href="/jadwal-tugas-ilkom-b"
-                    target="_blank"
-                    className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
-                  >
-                    <span>Cek Kalender Jadwal</span>
-                    <ExternalLink size={12} />
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            {/* Pesan 2: Pengingat H-3 Otomatis */}
-            <div className="flex flex-col items-start gap-1 max-w-xl">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-none bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800 uppercase">
-                  💡 Automated Cron Reminder (H-3 pada 12:00 WITA)
-                </span>
-                <span className="text-[10px] text-zinc-400">12:00 WITA</span>
-              </div>
-
-              <div className="p-4 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 space-y-2.5 shadow-none w-full">
-                <p className="font-bold text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                  <Clock size={14} />
-                  <span>⚠️ *PENGINGAT PROGRES TUGAS (H-3)* 📌</span>
+          <div className="space-y-4">
+            {/* Banner Sambutan Komunitas WhatsApp */}
+            <div className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none text-xs text-zinc-800 dark:text-zinc-200 flex items-start gap-3 shadow-none max-w-lg mx-auto">
+              <Megaphone size={20} className="text-emerald-600 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-bold text-xs text-zinc-900 dark:text-zinc-100">
+                  Welcome to your community!
                 </p>
-                <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                  Halo rekan-rekan *Ilkom B*! Tenggat pengumpulan tugas tinggal <strong>3 hari lagi</strong>:
+                <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                  Send important admin updates to all your members at once. Members can see announcements here without distractions.
                 </p>
+              </div>
+            </div>
 
-                <div className="p-2.5 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-none text-xs space-y-1">
-                  <p><strong>📚 Mata Kuliah:</strong> Kalkulus Lanjut</p>
-                  <p><strong>📝 Tugas:</strong> Problem Set 4 - Integral Lipat Dua</p>
-                  <p className="text-rose-600 dark:text-rose-400 font-bold">
-                    <strong>⏰ Tenggat:</strong> Sabtu, 31 Oktober 2026 (23:59 WITA)
-                  </p>
-                  <p><strong>🔗 Link Pengumpulan:</strong> E-Learning Undiksha</p>
+            {/* Pesan 1: Siaran Tugas Baru (Format Resmi dengan Gambar Preview) */}
+            <div className="flex flex-col items-start max-w-md sm:max-w-lg">
+              <div className="rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none overflow-hidden w-full">
+                {/* Header Image Preview (Logo Undiksha resmi) */}
+                <div className="w-full h-36 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-center p-3 relative">
+                  <Image
+                    src="https://cdn.undiksha.ac.id/wp-content/uploads/2021/12/27081301/logo-undiksha.png"
+                    alt="Logo Undiksha"
+                    width={180}
+                    height={80}
+                    className="max-h-24 w-auto object-contain"
+                    unoptimized
+                  />
+                  <span className="absolute bottom-1 right-2 text-[10px] text-zinc-400 bg-white/80 dark:bg-zinc-900/80 px-1 font-mono">
+                    elearning.undiksha.ac.id
+                  </span>
                 </div>
 
-                <div className="pt-1 flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-500">Mulai dibuat yuk biar santai! ✌️</span>
-                  <Link
-                    href="/jadwal-tugas-ilkom-b"
-                    target="_blank"
-                    className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
-                  >
-                    <span>Buka Jadwal</span>
-                    <ExternalLink size={12} />
-                  </Link>
+                {/* Teks Pesan Siaran */}
+                <div className="p-3.5 space-y-2 text-xs leading-relaxed">
+                  <p>
+                    📢 <strong className="font-bold">PENGUMUMAN TUGAS KULIAH</strong> ✨
+                  </p>
+                  <p>
+                    Halo rekan-rekan <strong className="font-bold">Ilmu Komputer Undiksha 2024</strong>!
+                  </p>
+                  <p>
+                    Ada tugas baru nih, jangan lupa dicatat dan dibuat ya Guys! 🙌<br />
+                    📚 <strong className="font-bold">Mata Kuliah:</strong> Kalkulus Lanjut<br />
+                    📝 <strong className="font-bold">Tugas:</strong> Problem Set 4 - Integral Lipat Dua<br />
+                    ⏰ <strong className="font-bold">Tenggat:</strong> Rabu, 28 Oktober 2026 (23:59 WITA)
+                  </p>
+                  <p>
+                    📌 <strong className="font-bold">Ketentuan / Deskripsi:</strong><br />
+                    Buat tugas di double folio bergaris dengan tulisan tangan rapi, scan dan kumpulkan dalam format PDF.
+                  </p>
+                  <p>
+                    🔗 <strong className="font-bold">Tempat Pengumpulan / LMS:</strong><br />
+                    Drive: <span className="text-primary hover:underline">https://elearning.undiksha.ac.id</span>
+                  </p>
+                  <p>
+                    Yuk cicil dari sekarang biar gak keteteran pas deadline! 🙌<br />
+                    👉 Cek kalender & jadwal lengkap:<br />
+                    <Link href="/jadwal-tugas-ilkom-b" className="text-primary hover:underline break-all font-mono">
+                      https://jobdexin.sumestawsome.xyz/jadwal-tugas-ilkom-b
+                    </Link>
+                  </p>
+
+                  {/* Jam Pesan Pojok Kanan Bawah */}
+                  <div className="flex justify-end pt-1">
+                    <span className="text-[10px] text-zinc-400 font-mono">14:42</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </>
+
+            {/* Pesan 2: Pengingat Progres H-3 (Tugas Lain) */}
+            <div className="flex flex-col items-start max-w-md sm:max-w-lg">
+              <div className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2 w-full leading-relaxed">
+                <p>
+                  ⚠️ <strong className="font-bold">PENGINGAT PROGRES TUGAS (H-3)</strong> 📌
+                </p>
+                <p>
+                  Halo rekan-rekan <strong className="font-bold">Ilmu Komputer Undiksha 2024</strong>!
+                </p>
+                <p>
+                  Tenggat pengumpulan tugas tinggal 3 hari lagi:<br />
+                  📚 <strong className="font-bold">Mata Kuliah:</strong> Grafika Komputer<br />
+                  📝 <strong className="font-bold">Tugas:</strong> Transformasi 3D WebGL<br />
+                  ⏰ <strong className="font-bold">Tenggat:</strong> Sabtu, 31 Oktober 2026 (23:59 WITA) (3 hari lagi)
+                </p>
+                <p>
+                  🔗 <strong className="font-bold">Tempat Pengumpulan / LMS:</strong><br />
+                  E-Learning Undiksha
+                </p>
+                <p>
+                  Yuk mulai dicicil dari sekarang biar santai pas mendekati deadline! 💪<br />
+                  👉 Cek kalender & jadwal lengkap:<br />
+                  <Link href="/jadwal-tugas-ilkom-b" className="text-primary hover:underline break-all font-mono">
+                    https://jobdexin.sumestawsome.xyz/jadwal-tugas-ilkom-b
+                  </Link>
+                </p>
+
+                {/* Jam Pesan Pojok Kanan Bawah */}
+                <div className="flex justify-end pt-1">
+                  <span className="text-[10px] text-zinc-400 font-mono">12:00</span>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* =================================================================== */}
-        {/* SKENARIO 2: DM ADMIN (VOICE NOTE & WORKFLOW ACC) */}
+        {/* SKENARIO 2: JAPRI ADMIN / KORTI (INPUT TUGAS & WORKFLOW ACC) */}
         {/* =================================================================== */}
         {activeScenario === "scenario_voicenote" && (
-          <>
-            {/* 3-Chat Limit Guard Notice */}
-            <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center gap-2 rounded-none">
-              <ShieldCheck size={16} className="shrink-0 text-emerald-600" />
-              <span>
-                <strong>Jalur Khusus DM:</strong> Hanya Admin 1 dan Admin 2 (Korti & Wakil Korti) yang memiliki hak akses VN di jalur pesan pribadi demi menjaga batas 3-chat limit Instance A.
-              </span>
-            </div>
+          <div className="space-y-3.5">
+            {/* ── Interaksi 1: Input Lewat Voice Note (VN) ── */}
 
-            {/* Pesan 1 (User / Korti): Voice Note */}
-            <div className="flex flex-col items-end gap-1 w-full">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-[10px] text-zinc-400">10:14 WITA • Korti (Admin 1)</span>
-              </div>
-
+            {/* Pesan 1 (Korti): Voice Note */}
+            <div className="flex flex-col items-end w-full">
               <div
-                className="relative group p-3.5 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none max-w-sm sm:max-w-md w-full"
-                onMouseEnter={() => setShowTranscriptTooltip(true)}
-                onMouseLeave={() => setShowTranscriptTooltip(false)}
+                className="relative p-2.5 sm:p-3 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none max-w-xs sm:max-w-md w-full"
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setVnHoverPos({
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                  });
+                }}
+                onMouseLeave={() => setVnHoverPos(null)}
               >
-                {/* Voice Note Player Header */}
-                <div className="flex items-center gap-3">
-                  {/* Play / Pause Button */}
+                {/* Floating Tooltip dekat Kursor saat Hover */}
+                {vnHoverPos && (
+                  <div
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[260px] animate-in fade-in duration-100"
+                    style={{
+                      left: Math.max(10, Math.min(vnHoverPos.x - 40, 200)),
+                      top: Math.max(-65, vnHoverPos.y - 70),
+                    }}
+                  >
+                    Korti cukup rekam suara detail tugas. AI akan otomatis mendengarkan dan merangkum isinya jadi draf.
+                  </div>
+                )}
+
+                {/* Audio Player Row */}
+                <div className="flex items-center gap-2.5">
                   <button
                     type="button"
                     onClick={toggleAudioPlayback}
-                    className="size-10 rounded-none bg-primary text-white flex items-center justify-center shrink-0 cursor-pointer hover:opacity-90 shadow-none transition-transform"
-                    title={isPlayingAudio ? "Jeda Audio" : "Putar Rekaman Suara"}
+                    className="size-9 rounded-none bg-emerald-600 text-white flex items-center justify-center shrink-0 cursor-pointer hover:opacity-90 shadow-none"
+                    title={isPlayingAudio ? "Jeda" : "Putar"}
+                    aria-label="Putar Voice Note"
                   >
-                    {isPlayingAudio ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+                    {isPlayingAudio ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
                   </button>
 
-                  {/* Waveform Visualization Bars */}
-                  <div className="flex-1 space-y-1.5 min-w-0">
-                    <div className="flex items-center gap-0.5 h-6">
+                  <div className="flex-1 space-y-1 min-w-0">
+                    {/* Waveform graphic */}
+                    <div className="flex items-center gap-0.5 h-5">
                       {[
                         30, 60, 40, 80, 50, 90, 70, 30, 45, 85, 100, 65, 40, 75, 55, 95, 80, 50, 35, 60, 40, 70, 90, 50, 30, 65, 45, 80, 60, 35
-                      ].map((height, i) => {
+                      ].map((h, i) => {
                         const isPlayed = (i / 30) * 100 <= audioProgress;
                         return (
                           <span
                             key={i}
                             className={`w-1 rounded-none transition-all duration-150 ${
-                              isPlayed
-                                ? "bg-primary"
-                                : "bg-lime-600/40 dark:bg-lime-400/40"
+                              isPlayed ? "bg-emerald-600" : "bg-zinc-400 dark:bg-zinc-600"
                             } ${isPlayingAudio ? "animate-pulse" : ""}`}
-                            style={{ height: `${height}%` }}
+                            style={{ height: `${h}%` }}
                           />
                         );
                       })}
                     </div>
 
-                    {/* Progress Bar & Timer */}
-                    <div className="flex items-center justify-between text-[10px] text-zinc-600 dark:text-zinc-400 font-mono">
+                    {/* Duration & Timestamp */}
+                    <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
                       <span>{isPlayingAudio ? audioDisplayTime : "0:22"}</span>
                       <div className="flex items-center gap-1">
-                        <span>Pesan Suara</span>
+                        <span>10:14</span>
                         <CheckCheck size={13} className="text-primary inline" />
                       </div>
                     </div>
                   </div>
                 </div>
-
-                {/* Hover / Active Audio Transcript Tooltip */}
-                {showTranscriptTooltip && (
-                  <div className="mt-2.5 p-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-none text-[11px] text-zinc-800 dark:text-zinc-200 shadow-none space-y-1 animate-in fade-in duration-150">
-                    <p className="font-bold text-primary flex items-center gap-1 text-[10px] uppercase tracking-wider">
-                      <Volume2 size={12} />
-                      <span>Transkrip Suara (Multimodal AI)</span>
-                    </p>
-                    <p className="italic leading-snug">
-                      &quot;Halo bot, tolong catat tugas Matematika Teknik, judulnya Latihan 15, dikumpul Senin 26 Oktober jam 5 sore di e-learning ya.&quot;
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Pesan 2 (Bot AI): Draf Pratinjau Menunggu Persetujuan */}
-            <div className="flex flex-col items-start gap-1 max-w-xl">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-none bg-primary/10 text-primary border border-primary/20 uppercase">
-                  💡 AI Multimodal Extraction & Draft Generation
-                </span>
-                <span className="text-[10px] text-zinc-400">10:14 WITA</span>
-              </div>
+            {/* Pesan 2 (Bot AI): Draf Menunggu Persetujuan */}
+            <div className="flex flex-col items-start max-w-md sm:max-w-lg">
+              <div className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2.5 w-full leading-relaxed">
+                <p>
+                  📋 <strong className="font-bold">Draf Tugas Kuliah (Menunggu Persetujuan)</strong>
+                </p>
+                <p>
+                  📚 <strong className="font-bold">Mata Kuliah:</strong> Matematika Teknik<br />
+                  📝 <strong className="font-bold">Judul Tugas:</strong> Latihan 15<br />
+                  ⏰ <strong className="font-bold">Tenggat:</strong> Senin, 26 Oktober 2026 pukul 17:00 WITA<br />
+                  📌 <strong className="font-bold">Ketentuan:</strong> Dikerjakan di double folio, di-upload di e-learning Undiksha.<br />
+                  🔗 <strong className="font-bold">Pengumpulan:</strong> E-Learning Undiksha
+                </p>
+                <p className="text-zinc-400 font-mono">--------------------------------------</p>
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-300">
+                  Periksa draf di atas. Jika data sudah benar:<br />
+                  👉 Ketik <strong className="font-bold">!tugas acc</strong> (atau <strong className="font-bold">acc</strong>) untuk mempublikasikan.<br />
+                  👉 Ketik <strong className="font-bold">!tugas batal</strong> (atau <strong className="font-bold">batal</strong>) untuk membuang draf.<br />
+                  👉 Atau kirim pesan/VN perbaikan jika ada kata yang salah.<br />
+                  👉 Cek dashboard: <Link href="/dashboard/tasks" className="text-primary hover:underline font-mono">https://jobdexin.sumestawsome.xyz/dashboard/tasks</Link>
+                </p>
 
-              <div className="p-4 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 space-y-2.5 shadow-none w-full">
-                <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2">
-                  <p className="font-bold text-xs text-zinc-900 dark:text-zinc-100">
-                    📋 *Draf Tugas Kuliah (Menunggu Persetujuan)*
-                  </p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    Bot telah mengekstrak detail tugas dari rekaman suara Anda:
-                  </p>
-                </div>
-
-                <div className="space-y-1 text-xs">
-                  <p><strong>📚 Mata Kuliah:</strong> Matematika Teknik</p>
-                  <p><strong>📝 Tugas:</strong> Latihan 15</p>
-                  <p className="text-amber-600 dark:text-amber-400 font-bold">
-                    <strong>⏰ Tenggat:</strong> Senin, 26 Oktober 2026 (17:00 WITA)
-                  </p>
-                  <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
-                    <strong>📌 Ketentuan:</strong> Selesaikan latihan 15 sesuai arahan dosen pengampu.
-                  </p>
-                  <p><strong>🔗 Pengumpulan:</strong> E-Learning Undiksha</p>
-                </div>
-
-                <div className="p-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 rounded-none text-[11px] text-zinc-600 dark:text-zinc-400 space-y-1">
-                  <p className="font-semibold text-zinc-900 dark:text-zinc-100">⚡ Langkah Selanjutnya:</p>
-                  <p>
-                    Ketik <code className="px-1 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-primary font-bold">!tugas acc</code> untuk menyetujui & menerbitkan tugas ini ke grup siaran.
-                  </p>
-                  <p className="text-[10px] text-zinc-500">
-                    Atau balas dengan koreksi (contoh: <em>&quot;ganti deadline besok jam 8 malam&quot;</em>) atau ketik <code>batal</code>.
-                  </p>
+                {/* Jam Pesan Pojok Kanan Bawah */}
+                <div className="flex justify-end pt-1">
+                  <span className="text-[10px] text-zinc-400 font-mono">10:14</span>
                 </div>
               </div>
             </div>
 
-            {/* Pesan 3 (User / Korti): ACC Command */}
-            <div className="flex flex-col items-end gap-1 w-full">
-              <div className="p-2.5 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none font-mono text-xs flex items-center gap-2">
+            {/* Pesan 3 (Korti): Konfirmasi ACC */}
+            <div className="flex flex-col items-end w-full">
+              <div className="p-2 sm:px-3 sm:py-2 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none text-xs flex items-center gap-2">
                 <span>!tugas acc</span>
-                <CheckCheck size={13} className="text-primary inline" />
-              </div>
-              <span className="text-[10px] text-zinc-400">10:15 WITA</span>
-            </div>
-
-            {/* Pesan 4 (Bot AI): Konfirmasi ACC Sukses */}
-            <div className="flex flex-col items-start gap-1 max-w-xl">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-none bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 uppercase">
-                  💡 Human-in-the-loop Guard & Atomic Save
-                </span>
-                <span className="text-[10px] text-zinc-400">10:15 WITA</span>
-              </div>
-
-              <div className="p-4 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 space-y-2 shadow-none w-full">
-                <p className="font-bold text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                  <Sparkles size={14} />
-                  <span>✅ *Tugas Berhasil Disetujui & Diterbitkan!*</span>
-                </p>
-                <p className="text-xs text-zinc-700 dark:text-zinc-300">
-                  Tugas <strong>Matematika Teknik - Latihan 15</strong> telah tersimpan di kalender kelas dan otomatis disiarkan ke Grup Pengumuman Komunitas!
-                </p>
-                <div className="pt-1 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-500">Tenggat: Senin, 26 Okt 2026 (17:00 WITA)</span>
-                  <Link
-                    href="/jadwal-tugas-ilkom-b"
-                    target="_blank"
-                    className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
-                  >
-                    <span>Buka Jadwal Publik</span>
-                    <ExternalLink size={12} />
-                  </Link>
+                <div className="flex items-center gap-1 text-[10px] text-zinc-500 font-mono ml-2">
+                  <span>10:15</span>
+                  <CheckCheck size={13} className="text-primary inline" />
                 </div>
               </div>
             </div>
-          </>
+
+            {/* Pesan 4 (Bot AI): Sukses Terbit */}
+            <div className="flex flex-col items-start max-w-md sm:max-w-lg">
+              <div className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2 w-full leading-relaxed">
+                <p>
+                  ✅ <strong className="font-bold">Tugas Berhasil Disetujui & Diterbitkan!</strong>
+                </p>
+                <p>
+                  📚 <strong className="font-bold">Mata Kuliah:</strong> Matematika Teknik<br />
+                  📝 <strong className="font-bold">Tugas:</strong> Latihan 15<br />
+                  ⏰ <strong className="font-bold">Tenggat:</strong> Senin, 26 Oktober 2026 pukul 17:00 WITA
+                </p>
+                <p>
+                  Tugas telah tersimpan di JobDex dan disiarkan ke kelas.<br />
+                  👉 Cek dashboard: <Link href="/dashboard/tasks" className="text-primary hover:underline font-mono">https://jobdexin.sumestawsome.xyz/dashboard/tasks</Link>
+                </p>
+
+                {/* Jam Pesan Pojok Kanan Bawah */}
+                <div className="flex justify-end pt-1">
+                  <span className="text-[10px] text-zinc-400 font-mono">10:15</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Interaksi 2: Input Cepat Lewat Perintah Teks Langsung ── */}
+            <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+              <p className="text-[11px] text-zinc-400 font-medium italic text-center">
+                — Alternatif: Korti juga bisa menambah tugas kilat via pesan teks biasa —
+              </p>
+
+              {/* User text command */}
+              <div className="flex flex-col items-end w-full">
+                <div className="p-2.5 sm:p-3 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none text-xs max-w-md break-words space-y-1">
+                  <p className="font-mono text-[11px]">
+                    !tugas tambah Pemrograman Web | Bikin REST API Next.js & Push GitHub | Kerjakan berkelompok maks 3 orang | 28/10/2026 23:59 | E-Learning Undiksha
+                  </p>
+                  <div className="flex justify-end items-center gap-1 text-[10px] text-zinc-500 font-mono">
+                    <span>11:20</span>
+                    <CheckCheck size={13} className="text-primary inline" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bot instant confirmation */}
+              <div className="flex flex-col items-start max-w-md sm:max-w-lg">
+                <div className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2 w-full leading-relaxed">
+                  <p>
+                    ✅ <strong className="font-bold">Tugas Berhasil Ditambahkan!</strong>
+                  </p>
+                  <p>
+                    📚 <strong className="font-bold">Mata Kuliah:</strong> Pemrograman Web<br />
+                    📝 <strong className="font-bold">Tugas:</strong> Bikin REST API Next.js & Push GitHub<br />
+                    ⏰ <strong className="font-bold">Tenggat:</strong> Rabu, 28 Oktober 2026 (23:59 WITA)<br />
+                    📌 <strong className="font-bold">Ketentuan:</strong> Kerjakan berkelompok maks 3 orang<br />
+                    🔗 <strong className="font-bold">LMS:</strong> E-Learning Undiksha
+                  </p>
+                  <p>
+                    Tugas telah tersimpan di kalender kelas dan disiarkan.<br />
+                    👉 Cek jadwal: <Link href="/jadwal-tugas-ilkom-b" className="text-primary hover:underline font-mono">https://jobdexin.sumestawsome.xyz/jadwal-tugas-ilkom-b</Link>
+                  </p>
+
+                  <div className="flex justify-end pt-1">
+                    <span className="text-[10px] text-zinc-400 font-mono">11:20</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* =================================================================== */}
         {/* SKENARIO 3: GRUP DISKUSI KELAS */}
         {/* =================================================================== */}
         {activeScenario === "scenario_group" && (
-          <>
-            {/* Group info banner */}
-            <div className="p-2.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 text-[11px] flex items-center gap-2 rounded-none">
-              <MessageSquare size={14} className="shrink-0 text-primary" />
-              <span>
-                <strong>Grup Diskusi Kelas:</strong> Di grup ini, seluruh anggota kelas dapat berinteraksi, dan Admin 1, 2, serta Super Admin diizinkan mengirimkan Voice Note tugas.
-              </span>
-            </div>
-
-            {/* Pesan 1 (Mahasiswa A) */}
-            <div className="flex flex-col items-start gap-1 max-w-md">
-              <div className="p-3 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 text-xs shadow-none space-y-1">
-                <span className="text-[10px] font-bold text-indigo-500 block">
-                  Budi Santoso (+62 812-3456-xxxx)
-                </span>
-                <p>
-                  Guys, ada tugas yang tenggatnya mepet minggu ini gak ya? Takut ada yang kelupaan ngerjain nih 🙏
+          <div className="space-y-3">
+            {/* Chat 1: Darma */}
+            <div className="flex flex-col items-start max-w-xs sm:max-w-md">
+              <div className="p-2.5 sm:p-3 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-1 w-full">
+                <p className="font-bold text-[11px] text-indigo-600 dark:text-indigo-400">
+                  Darma Tanaya
                 </p>
-                <span className="text-[10px] text-zinc-400 text-right block">14:20</span>
+                <p>
+                  Guys, tugas praktikum kemarin ada instruksi tambahan dari dosen gak ya?
+                </p>
+                <div className="flex justify-end pt-0.5">
+                  <span className="text-[10px] text-zinc-400 font-mono">14:18</span>
+                </div>
               </div>
             </div>
 
-            {/* Pesan 2 (User / Korti mengetik command !tugas mepet) */}
-            <div className="flex flex-col items-end gap-1 w-full">
-              <div className="p-2.5 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none font-mono text-xs flex items-center gap-2">
+            {/* Chat 2: Ayu */}
+            <div className="flex flex-col items-start max-w-xs sm:max-w-md">
+              <div className="p-2.5 sm:p-3 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-1 w-full">
+                <p className="font-bold text-[11px] text-teal-600 dark:text-teal-400">
+                  Ayu Saraswati
+                </p>
+                <p>
+                  Kayaknya udah dicatat sama bot deh, coba panggil aja.
+                </p>
+                <div className="flex justify-end pt-0.5">
+                  <span className="text-[10px] text-zinc-400 font-mono">14:19</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Chat 3: Budi Santoso */}
+            <div className="flex flex-col items-start max-w-xs sm:max-w-md">
+              <div className="p-2.5 sm:p-3 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-1 w-full">
+                <p className="font-bold text-[11px] text-amber-600 dark:text-amber-400">
+                  Budi Santoso
+                </p>
+                <p>
+                  Guys, ada tugas yang tenggatnya mepet minggu ini gak ya? Takut ada yang kelupaan ngerjain nih.
+                </p>
+                <div className="flex justify-end pt-0.5">
+                  <span className="text-[10px] text-zinc-400 font-mono">14:20</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Chat 4: User memanggil !tugas mepet */}
+            <div className="flex flex-col items-end w-full">
+              <div className="p-2 sm:px-3 sm:py-2 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none text-xs flex items-center gap-2">
                 <span>!tugas mepet</span>
-                <CheckCheck size={13} className="text-primary inline" />
+                <div className="flex items-center gap-1 text-[10px] text-zinc-500 font-mono ml-2">
+                  <span>14:21</span>
+                  <CheckCheck size={13} className="text-primary inline" />
+                </div>
               </div>
-              <span className="text-[10px] text-zinc-400">14:21 WITA</span>
             </div>
 
-            {/* Pesan 3 (Bot AI menjawab instan) */}
-            <div className="flex flex-col items-start gap-1 max-w-xl">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-none bg-primary/10 text-primary border border-primary/20 uppercase">
-                  💡 Fast Query Dual Identifier (&lt;100ms)
-                </span>
-                <span className="text-[10px] text-zinc-400">14:21 WITA</span>
-              </div>
-
-              <div className="p-4 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 space-y-3 shadow-none w-full">
-                <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2">
-                  <p className="font-bold text-xs text-rose-600 dark:text-rose-400">
-                    ⏰ *DAFTAR TUGAS KULIAH TENGGAT MEPET* (≤ 3 Hari)
-                  </p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    Halo rekan-rekan *Ilkom B*! Berikut tugas yang mendekati batas waktu:
+            {/* Chat 5: Jawaban Bot AI */}
+            <div className="flex flex-col items-start max-w-md sm:max-w-lg">
+              <div className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2.5 w-full leading-relaxed">
+                <div className="space-y-1">
+                  <p>
+                    📋 <strong className="font-bold">DAFTAR TUGAS MEPEK ILKOM B (≤ 3 HARI)</strong> 🚨<br />
+                    Total: 3 tugas perlu segera diselesaikan!
                   </p>
                 </div>
 
-                {/* List Tugas Mepet */}
-                <div className="space-y-2 text-xs">
-                  <div className="p-2.5 bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-none space-y-1">
-                    <p className="font-bold text-rose-700 dark:text-rose-400">
-                      1. 🔴 *Matematika Teknik* - Latihan 15
-                    </p>
-                    <p className="text-[11px] text-zinc-700 dark:text-zinc-300">
-                      🗓️ Senin, 26 Oktober 2026 (17:00 WITA)
-                    </p>
-                    <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-                      ⏳ Sisa waktu: 1 hari lagi (Mendesak!)
-                    </p>
-                    <p className="text-[10px] text-zinc-500">🔗 LMS: E-Learning Undiksha</p>
-                  </div>
+                <div className="space-y-2">
+                  <p>
+                    1. <strong className="font-bold">Matematika Teknik</strong><br />
+                    📝 <strong className="font-bold">Tugas:</strong> Latihan 15<br />
+                    ⏰ <strong className="font-bold">Tenggat:</strong> Besok, 26 Oktober 2026 (17:00 WITA)<br />
+                    🔗 <strong className="font-bold">LMS:</strong> E-Learning Undiksha
+                  </p>
 
-                  <div className="p-2.5 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-none space-y-1">
-                    <p className="font-bold text-amber-700 dark:text-amber-400">
-                      2. 🟠 *Basis Data* - Perancangan ERD Rumah Sakit
-                    </p>
-                    <p className="text-[11px] text-zinc-700 dark:text-zinc-300">
-                      🗓️ Rabu, 28 Oktober 2026 (23:59 WITA)
-                    </p>
-                    <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                      ⏳ Sisa waktu: 3 hari lagi
-                    </p>
-                    <p className="text-[10px] text-zinc-500">🔗 LMS: Google Classroom</p>
-                  </div>
+                  <p>
+                    2. <strong className="font-bold">Kalkulus Lanjut</strong><br />
+                    📝 <strong className="font-bold">Tugas:</strong> Problem Set 4 - Integral Lipat Dua<br />
+                    ⏰ <strong className="font-bold">Tenggat:</strong> Rabu, 28 Oktober 2026 (23:59 WITA) (2 hari lagi)<br />
+                    🔗 <strong className="font-bold">LMS:</strong> E-Learning Undiksha
+                  </p>
+
+                  <p>
+                    3. <strong className="font-bold">Pemrograman Web</strong><br />
+                    📝 <strong className="font-bold">Tugas:</strong> Bikin REST API Next.js & Push GitHub<br />
+                    ⏰ <strong className="font-bold">Tenggat:</strong> Rabu, 28 Oktober 2026 (23:59 WITA) (2 hari lagi)<br />
+                    🔗 <strong className="font-bold">LMS:</strong> GitHub & E-Learning
+                  </p>
                 </div>
 
-                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-500">Gunakan <code>!tugas detail [nomor]</code> untuk detail</span>
-                  <Link
-                    href="/jadwal-tugas-ilkom-b"
-                    target="_blank"
-                    className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
-                  >
-                    <span>Cek Kalender Lengkap</span>
-                    <ExternalLink size={12} />
+                <p>
+                  👉 Cek jadwal & kalender lengkap:<br />
+                  <Link href="/jadwal-tugas-ilkom-b" className="text-primary hover:underline font-mono">
+                    https://jobdexin.sumestawsome.xyz/jadwal-tugas-ilkom-b
                   </Link>
+                </p>
+
+                {/* Jam Pesan Pojok Kanan Bawah */}
+                <div className="flex justify-end pt-1">
+                  <span className="text-[10px] text-zinc-400 font-mono">14:21</span>
                 </div>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 
-      {/* ── 4. QUICK ACTION CHIPS ────────────────────────────────────────────── */}
-      <div className="px-4 py-2 bg-zinc-100 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex items-center gap-2 overflow-x-auto rounded-none shadow-none text-xs">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 shrink-0">
-          Uji Coba Cepat:
-        </span>
-
-        {activeScenario === "scenario_broadcast" && (
-          <>
-            <button
-              type="button"
-              onClick={() => setActiveScenario("scenario_voicenote")}
-              className="px-2.5 py-1 rounded-none border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 hover:border-primary text-[11px] font-medium shrink-0 cursor-pointer shadow-none transition-colors"
-            >
-              🎙️ Coba Voice Note & ACC
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveScenario("scenario_group")}
-              className="px-2.5 py-1 rounded-none border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 hover:border-primary text-[11px] font-medium shrink-0 cursor-pointer shadow-none transition-colors"
-            >
-              👥 Coba Perintah Grup
-            </button>
-          </>
-        )}
-
-        {activeScenario === "scenario_voicenote" && (
-          <>
-            <button
-              type="button"
-              onClick={toggleAudioPlayback}
-              className="px-2.5 py-1 rounded-none border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 hover:border-primary text-[11px] font-medium shrink-0 cursor-pointer shadow-none transition-colors flex items-center gap-1"
-            >
-              <Volume2 size={12} className="text-primary" />
-              <span>{isPlayingAudio ? "Jeda Voice Note" : "Putar Voice Note (0:22)"}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowTranscriptTooltip(!showTranscriptTooltip)}
-              className="px-2.5 py-1 rounded-none border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 hover:border-primary text-[11px] font-medium shrink-0 cursor-pointer shadow-none transition-colors"
-            >
-              👁️ {showTranscriptTooltip ? "Sembunyikan Transkrip" : "Tampilkan Transkrip"}
-            </button>
-          </>
-        )}
-
-        {activeScenario === "scenario_group" && (
-          <>
-            <button
-              type="button"
-              onClick={() => setCustomInputValue("!tugas mepet")}
-              className="px-2.5 py-1 rounded-none border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 hover:border-primary text-[11px] font-medium shrink-0 cursor-pointer shadow-none transition-colors"
-            >
-              ⚡ !tugas mepet
-            </button>
-            <button
-              type="button"
-              onClick={() => setCustomInputValue("!tugas aktif")}
-              className="px-2.5 py-1 rounded-none border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 hover:border-primary text-[11px] font-medium shrink-0 cursor-pointer shadow-none transition-colors"
-            >
-              📋 !tugas aktif
-            </button>
-            <button
-              type="button"
-              onClick={() => setCustomInputValue("!jadwal")}
-              className="px-2.5 py-1 rounded-none border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 hover:border-primary text-[11px] font-medium shrink-0 cursor-pointer shadow-none transition-colors"
-            >
-              📅 !jadwal
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* ── 5. BOTTOM INPUT BAR (SIMULATED WHATSAPP INPUT) ───────────────────── */}
+      {/* ── 3. BOTTOM INPUT BAR (SIMULASI WHATSAPP INPUT ASLI) ────────────── */}
       <div className="bg-zinc-100 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 p-2.5 flex items-center gap-2 rounded-none shadow-none">
         <button
           type="button"
           className="p-2 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 rounded-none cursor-pointer"
           title="Emotikon"
+          aria-label="Emotikon"
         >
           <Smile size={18} />
         </button>
         <button
           type="button"
           className="p-2 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 rounded-none cursor-pointer"
-          title="Lampiran Dokumen/Media"
+          title="Lampiran"
+          aria-label="Lampiran"
         >
           <Paperclip size={18} />
         </button>
@@ -686,7 +591,7 @@ export function WhatsAppChatSimulator() {
             placeholder={
               activeScenario === "scenario_voicenote"
                 ? "Ketik '!tugas acc' atau pesan koreksi..."
-                : "Ketik pesan atau perintah bot..."
+                : "Ketik pesan..."
             }
             value={customInputValue}
             onChange={(e) => setCustomInputValue(e.target.value)}
@@ -698,8 +603,9 @@ export function WhatsAppChatSimulator() {
           <button
             type="button"
             onClick={() => setCustomInputValue("")}
-            className="p-2 bg-primary text-white rounded-none cursor-pointer hover:opacity-90 shadow-none"
+            className="p-2 bg-emerald-600 text-white rounded-none cursor-pointer hover:opacity-90 shadow-none"
             title="Kirim Pesan"
+            aria-label="Kirim Pesan"
           >
             <Send size={16} />
           </button>
@@ -709,6 +615,7 @@ export function WhatsAppChatSimulator() {
             onClick={toggleAudioPlayback}
             className="p-2 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 rounded-none cursor-pointer"
             title="Kirim Pesan Suara"
+            aria-label="Kirim Pesan Suara"
           >
             <Mic size={18} />
           </button>

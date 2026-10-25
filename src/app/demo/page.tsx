@@ -1,27 +1,42 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useTheme } from "@/components/theme/theme-provider";
-import { WhatsAppChatSimulator } from "@/components/demo/whatsapp-chat-simulator";
+import {
+  WhatsAppChatSimulator,
+  DemoScenario,
+} from "@/components/demo/whatsapp-chat-simulator";
 import {
   Sun,
   Moon,
-  Sparkles,
   ArrowRight,
   ShieldCheck,
-  Zap,
   Mic,
   Server,
   Calendar,
-  Lock,
-  Layers,
-  CheckCircle2,
-  ExternalLink,
 } from "lucide-react";
 
 export default function DemoShowcasePage() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
+
+  const [activeScenario, setActiveScenario] = useState<DemoScenario>("scenario_broadcast");
+
+  const SCENARIO_BUTTONS: { id: DemoScenario; label: string }[] = [
+    {
+      id: "scenario_broadcast",
+      label: "📢 Gimana cara JobDex ngumumin tugas di grup komunitas?",
+    },
+    {
+      id: "scenario_voicenote",
+      label: "🎙️ Gimana Korti nambah tugas lewat japri?",
+    },
+    {
+      id: "scenario_group",
+      label: "👥 Gimana cara cek tugas bareng-bareng di grup kelas?",
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors">
@@ -73,25 +88,44 @@ export default function DemoShowcasePage() {
         </div>
       </header>
 
-      {/* ── HERO INTRODUCTION ──────────────────────────────────────────────── */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 pt-10 pb-6 text-center space-y-3">
-        <div className="inline-flex items-center gap-2 px-3 py-1 text-xs font-bold rounded-none bg-lime-100 dark:bg-lime-950/40 text-lime-800 dark:text-lime-300 border border-lime-400 dark:border-lime-700 shadow-none">
-          <Sparkles size={14} className="text-primary" />
-          <span>Demo Interaktif Asisten WhatsApp Multimodal</span>
-        </div>
-
+      {/* ── HERO INTRODUCTION & 3 CONVERSATIONAL SCENARIO BUTTONS ─────────── */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 pt-10 pb-6 text-center space-y-4">
         <h1 className="text-2xl sm:text-4xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">
-          Simulasi Alur Kerja Cerdas Bot WhatsApp JobDex.in
+          Nggak Perlu Buka Web, Cukup Lewat WhatsApp
         </h1>
 
         <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-          Uji coba langsung bagaimana bot mengekstrak <strong>Voice Note</strong> rekaman suara Korti, menyusun draf persetujuan, mencegah echo loop, dan menyiarkan pengumuman tugas secara bersih tanpa watermark.
+          Biar nggak ada lagi tugas yang kelupaan gara-gara infonya tenggelam di grup. Mulai dari Korti yang input tugas lewat voice note, pengumuman resmi tanpa spam, sampai cek deadline mepet bareng teman sekelas—semuanya jalan otomatis di WhatsApp.
         </p>
+
+        {/* 3 Tombol Pertanyaan Santai Pilihan Skenario (Di Luar Chat Frame) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 pt-2">
+          {SCENARIO_BUTTONS.map((btn) => {
+            const isActive = activeScenario === btn.id;
+            return (
+              <button
+                key={btn.id}
+                type="button"
+                onClick={() => setActiveScenario(btn.id)}
+                className={`px-3.5 py-2.5 text-xs text-left sm:text-center transition-colors cursor-pointer rounded-none shadow-none border ${
+                  isActive
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 font-bold"
+                    : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                }`}
+              >
+                <span>{btn.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       {/* ── CHAT SIMULATOR INTERFACE ───────────────────────────────────────── */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 pb-12">
-        <WhatsAppChatSimulator />
+        <WhatsAppChatSimulator
+          activeScenario={activeScenario}
+          onScenarioChange={setActiveScenario}
+        />
       </main>
 
       {/* ── ARCHITECTURAL ADVANTAGES CARDS ─────────────────────────────────── */}

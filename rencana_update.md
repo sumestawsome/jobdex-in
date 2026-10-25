@@ -1,117 +1,246 @@
-Ide pemisahan peran dan pemanfaatan slot multi-device WhatsApp ini sangat masuk akal secara teknis.
+# DOKUMEN REVISI HALAMAN DEMO & SHOWCASE WHATSAPP (`/demo`)
 
-Berikut analisis mendalam mengenai penempatan fitur, evaluasi keamanan trik 2 akun Green-API, serta skema data untuk diterapkan.
-
----
-
-**1. Penempatan Menu & Antarmuka "Tambah Kelas"**
-
-Lokasi terbaik untuk fitur ini adalah di **Sidebar Bawah > Menu "Pengaturan Ruang Kerja" (`/dashboard/settings/workspaces`)** yang dikunci hak aksesnya khusus untuk peran `super_admin`:
-
-* **Alur Akses:** Klik foto profil/avatar di kiri bawah $\rightarrow$ pilih **"Kelola Kelas"** atau **"Workspace Settings"**.
-* **Formulir Input Data Kelas Baru:**
-* **Nama Kelas:** contoh `Kelas Ilmu Komputer B 2024`
-* **Slug / ID Workspace:** otomatis dari nama, misal `ws_ilkom_b_2024`
-* **ID Grup Pengumuman (Broadcast):** contoh `120363411033795051@g.us`
-* **ID Grup Diskusi Kelas (Interaktif & VN):** contoh `120363xxxxxxxxx@g.us`
-* **Nomor WhatsApp Admin Komunitas 1:** format `628xxxxxxxx`
-* **Nomor WhatsApp Admin Komunitas 2:** format `628xxxxxxxx`
-* **Kredensial Instance Green-API (Opsional/Dinamis):** kolom input `GREEN_API_ID_INSTANCE` dan `TOKEN` jika setiap kelas menggunakan instance mandiri, atau memilih gateway default sistem.
-
-
+Dokumen ini mencatat seluruh poin perbaikan tampilan antarmuka (UI), alur skenario, dan penulisan teks (*copywriting*) pada halaman demo simulasi WhatsApp agar persis seperti obrolan WhatsApp asli dengan geometri tegas khas sistem JobDex.in (`rounded-none`).
 
 ---
 
-**2. Evaluasi Trik 2 Akun Green-API pada 1 Nomor HP**
+## 1. Perbaikan Judul & Teks Bagian Atas (Gaya No Berat-Berat)
 
-**Apakah Bisa Berjalan?**
-**Bisa 100%.** Protokol resmi WhatsApp Multi-Device mengizinkan 1 akun WhatsApp utama terhubung ke maksimal **4 Perangkat Tertaut (Linked Devices)** secara bersamaan:
+Pangkas kalimat kaku dan istilah teknis di bagian atas halaman (seperti "Uji coba langsung tanpa watermark" atau "Instance B Outbound"). Ganti dengan bahasa yang santai, lugas, dan langsung menjawab kebutuhan mahasiswa:
 
-* Slot 1: Akun Green-API A (Instance Interaktif & VN)
-* Slot 2: Akun Green-API B (Instance Khusus Siaran / Outbound)
-* Slot 3 & 4: Masih tersisa untuk WhatsApp Web di laptop/PC pribadi Anda.
-
-**Pembagian Kuota & Dialog (3 Chat Lock):**
-
-* **Instance A (Akun Gmail 1) $\rightarrow$ Khusus Interaksi & Webhook:**
-* Chat 1: Nomor Admin 1 (DM pribadi)
-* Chat 2: Nomor Admin 2 (DM pribadi)
-* Chat 3: Grup Diskusi Kelas
-* *Status:* Pas 3 chat (limit free tier terpenuhi). Di dalam Grup Diskusi, pesan suara dari Super Admin, Admin 1, maupun Admin 2 tetap terbaca karena Green-API menghitung **ID Room Chat**, bukan jumlah pengirim di dalam grup.
+* **Judul Utama:**
+**Nggak Perlu Buka Web, Cukup Lewat WhatsApp**
+* **Deskripsi Singkat:**
+Biar nggak ada lagi tugas yang kelupaan gara-gara infonya tenggelam di grup. Mulai dari Korti yang input tugas lewat *voice note*, pengumuman resmi tanpa spam, sampai cek deadline mepet bareng teman sekelas—semuanya jalan otomatis di WhatsApp.
+* **Tombol Pilihan Skenario (Pindahkan ke Bawah Deskripsi):**
+Keluarkan tab filter dari dalam jendela chat WhatsApp. Tempatkan tepat di bawah teks pengantar berupa 3 tombol pertanyaan santai:
+1. `📢 Gimana cara JobDex ngumumin tugas di grup komunitas?`
+2. `🎙️ Gimana Korti nambah tugas lewat japri?`
+3. `👥 Gimana cara cek tugas bareng-bareng di grup kelas?`
 
 
-* **Instance B (Akun Gmail 2) $\rightarrow$ Khusus Siaran Pengumuman:**
-* Chat 1: Grup Pengumuman Komunitas
-* Chat 2 & 3: Kosong / cadangan
-* *Konfigurasi:* **Webhook dimatikan total** di console Green-API Instance B agar tidak mengirim webhook ganda ke server. Server JobDex.in hanya menembak endpoint `sendMessage` Instance B saat ada tugas yang siap disiarkan.
-
-
-
-**Perbandingan Fonnte vs. 2 Akun Green-API:**
-
-| Parameter | Fonnte (Free Tier) | 2 Akun Green-API (Developer Free) |
-| --- | --- | --- |
-| **Watermark** | Ada (`Sent via fonnte.com`) | **Bersih 100% tanpa watermark** |
-| **Kapasitas Pesan** | Terbatas kuota harian/bulanan | Masing-masing 1.000 pesan/bulan (Total 2.000 pesan) |
-| **Penerimaan Audio Utuh** | Sering terpotong/link kedaluwarsa | Menyediakan URL download buffer audio utuh |
-| **Setup Akun** | 1 akun | Butuh 2 akun email terpisah untuk scan QR |
 
 ---
 
-**3. Aspek Keamanan & Risiko Blokir (Safety Audit)**
+## 2. Aturan Baku Tampilan Chat (Kembalikan ke Tampilan Asli WhatsApp)
 
-* **Apakah Aman dari Banned WhatsApp?**
-Aman, asalkan beban pesan tidak bersifat *spam blast* massal ke nomor asing. Karena bot hanya mengirimkan pesan ke grup kelas sendiri dan admin yang sudah terdaftar di kontak, sistem deteksi spam WhatsApp tidak akan menandainya sebagai spam liar.
-* **Mitigasi Session Desync (Terputus Tiba-Tiba):**
-Kadang jika dua bot browser headless berjalan di nomor yang sama, pembaruan kunci enkripsi dari WhatsApp pusat bisa membuat salah satu session ter-logout sendiri.
-* *Solusi:* Buat pengecekan status instance sederhana di halaman pengaturan (`/getStateInstance`) agar Super Admin tahu jika ada salah satu instance yang butuh scan ulang QR.
+Hindari modifikasi berlebihan yang merusak suasana obrolan WhatsApp asli:
 
-
-* **Pencegahan Echo Loop:**
-Karena Instance B hanya melakukan `sendMessage` tanpa webhook aktif, risiko *self-echo loop* otomatis 0%.
+* **Hilangkan Semua Badge Teknis di Dalam Chat:**
+Hapus seluruh label internal seperti `OUTBOUND BROADCAST (INSTANCE B)`, `AI MULTIMODAL EXTRACTION`, `VERIFIED BOT`, atau kotak hijau `Jalur Khusus DM`. Di WhatsApp asli tidak pernah ada label seperti ini.
+* **Jam Pesan Wajib di Pojok Kanan Bawah:**
+Pindahkan posisi jam (misalnya `11:38` atau `14:37`) ke pojok kanan bawah di dalam masing-masing kotak chat, berdampingan dengan centang dua untuk pesan keluar.
+* **Dilarang Mewarnai Teks Sembarangan:**
+WhatsApp tidak mendukung warna teks kustom. Hapus pewarnaan merah, oranye, atau hijau pada teks isi pesan (seperti tanggal atau link). Semua teks pesan bot wajib hitam/abu gelap di mode terang (`text-zinc-900`) dan putih/abu terang di mode gelap (`text-zinc-100`).
+* **Hapus Kotak Bersarang (Nested Cards) & Garis Divider:**
+Jangan membuat kotak baru atau garis pembatas tebal di dalam bubble chat. Format pesan bot murni mengandalkan baris teks, spasi, emoji, dan tanda bintang tunggal (`*teks*`) persis seperti pesan WhatsApp sesungguhnya.
+* **Geometri Kotak:**
+Tetap pertahankan aturan proyek: semua bubble chat, kotak input, dan tombol berbentuk kotak tegas tanpa sudut membulat (`rounded-none`) dan tanpa bayangan (`shadow-none`).
 
 ---
 
-**4. Struktur Skema Firestore (`workspaces`)**
+## 3. Rincian Revisi Tiap Skenario
 
-Dokumen ruang kerja kelas di Firestore dapat dirancang seperti ini:
+### Skenario 1: Saluran Pengumuman Komunitas
 
-```json
-{
-  "id": "ws_ilkom_b_2024",
-  "name": "Kelas Ilmu Komputer B 2024",
-  "type": "kelas",
-  "status": "aktif",
-  "whatsapp_settings": {
-    "announcement_group_id": "120363411033795051@g.us",
-    "discussion_group_id": "120363999888777111@g.us",
-    "gateways": {
-      "interactive_instance_id": "710722779829",
-      "interactive_token": "token_instance_a",
-      "broadcast_instance_id": "710799887766",
-      "broadcast_token": "token_instance_b"
-    }
-  },
-  "authorized_admins": {
-    "admin_1": {
-      "phone": "6285119459703",
-      "name": "Sumesta (Korti)",
-      "allow_voice_note_dm": true
-    },
-    "admin_2": {
-      "phone": "6281234567890",
-      "name": "Wakil Korti",
-      "allow_voice_note_dm": true
-    },
-    "super_admin": {
-      "phone": "6285119459703",
-      "allow_voice_note_dm": false,
-      "allow_voice_note_group": true
-    }
-  },
-  "created_at": "2026-10-25T12:00:00.000Z"
-}
+Tujuan skenario ini adalah memperlihatkan bagaimana info tugas disiarkan secara resmi, rapi, dan satu arah tanpa tertimbun obrolan santai.
+
+* **Header Percakapan:**
+* Nama: `Coba JobdexIn` (atau `Saluran Komunitas Ilkom B 2024`).
+* Subjudul: `Announcements` (ikon pengumuman WhatsApp).
+
+
+* **Isi Pesan di Saluran:**
+1. **Kartu Sambutan WhatsApp:**
+* Tampilkan banner sambutan komunitas seperti bawaan WhatsApp:
+*Ikon megaphone* $\rightarrow$ *"Welcome to your community! Send important admin updates to all your members at once."*
+
+
+2. **Siaran Tugas Baru (Format Resmi):**
+* Tampilkan kartu gambar preview di bagian atas pesan (gambar logo Undiksha berlatar putih/biru).
+* Format teks pesan di bawah gambar:
+```text
+📢 *PENGUMUMAN TUGAS KULIAH* ✨
+Halo rekan-rekan *Ilmu Komputer Undiksha 2024*!
+
+Ada tugas baru nih, jangan lupa dicatat dan dibuat ya Guys! 🙌
+📚 *Mata Kuliah:* Kalkulus Lanjut
+📝 *Tugas:* Problem Set 4 - Integral Lipat Dua
+⏰ *Tenggat:* Rabu, 28 Oktober 2026 (23:59 WITA)
+
+📌 *Ketentuan / Deskripsi:*
+Buat tugas di double folio bergaris dengan tulisan tangan rapi, scan dan kumpulkan dalam format PDF.
+
+🔗 *Tempat Pengumpulan / LMS:*
+Drive: https://elearning.undiksha.ac.id
+
+Yuk cicil dari sekarang biar gak keteteran pas deadline! 🙌
+👉 Cek kalender & jadwal lengkap:
+https://jobdexin.sumestawsome.xyz/jadwal-tugas-ilkom-b
 
 ```
 
-Rencana menggunakan 2 akun Green-API pada 1 nomor WhatsApp untuk memisahkan jalur interaktif dan jalur siaran adalah solusi gratis yang paling bersih dari watermark dan sangat layak diimplementasikan.
+
+* Jam pengiriman: pojok kanan bawah (`14:42`).
+
+
+3. **Pengingat Progres H-3 (Tugas Lain):**
+* Tambahkan 1 pesan pengingat otomatis untuk matkul *Grafika Komputer* atau *Matematika Teknik* yang jatuh tempo 3 hari lagi.
+
+
+
+
+
+---
+
+### Skenario 2: Japri Admin / Korti (Input Tugas & Persetujuan Draf)
+
+Tujuan skenario ini adalah memperlihatkan kemudahan Korti dalam menginput tugas via rekaman suara maupun perintah teks.
+
+* **Header Percakapan:**
+* Nama: `JobDex in AI` (status: `online`).
+
+
+* **Interaksi 1: Input Lewat Voice Note (VN)**
+* **Pesan User (Korti):**
+* Tampilan bubble chat suara warna hijau lime aksen (posisi kanan).
+* Berisi foto profil pengirim, tombol play, visual grafik suara (*waveform*), durasi `0:22`, jam `10:14`, dan centang dua biru.
+
+
+* **Interaksi Hover Tooltip (Bukan Kotak Tambahan):**
+* Saat mouse diarahkan (*hover*) ke bubble voice note, muncul kotak kecil (*floating tooltip*) di dekat kursor:
+`"Korti cukup rekam suara detail tugas. AI akan otomatis mendengarkan dan merangkum isinya jadi draf."`
+
+
+* **Pesan Balasan Bot (Kartu Draf Menunggu ACC):**
+* Tampilan bubble putih di kiri:
+```text
+📋 *Draf Tugas Kuliah (Menunggu Persetujuan)*
+
+📚 *Mata Kuliah:* Matematika Teknik
+📝 *Judul Tugas:* Latihan 15
+⏰ *Tenggat:* Senin, 26 Oktober 2026 pukul 17:00 WITA
+📌 *Ketentuan:* Dikerjakan di double folio, di-upload di e-learning Undiksha.
+🔗 *Pengumpulan:* E-Learning Undiksha
+
+--------------------------------------
+Periksa draf di atas. Jika data sudah benar:
+👉 Ketik *!tugas acc* (atau *acc*) untuk mempublikasikan.
+👉 Ketik *!tugas batal* (atau *batal*) untuk membuang draf.
+👉 Atau kirim pesan/VN perbaikan jika ada kata yang salah.
+👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks
+
+```
+
+
+* Jam pengiriman: pojok kanan bawah (`10:14`).
+
+
+* **Pesan User (Konfirmasi):**
+* Teks: `!tugas acc` (jam `10:15`, centang dua biru).
+
+
+* **Pesan Balasan Bot (Sukses Terbit):**
+* ```text
+✅ *Tugas Berhasil Disetujui & Diterbitkan!*
+
+📚 *Mata Kuliah:* Matematika Teknik
+📝 *Tugas:* Latihan 15
+⏰ *Tenggat:* Senin, 26 Oktober 2026 pukul 17:00 WITA
+
+Tugas telah tersimpan di JobDex dan disiarkan ke kelas.
+👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks
+
+```
+
+
+
+
+
+
+* **Interaksi 2: Input Cepat Lewat Perintah Teks (Alternatif Non-Suara)**
+* Tampilkan contoh kedua di bawahnya jika admin sedang tidak bisa merekam suara:
+* **User:** `!tugas tambah Pemrograman Web | Bikin REST API Next.js & Push GitHub | Kerjakan berkelompok maks 3 orang | 28/10/2026 23:59 | E-Learning Undiksha`
+* **Bot:** Membalas konfirmasi sukses instan dengan pratinjau tugas yang tersimpan.
+
+
+
+
+
+---
+
+### Skenario 3: Grup Diskusi Kelas (Tanya AI & Cek Deadline Bersama)
+
+Tujuan skenario ini adalah memperlihatkan interaksi santai teman sekelas di grup saat butuh info tugas tanpa harus membuka browser.
+
+* **Header Percakapan:**
+* Nama Grup: `Diskusi Kelas Ilkom B 2024` (anggota: Budi, Darma, Korti, Anda, dll.).
+
+
+* **Obrolan Pengantar Mahasiswa (Suasana Alami):**
+1. **Chat 1 (Darma):**
+* Pesan putih kiri: *"Guys, tugas praktikum kemarin ada instruksi tambahan dari dosen gak ya?"* (jam `14:18`).
+
+
+2. **Chat 2 (Ayu):**
+* Pesan putih kiri: *"Kayaknya udah dicatat sama bot deh, coba panggil aja."* (jam `14:19`).
+
+
+3. **Chat 3 (Budi Santoso):**
+* Pesan putih kiri: *"Guys, ada tugas yang tenggatnya mepet minggu ini gak ya? Takut ada yang kelupaan ngerjain nih."* (jam `14:20`).
+
+
+
+
+* **Panggilan Perintah ke Bot:**
+* **Pesan User (Kanan):**
+* Teks: `!tugas mepet` (jam `14:21`, centang dua).
+
+
+
+
+* **Jawaban Bot AI (Format Ringkas & Bersih):**
+* Teks bubble putih di kiri tanpa badge aneh:
+```text
+📋 *DAFTAR TUGAS MEPEK ILKOM B (≤ 3 HARI)* 🚨
+Total: 3 tugas perlu segera diselesaikan!
+
+1. *Matematika Teknik*
+📝 *Tugas:* Latihan 15
+⏰ *Tenggat:* Besok, 26 Oktober 2026 (17:00 WITA)
+🔗 *LMS:* E-Learning Undiksha
+
+2. *Kalkulus Lanjut*
+📝 *Tugas:* Problem Set 4 - Integral Lipat Dua
+⏰ *Tenggat:* Rabu, 28 Oktober 2026 (23:59 WITA) (2 hari lagi)
+🔗 *LMS:* E-Learning Undiksha
+
+3. *Pemrograman Web*
+📝 *Tugas:* Bikin REST API Next.js & Push GitHub
+⏰ *Tenggat:* Rabu, 28 Oktober 2026 (23:59 WITA) (2 hari lagi)
+🔗 *LMS:* GitHub & E-Learning
+
+👉 Cek jadwal & kalender lengkap:
+https://jobdexin.sumestawsome.xyz/jadwal-tugas-ilkom-b
+
+```
+
+
+* Jam pengiriman: pojok kanan bawah (`14:21`).
+
+
+
+---
+
+## 4. Rangkuman Teknis untuk Antigravity
+
+| Komponen | Status Saat Ini (Keliru) | Standar Perbaikan (Wajib) |
+| --- | --- | --- |
+| **Filter Tab Skenario** | Di dalam frame WA (bawah navbar) | Di luar frame WA, tepat di bawah judul pengantar |
+| **Gaya Tombol Filter** | Kaku ("Skenario 1: Saluran Pengumuman") | Pertanyaan santai ("Gimana cara JobDex ngumumin...") |
+| **Badge di Chat** | Banyak badge teknis (`OUTBOUND`, `AI EXTRACTION`) | Hapus total seluruh badge teknis dari bubble chat |
+| **Posisi Jam** | Di luar chat atau di samping badge | Di pojok kanan bawah bubble chat |
+| **Warna Teks Chat** | Menggunakan teks merah/oranye | Teks standar monokrom (hanya format `*bold*` dan link) |
+| **Bentuk Bubble Chat** | Berisi kotak bertumpuk & border tebal | Polos, bersih, hanya teks dan emoji |
+| **Hover Voice Note** | Menampilkan card baru di bawahnya | Floating tooltip sederhana dekat kursor |
+| **Geometri Dasar** | Kadang bocor sudut membulat | Wajib serba kotak tajam (`rounded-none`, `shadow-none`) |
