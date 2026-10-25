@@ -52,6 +52,45 @@ const AUDIO_EXT_REGEX = /\.(ogg|opus|oga|mp3|m4a|wav|aac|wma|webm|flac)(\?.*)?$/
 const AUDIO_FORMAT_REGEX = /^(ogg|opus|oga|mp3|m4a|wav|aac|wma|webm|flac)$/i;
 
 /**
+ * Hard timeout limit (15 detik) untuk panggilan fetch download media dan REST API Gemini.
+ * Mencegah serverless function menggantung hingga batas 60 detik Vercel.
+ */
+export const FETCH_TIMEOUT_MS = 15000;
+
+/**
+ * Urutan model Gemini Flash yang didukung.
+ * Mengutamakan gemini-2.0-flash sebagai model utama, dengan fallback berurutan ke
+ * gemini-1.5-flash-latest dan model flash aktif lainnya.
+ */
+export const SUPPORTED_GEMINI_FLASH_MODELS = [
+  process.env.GEMINI_MODEL,
+  "gemini-2.0-flash",
+  "gemini-1.5-flash-latest",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+].filter(Boolean) as string[];
+
+/**
+ * Helper fetch dengan AbortController timeout guard 15 detik.
+ */
+export async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = FETCH_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
  * Checks if incoming WhatsApp message is an audio file or voice note.
  * Inspects url, mediaUrl, attachment, filename, messageType/filetype, extension, and raw payload.
  */
@@ -272,13 +311,13 @@ export async function extractTaskFromVoiceNote(
     console.log(`[VoiceTaskProcessor] Processing raw audio buffer directly (${audioSource.byteLength} bytes)`);
     base64Audio = audioSource.toString("base64");
   } else {
-    // 1. Fetch audio buffer from URL
+    // 1. Fetch audio buffer from URL with 15s timeout
     console.log(`[VoiceTaskProcessor] Fetching audio from URL: ${audioSource.slice(0, 60)}...`);
-    const audioRes = await fetch(audioSource, {
+    const audioRes = await fetchWithTimeout(audioSource, {
       headers: {
         "User-Agent": "JobDex-In-VoiceProcessor/1.0",
       },
-    });
+    }, FETCH_TIMEOUT_MS);
 
     if (!audioRes.ok) {
       throw new Error(`Failed to download audio file: HTTP status ${audioRes.status}`);
@@ -291,7 +330,7 @@ export async function extractTaskFromVoiceNote(
     console.log(`[VoiceTaskProcessor] Audio downloaded successfully (${arrayBuffer.byteLength} bytes, MIME: ${mimeType})`);
   }
 
-  // 2. Call Gemini 2.5 Flash API with Flexible Extraction Schema
+  // 2. Call Gemini Flash API with Flexible Extraction Schema
   const systemPrompt = `Kamu adalah asisten pencatat tugas akademik Ilkom B Undiksha. Tugasmu adalah mendengarkan pesan suara berikut dan mengekstrak informasi tugas kuliah ke dalam format JSON murni.
 Tahun dasar saat ini adalah 2026. Tanggal hari ini adalah 25 Oktober 2026.
 
@@ -320,15 +359,7 @@ Format JSON WAJIB valid:
   const userInstruction = `Dengarkan rekaman suara ini dan ekstrak informasi tugas kuliah sesuai format JSON yang ditentukan.
 Jika rekaman suara tidak jelas, terlalu bising, atau bukan berisi tentang tugas kuliah, kembalikan objek JSON dengan field "error": "not_a_task".`;
 
-  const modelsToTry = [
-    process.env.GEMINI_MODEL,
-    "gemini-2.5-flash",
-    "gemini-flash-latest",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-pro",
-    "gemini-pro-latest",
-  ].filter(Boolean) as string[];
-  const uniqueModels = [...new Set(modelsToTry)];
+  const uniqueModels = [...new Set(SUPPORTED_GEMINI_FLASH_MODELS)];
 
   let rawJsonText = "";
   let lastError: Error | null = null;
@@ -338,7 +369,7 @@ Jika rekaman suara tidak jelas, terlalu bising, atau bukan berisi tentang tugas 
       console.log(`[VoiceTaskProcessor] Sending multimodal audio request to Gemini model: ${model}`);
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-      const geminiRes = await fetch(geminiUrl, {
+      const geminiRes = await fetchWithTimeout(geminiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -368,7 +399,7 @@ Jika rekaman suara tidak jelas, terlalu bising, atau bukan berisi tentang tugas 
             response_mime_type: "application/json",
           },
         }),
-      });
+      }, FETCH_TIMEOUT_MS);
 
       const responseData = (await geminiRes.json()) as {
         candidates?: Array<{
@@ -562,9 +593,9 @@ export async function mergeVoiceNoteCorrectionWithDraft(
     base64Audio = audioSource.toString("base64");
   } else {
     console.log(`[VoiceTaskProcessor] Fetching revision audio from URL: ${audioSource.slice(0, 60)}...`);
-    const audioRes = await fetch(audioSource, {
+    const audioRes = await fetchWithTimeout(audioSource, {
       headers: { "User-Agent": "JobDex-In-VoiceProcessor/1.0" },
-    });
+    }, FETCH_TIMEOUT_MS);
     if (!audioRes.ok) {
       throw new Error(`Failed to download audio file: HTTP status ${audioRes.status}`);
     }
@@ -607,15 +638,7 @@ Format JSON WAJIB valid tanpa markdown:
 
   const userInstruction = `Dengarkan rekaman suara koreksi ini dan gabungkan dengan draf yang sudah ada sesuai format JSON yang ditentukan.`;
 
-  const modelsToTry = [
-    process.env.GEMINI_MODEL,
-    "gemini-2.5-flash",
-    "gemini-flash-latest",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-pro",
-    "gemini-pro-latest",
-  ].filter(Boolean) as string[];
-  const uniqueModels = [...new Set(modelsToTry)];
+  const uniqueModels = [...new Set(SUPPORTED_GEMINI_FLASH_MODELS)];
 
   let rawJsonText = "";
   let lastError: Error | null = null;
@@ -625,7 +648,7 @@ Format JSON WAJIB valid tanpa markdown:
       console.log(`[VoiceTaskProcessor] Sending multimodal revision audio request to Gemini model: ${model}`);
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-      const geminiRes = await fetch(geminiUrl, {
+      const geminiRes = await fetchWithTimeout(geminiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -649,7 +672,7 @@ Format JSON WAJIB valid tanpa markdown:
             response_mime_type: "application/json",
           },
         }),
-      });
+      }, FETCH_TIMEOUT_MS);
 
       const responseData = (await geminiRes.json()) as {
         candidates?: Array<{
@@ -770,15 +793,7 @@ Format JSON WAJIB murni tanpa markdown:
   "clarification_question": null
 }`;
 
-  const modelsToTry = [
-    process.env.GEMINI_MODEL,
-    "gemini-2.5-flash",
-    "gemini-flash-latest",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-pro",
-    "gemini-pro-latest",
-  ].filter(Boolean) as string[];
-  const uniqueModels = [...new Set(modelsToTry)];
+  const uniqueModels = [...new Set(SUPPORTED_GEMINI_FLASH_MODELS)];
 
   let rawJsonText = "";
   let lastError: Error | null = null;
@@ -788,7 +803,7 @@ Format JSON WAJIB murni tanpa markdown:
       console.log(`[VoiceTaskProcessor] Merging draft using Gemini model: ${model}`);
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-      const geminiRes = await fetch(geminiUrl, {
+      const geminiRes = await fetchWithTimeout(geminiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -808,7 +823,7 @@ Format JSON WAJIB murni tanpa markdown:
             response_mime_type: "application/json",
           },
         }),
-      });
+      }, FETCH_TIMEOUT_MS);
 
       const responseData = (await geminiRes.json()) as {
         candidates?: Array<{
@@ -1256,21 +1271,29 @@ export async function handleDraftFollowUpMessage(
       stopFurtherProcessing: true,
       draft: activeDraft,
     });
-  } catch (err) {
-    console.error("[VoiceTaskProcessor] Error handling draft follow-up:", err);
-    const errorMsg =
-      "⚠️ Terjadi kendala saat memperbarui draf tugas. Silakan ulangi kembali atau ketik 'batal' untuk membatalkan.";
+  } catch (err: unknown) {
+    const isTimeoutOrAbort =
+      (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) ||
+      String(err).toLowerCase().includes("abort") ||
+      String(err).toLowerCase().includes("timeout");
+
+    console.error("[VoiceTaskProcessor] Error handling draft follow-up:", isTimeoutOrAbort ? "Follow-up timed out (15s limit)" : err);
+    const errorMsg = isTimeoutOrAbort
+      ? "⚠️ Gagal memperbarui draf karena layanan AI sedang tidak merespons, silakan coba lagi sebentar."
+      : "⚠️ Terjadi kendala saat memperbarui draf tugas. Silakan ulangi kembali atau ketik 'batal' untuk membatalkan.";
+
     await sendWhatsAppMessage({
       target: effectiveReplyTarget,
       message: errorMsg,
       type: effectiveIsGroup ? "group" : "phone",
       org_id: workspaceId,
       provider: incoming.provider,
-    });
+    }).catch(() => {});
+
     return NextResponse.json({
       ok: false,
       stopFurtherProcessing: true,
-      error: err instanceof Error ? err.message : "draft_followup_failed",
+      error: isTimeoutOrAbort ? "draft_followup_timeout" : (err instanceof Error ? err.message : "draft_followup_failed"),
     });
   }
 }
@@ -1623,21 +1646,32 @@ export async function handleWhatsAppVoiceTask(
       stopFurtherProcessing: true,
       draft,
     });
-  } catch (err) {
-    console.error("[VoiceTaskProcessor] Error processing voice task:", err);
+  } catch (err: unknown) {
+    const isTimeoutOrAbort =
+      (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) ||
+      String(err).toLowerCase().includes("abort") ||
+      String(err).toLowerCase().includes("timeout");
+
+    console.error(
+      "[VoiceTaskProcessor] Error processing voice task:",
+      isTimeoutOrAbort ? "Operation aborted / timed out (15s limit)" : err
+    );
+
+    const errorMessage =
+      "⚠️ Gagal memproses audio karena layanan AI sedang tidak merespons, silakan coba lagi sebentar.";
 
     await sendWhatsAppMessage({
       target: replyTarget,
-      message: fallbackErrorMsg,
+      message: errorMessage,
       type: isGroupTarget ? "group" : "phone",
       org_id: workspaceId,
       provider: incoming.provider,
-    });
+    }).catch(() => {});
 
     return NextResponse.json({
       ok: false,
       stopFurtherProcessing: true,
-      error: err instanceof Error ? err.message : "voice_processing_failed",
+      error: isTimeoutOrAbort ? "ai_service_timeout_or_aborted" : (err instanceof Error ? err.message : "voice_processing_failed"),
     });
   }
 }

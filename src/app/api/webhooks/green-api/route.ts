@@ -260,11 +260,20 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Download file audio langsung via fetch(downloadUrl) dan ubah ke Buffer
+      // Download file audio langsung via fetch(downloadUrl) dengan AbortController timeout guard 15 detik
       console.log(`[green-api webhook] Downloading audio file from: ${downloadUrl.slice(0, 60)}...`);
-      const audioRes = await fetch(downloadUrl, {
-        headers: { "User-Agent": "JobDex-In-GreenApi/1.0" },
-      });
+      const audioController = new AbortController();
+      const audioTimeoutId = setTimeout(() => audioController.abort(), 15000);
+
+      let audioRes: Response;
+      try {
+        audioRes = await fetch(downloadUrl, {
+          headers: { "User-Agent": "JobDex-In-GreenApi/1.0" },
+          signal: audioController.signal,
+        });
+      } finally {
+        clearTimeout(audioTimeoutId);
+      }
 
       if (!audioRes.ok) {
         console.error(`[green-api webhook] Failed to download audio file: HTTP ${audioRes.status}`);
@@ -288,13 +297,26 @@ export async function POST(request: NextRequest) {
       console.log("[green-api webhook] Voice task processing completed:", voiceData);
 
       return NextResponse.json({ status: "success", voiceData });
-    } catch (audioErr) {
-      console.error("[green-api webhook] Error processing audio task:", audioErr);
+    } catch (audioErr: unknown) {
+      const isAbortOrTimeout =
+        (audioErr instanceof Error && (audioErr.name === "AbortError" || audioErr.name === "TimeoutError")) ||
+        String(audioErr).toLowerCase().includes("abort") ||
+        String(audioErr).toLowerCase().includes("timeout");
+
+      console.error("[green-api webhook] Error processing audio task:", isAbortOrTimeout ? "Audio fetch/process timed out (15s limit)" : audioErr);
+
       await sendGreenApiTextMessage(
         rawChatId,
-        "⚠️ Terjadi kendala saat memproses rekaman suara tugas kuliah. Silakan coba sesaat lagi."
-      );
-      return NextResponse.json({ status: "success", error: String(audioErr) });
+        isAbortOrTimeout
+          ? "⚠️ Gagal memproses audio karena layanan AI sedang tidak merespons, silakan coba lagi sebentar."
+          : "⚠️ Terjadi kendala saat memproses rekaman suara tugas kuliah. Silakan coba sesaat lagi."
+      ).catch(() => {});
+
+      // Return status 200 agar antrean webhook Green-API tidak menahan koneksi atau retry berulang
+      return NextResponse.json({
+        status: isAbortOrTimeout ? "timeout" : "error",
+        error: isAbortOrTimeout ? "request_aborted_timeout_15s" : String(audioErr),
+      }, { status: 200 });
     }
   }
 
