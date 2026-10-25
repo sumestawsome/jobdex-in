@@ -15,6 +15,7 @@ import {
   Mic,
   Server,
   Calendar,
+  BookOpen,
 } from "lucide-react";
 
 export default function DemoShowcasePage() {
@@ -58,6 +59,14 @@ export default function DemoShowcasePage() {
 
           {/* Quick Actions & Theme Toggle */}
           <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/docs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-none border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 shadow-none transition-colors"
+            >
+              <BookOpen size={13} className="text-primary" />
+              <span>Dokumentasi Bot</span>
+            </Link>
+
             <Link
               href="/jadwal-tugas-ilkom-b"
               target="_blank"

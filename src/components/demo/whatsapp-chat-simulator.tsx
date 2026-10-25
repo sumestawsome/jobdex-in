@@ -30,18 +30,37 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [customInputValue, setCustomInputValue] = useState("");
-  const [vnHoverPos, setVnHoverPos] = useState<{ x: number; y: number } | null>(null);
+  const [activeTooltip, setActiveTooltip] = useState<{
+    id: string;
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Reset audio playback when scenario changes
+  // Reset audio playback and tooltip when scenario changes
   useEffect(() => {
     setIsPlayingAudio(false);
     setAudioProgress(0);
-    setVnHoverPos(null);
+    setActiveTooltip(null);
     if (audioIntervalRef.current) {
       clearInterval(audioIntervalRef.current);
     }
   }, [activeScenario]);
+
+  function handleBubbleMouseMove(id: string, text: string, e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setActiveTooltip({
+      id,
+      text,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  }
+
+  function handleBubbleMouseLeave() {
+    setActiveTooltip(null);
+  }
 
   // Voice Note Play / Pause simulation
   function toggleAudioPlayback() {
@@ -165,7 +184,28 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
         {activeScenario === "scenario_broadcast" && (
           <div className="space-y-4">
             {/* Banner Sambutan Komunitas WhatsApp */}
-            <div className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none text-xs text-zinc-800 dark:text-zinc-200 flex items-start gap-3 shadow-none max-w-lg mx-auto">
+            <div
+              className="relative p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-none text-xs text-zinc-800 dark:text-zinc-200 flex items-start gap-3 shadow-none max-w-lg mx-auto"
+              onMouseMove={(e) =>
+                handleBubbleMouseMove(
+                  "sc1_welcome",
+                  "📢 Saluran Komunitas: Ruang siaran satu arah bagi admin untuk membagikan pengumuman resmi tanpa spam chat dari anggota.",
+                  e
+                )
+              }
+              onMouseLeave={handleBubbleMouseLeave}
+            >
+              {activeTooltip?.id === "sc1_welcome" && (
+                <div
+                  className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
+                  style={{
+                    left: Math.max(10, Math.min(activeTooltip.x - 40, 220)),
+                    top: Math.max(-65, activeTooltip.y - 70),
+                  }}
+                >
+                  {activeTooltip.text}
+                </div>
+              )}
               <Megaphone size={20} className="text-emerald-600 shrink-0 mt-0.5" />
               <div className="space-y-0.5">
                 <p className="font-bold text-xs text-zinc-900 dark:text-zinc-100">
@@ -179,7 +219,28 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
 
             {/* Pesan 1: Siaran Tugas Baru (Format Resmi dengan Gambar Preview) */}
             <div className="flex flex-col items-start max-w-md sm:max-w-lg">
-              <div className="rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none overflow-hidden w-full">
+              <div
+                className="relative rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none overflow-hidden w-full"
+                onMouseMove={(e) =>
+                  handleBubbleMouseMove(
+                    "sc1_broadcast",
+                    "✨ Siaran Otomatis: Diformat rapi dengan logo kampus, ketentuan tugas, tenggat zona WITA, dan link kalender kelas.",
+                    e
+                  )
+                }
+                onMouseLeave={handleBubbleMouseLeave}
+              >
+                {activeTooltip?.id === "sc1_broadcast" && (
+                  <div
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
+                    style={{
+                      left: Math.max(10, Math.min(activeTooltip.x - 40, 220)),
+                      top: Math.max(-65, activeTooltip.y - 70),
+                    }}
+                  >
+                    {activeTooltip.text}
+                  </div>
+                )}
                 {/* Header Image Preview (Logo Undiksha resmi) */}
                 <div className="w-full h-36 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-center p-3 relative">
                   <Image
@@ -235,7 +296,28 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
 
             {/* Pesan 2: Pengingat Progres H-3 (Tugas Lain) */}
             <div className="flex flex-col items-start max-w-md sm:max-w-lg">
-              <div className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2 w-full leading-relaxed">
+              <div
+                className="relative p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2 w-full leading-relaxed"
+                onMouseMove={(e) =>
+                  handleBubbleMouseMove(
+                    "sc1_reminder",
+                    "⚠️ Pengingat Otomatis: Cron job JobDex otomatis mengirim notifikasi pada H-3 dan H-1 agar mahasiswa tidak ketinggalan tenggat.",
+                    e
+                  )
+                }
+                onMouseLeave={handleBubbleMouseLeave}
+              >
+                {activeTooltip?.id === "sc1_reminder" && (
+                  <div
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
+                    style={{
+                      left: Math.max(10, Math.min(activeTooltip.x - 40, 220)),
+                      top: Math.max(-65, activeTooltip.y - 70),
+                    }}
+                  >
+                    {activeTooltip.text}
+                  </div>
+                )}
                 <p>
                   ⚠️ <strong className="font-bold">PENGINGAT PROGRES TUGAS (H-3)</strong> 📌
                 </p>
@@ -274,31 +356,29 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
         {/* =================================================================== */}
         {activeScenario === "scenario_voicenote" && (
           <div className="space-y-3.5">
-            {/* ── Interaksi 1: Input Lewat Voice Note (VN) ── */}
-
             {/* Pesan 1 (Korti): Voice Note */}
             <div className="flex flex-col items-end w-full">
               <div
                 className="relative p-2.5 sm:p-3 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none max-w-xs sm:max-w-md w-full"
-                onMouseMove={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setVnHoverPos({
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top,
-                  });
-                }}
-                onMouseLeave={() => setVnHoverPos(null)}
+                onMouseMove={(e) =>
+                  handleBubbleMouseMove(
+                    "vn_korti",
+                    "🎙️ Voice Note: Korti cukup rekam suara detail tugas. AI akan otomatis mendengarkan dan merangkum isinya jadi draf.",
+                    e
+                  )
+                }
+                onMouseLeave={handleBubbleMouseLeave}
               >
                 {/* Floating Tooltip dekat Kursor saat Hover */}
-                {vnHoverPos && (
+                {activeTooltip?.id === "vn_korti" && (
                   <div
-                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[260px] animate-in fade-in duration-100"
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
                     style={{
-                      left: Math.max(10, Math.min(vnHoverPos.x - 40, 200)),
-                      top: Math.max(-65, vnHoverPos.y - 70),
+                      left: Math.max(10, Math.min(activeTooltip.x - 40, 200)),
+                      top: Math.max(-65, activeTooltip.y - 70),
                     }}
                   >
-                    Korti cukup rekam suara detail tugas. AI akan otomatis mendengarkan dan merangkum isinya jadi draf.
+                    {activeTooltip.text}
                   </div>
                 )}
 
@@ -348,7 +428,28 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
 
             {/* Pesan 2 (Bot AI): Draf Menunggu Persetujuan */}
             <div className="flex flex-col items-start max-w-md sm:max-w-lg">
-              <div className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2.5 w-full leading-relaxed">
+              <div
+                className="relative p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2.5 w-full leading-relaxed"
+                onMouseMove={(e) =>
+                  handleBubbleMouseMove(
+                    "bot_draft",
+                    "📋 Human-in-the-Loop: AI menyusun draf pratinjau terlebih dahulu agar Korti bisa memeriksa kebenaran data sebelum disiarkan ke kelas.",
+                    e
+                  )
+                }
+                onMouseLeave={handleBubbleMouseLeave}
+              >
+                {activeTooltip?.id === "bot_draft" && (
+                  <div
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
+                    style={{
+                      left: Math.max(10, Math.min(activeTooltip.x - 40, 220)),
+                      top: Math.max(-65, activeTooltip.y - 70),
+                    }}
+                  >
+                    {activeTooltip.text}
+                  </div>
+                )}
                 <p>
                   📋 <strong className="font-bold">Draf Tugas Kuliah (Menunggu Persetujuan)</strong>
                 </p>
@@ -377,7 +478,28 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
 
             {/* Pesan 3 (Korti): Konfirmasi ACC */}
             <div className="flex flex-col items-end w-full">
-              <div className="p-2 sm:px-3 sm:py-2 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none text-xs flex items-center gap-2">
+              <div
+                className="relative p-2 sm:px-3 sm:py-2 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none text-xs flex items-center gap-2 cursor-default"
+                onMouseMove={(e) =>
+                  handleBubbleMouseMove(
+                    "user_acc",
+                    "✅ Konfirmasi Instan: Mengetik !tugas acc memicu penyimpanan tugas ke database Firestore dan menyiarkan pengumuman ke grup saluran.",
+                    e
+                  )
+                }
+                onMouseLeave={handleBubbleMouseLeave}
+              >
+                {activeTooltip?.id === "user_acc" && (
+                  <div
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
+                    style={{
+                      left: Math.max(10, Math.min(activeTooltip.x - 40, 200)),
+                      top: Math.max(-65, activeTooltip.y - 70),
+                    }}
+                  >
+                    {activeTooltip.text}
+                  </div>
+                )}
                 <span>!tugas acc</span>
                 <div className="flex items-center gap-1 text-[10px] text-zinc-500 font-mono ml-2">
                   <span>10:15</span>
@@ -388,7 +510,28 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
 
             {/* Pesan 4 (Bot AI): Sukses Terbit */}
             <div className="flex flex-col items-start max-w-md sm:max-w-lg">
-              <div className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2 w-full leading-relaxed">
+              <div
+                className="relative p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2 w-full leading-relaxed"
+                onMouseMove={(e) =>
+                  handleBubbleMouseMove(
+                    "bot_published",
+                    "📢 Siaran Otomatis: Tugas resmi dipublikasikan ke kalender kelas dan disiarkan ke saluran pengumuman tanpa spam.",
+                    e
+                  )
+                }
+                onMouseLeave={handleBubbleMouseLeave}
+              >
+                {activeTooltip?.id === "bot_published" && (
+                  <div
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
+                    style={{
+                      left: Math.max(10, Math.min(activeTooltip.x - 40, 220)),
+                      top: Math.max(-65, activeTooltip.y - 70),
+                    }}
+                  >
+                    {activeTooltip.text}
+                  </div>
+                )}
                 <p>
                   ✅ <strong className="font-bold">Tugas Berhasil Disetujui & Diterbitkan!</strong>
                 </p>
@@ -409,46 +552,81 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
               </div>
             </div>
 
-            {/* ── Interaksi 2: Input Cepat Lewat Perintah Teks Langsung ── */}
-            <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
-              <p className="text-[11px] text-zinc-400 font-medium italic text-center">
-                — Alternatif: Korti juga bisa menambah tugas kilat via pesan teks biasa —
-              </p>
-
-              {/* User text command */}
-              <div className="flex flex-col items-end w-full">
-                <div className="p-2.5 sm:p-3 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none text-xs max-w-md break-words space-y-1">
-                  <p className="font-mono text-[11px]">
-                    !tugas tambah Pemrograman Web | Bikin REST API Next.js & Push GitHub | Kerjakan berkelompok maks 3 orang | 28/10/2026 23:59 | E-Learning Undiksha
-                  </p>
-                  <div className="flex justify-end items-center gap-1 text-[10px] text-zinc-500 font-mono">
-                    <span>11:20</span>
-                    <CheckCheck size={13} className="text-primary inline" />
+            {/* Pesan 5: User Input Cepat Lewat Teks Langsung (Dengan Floating Tooltip Sesuai Spesifikasi) */}
+            <div className="flex flex-col items-end w-full">
+              <div
+                className="relative p-2.5 sm:p-3 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none text-xs max-w-md break-words space-y-1 cursor-default"
+                onMouseMove={(e) =>
+                  handleBubbleMouseMove(
+                    "user_quick_text",
+                    "💡 Alternatif Cepat: Korti bisa langsung mengetik format teks dengan pemisah pipa (|) untuk mencatat tugas kilat tanpa rekaman suara.",
+                    e
+                  )
+                }
+                onMouseLeave={handleBubbleMouseLeave}
+              >
+                {activeTooltip?.id === "user_quick_text" && (
+                  <div
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
+                    style={{
+                      left: Math.max(10, Math.min(activeTooltip.x - 40, 200)),
+                      top: Math.max(-65, activeTooltip.y - 70),
+                    }}
+                  >
+                    {activeTooltip.text}
                   </div>
+                )}
+                <p className="font-mono text-[11px]">
+                  !tugas tambah Pemrograman Web | Bikin REST API Next.js & Push GitHub | Kerjakan berkelompok maks 3 orang | 28/10/2026 23:59 | E-Learning Undiksha
+                </p>
+                <div className="flex justify-end items-center gap-1 text-[10px] text-zinc-500 font-mono">
+                  <span>11:20</span>
+                  <CheckCheck size={13} className="text-primary inline" />
                 </div>
               </div>
+            </div>
 
-              {/* Bot instant confirmation */}
-              <div className="flex flex-col items-start max-w-md sm:max-w-lg">
-                <div className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2 w-full leading-relaxed">
-                  <p>
-                    ✅ <strong className="font-bold">Tugas Berhasil Ditambahkan!</strong>
-                  </p>
-                  <p>
-                    📚 <strong className="font-bold">Mata Kuliah:</strong> Pemrograman Web<br />
-                    📝 <strong className="font-bold">Tugas:</strong> Bikin REST API Next.js & Push GitHub<br />
-                    ⏰ <strong className="font-bold">Tenggat:</strong> Rabu, 28 Oktober 2026 (23:59 WITA)<br />
-                    📌 <strong className="font-bold">Ketentuan:</strong> Kerjakan berkelompok maks 3 orang<br />
-                    🔗 <strong className="font-bold">LMS:</strong> E-Learning Undiksha
-                  </p>
-                  <p>
-                    Tugas telah tersimpan di kalender kelas dan disiarkan.<br />
-                    👉 Cek jadwal: <Link href="/jadwal-tugas-ilkom-b" className="text-primary hover:underline font-mono">https://jobdexin.sumestawsome.xyz/jadwal-tugas-ilkom-b</Link>
-                  </p>
-
-                  <div className="flex justify-end pt-1">
-                    <span className="text-[10px] text-zinc-400 font-mono">11:20</span>
+            {/* Pesan 6: Bot Konfirmasi Instan Penambahan Tugas */}
+            <div className="flex flex-col items-start max-w-md sm:max-w-lg">
+              <div
+                className="relative p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2 w-full leading-relaxed"
+                onMouseMove={(e) =>
+                  handleBubbleMouseMove(
+                    "bot_quick_success",
+                    "⚡ Eksekusi Instan: Bot langsung mem-parsing 4 atau 5 parameter pipa dan menyinkronkan tugas ke jadwal kelas.",
+                    e
+                  )
+                }
+                onMouseLeave={handleBubbleMouseLeave}
+              >
+                {activeTooltip?.id === "bot_quick_success" && (
+                  <div
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
+                    style={{
+                      left: Math.max(10, Math.min(activeTooltip.x - 40, 220)),
+                      top: Math.max(-65, activeTooltip.y - 70),
+                    }}
+                  >
+                    {activeTooltip.text}
                   </div>
+                )}
+                <p>
+                  ✅ <strong className="font-bold">Tugas Berhasil Ditambahkan!</strong>
+                </p>
+                <p>
+                  📚 <strong className="font-bold">Mata Kuliah:</strong> Pemrograman Web<br />
+                  📝 <strong className="font-bold">Tugas:</strong> Bikin REST API Next.js & Push GitHub<br />
+                  ⏰ <strong className="font-bold">Tenggat:</strong> Rabu, 28 Oktober 2026 (23:59 WITA)<br />
+                  📌 <strong className="font-bold">Ketentuan:</strong> Kerjakan berkelompok maks 3 orang<br />
+                  🔗 <strong className="font-bold">LMS:</strong> E-Learning Undiksha
+                </p>
+                <p>
+                  Tugas telah tersimpan di kalender kelas dan disiarkan.<br />
+                  👉 Cek jadwal: <Link href="/jadwal-tugas-ilkom-b" className="text-primary hover:underline font-mono">https://jobdexin.sumestawsome.xyz/jadwal-tugas-ilkom-b</Link>
+                </p>
+
+                <div className="flex justify-end pt-1">
+                  <span className="text-[10px] text-zinc-400 font-mono">11:20</span>
                 </div>
               </div>
             </div>
@@ -507,7 +685,28 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
 
             {/* Chat 4: User memanggil !tugas mepet */}
             <div className="flex flex-col items-end w-full">
-              <div className="p-2 sm:px-3 sm:py-2 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none text-xs flex items-center gap-2">
+              <div
+                className="relative p-2 sm:px-3 sm:py-2 rounded-none border border-lime-400 dark:border-lime-700 bg-lime-100 dark:bg-lime-950/40 text-zinc-900 dark:text-zinc-100 shadow-none text-xs flex items-center gap-2 cursor-default"
+                onMouseMove={(e) =>
+                  handleBubbleMouseMove(
+                    "user_mepet",
+                    "🚨 Perintah Mepet: Siapa saja di grup kelas bisa memanggil !tugas mepet untuk melihat daftar tugas yang harus selesai dalam ≤ 3 hari.",
+                    e
+                  )
+                }
+                onMouseLeave={handleBubbleMouseLeave}
+              >
+                {activeTooltip?.id === "user_mepet" && (
+                  <div
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
+                    style={{
+                      left: Math.max(10, Math.min(activeTooltip.x - 40, 200)),
+                      top: Math.max(-65, activeTooltip.y - 70),
+                    }}
+                  >
+                    {activeTooltip.text}
+                  </div>
+                )}
                 <span>!tugas mepet</span>
                 <div className="flex items-center gap-1 text-[10px] text-zinc-500 font-mono ml-2">
                   <span>14:21</span>
@@ -518,7 +717,28 @@ export function WhatsAppChatSimulator({ activeScenario, onScenarioChange }: Prop
 
             {/* Chat 5: Jawaban Bot AI */}
             <div className="flex flex-col items-start max-w-md sm:max-w-lg">
-              <div className="p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2.5 w-full leading-relaxed">
+              <div
+                className="relative p-3.5 rounded-none border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none text-xs space-y-2.5 w-full leading-relaxed"
+                onMouseMove={(e) =>
+                  handleBubbleMouseMove(
+                    "bot_mepet",
+                    "📋 Rekap Bersih: Bot menampilkan daftar tugas mendesak secara rapi tanpa perlu membuka browser atau login ke portal.",
+                    e
+                  )
+                }
+                onMouseLeave={handleBubbleMouseLeave}
+              >
+                {activeTooltip?.id === "bot_mepet" && (
+                  <div
+                    className="absolute z-50 pointer-events-none p-2 rounded-none bg-zinc-900 dark:bg-black text-white text-[11px] leading-tight border border-zinc-700 shadow-none max-w-[280px] animate-in fade-in duration-100"
+                    style={{
+                      left: Math.max(10, Math.min(activeTooltip.x - 40, 220)),
+                      top: Math.max(-65, activeTooltip.y - 70),
+                    }}
+                  >
+                    {activeTooltip.text}
+                  </div>
+                )}
                 <div className="space-y-1">
                   <p>
                     📋 <strong className="font-bold">DAFTAR TUGAS MEPEK ILKOM B (≤ 3 HARI)</strong> 🚨<br />

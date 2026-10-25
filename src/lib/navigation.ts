@@ -73,6 +73,11 @@ export const dashboardNavigation: DashboardNavConfig[] = [
     href: "/dashboard/settings/workspaces",
     visible: (profile) => isSuperAdmin(profile),
   },
+  {
+    label: "Dokumentasi",
+    href: "/docs",
+    visible: allUsers,
+  },
 ];
 
 export function getDashboardNavigation(
@@ -98,6 +103,10 @@ export function getDashboardNavigation(
       {
         label: "Profil",
         href: "/dashboard/profile",
+      },
+      {
+        label: "Dokumentasi",
+        href: "/docs",
       },
     ];
 
