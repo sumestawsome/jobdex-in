@@ -132,6 +132,12 @@ export interface Ormawa {
   whatsapp_discussion_group_id?: string;
   whatsapp_settings?: WorkspaceWhatsAppSettings;
   reminder_rules?: WorkspaceReminderRules;
+  authorized_admins?: {
+    admin_1?: ClassWorkspaceAdmin;
+    admin_2?: ClassWorkspaceAdmin;
+    super_admin?: ClassWorkspaceAdmin;
+    [key: string]: ClassWorkspaceAdmin | undefined;
+  };
   created_at?: unknown;
   updated_at?: unknown;
 }
@@ -159,6 +165,12 @@ export interface OrmawaInput {
   whatsapp_discussion_group_id?: string;
   whatsapp_settings?: WorkspaceWhatsAppSettings;
   reminder_rules?: WorkspaceReminderRules;
+  authorized_admins?: {
+    admin_1?: ClassWorkspaceAdmin;
+    admin_2?: ClassWorkspaceAdmin;
+    super_admin?: ClassWorkspaceAdmin;
+    [key: string]: ClassWorkspaceAdmin | undefined;
+  };
 }
 
 export interface ActiveWorkspace {
@@ -178,6 +190,12 @@ export interface ActiveWorkspace {
   whatsapp_group_id?: string;
   whatsapp_announcement_group_id?: string;
   whatsapp_discussion_group_id?: string;
+  authorized_admins?: {
+    admin_1?: ClassWorkspaceAdmin;
+    admin_2?: ClassWorkspaceAdmin;
+    super_admin?: ClassWorkspaceAdmin;
+    [key: string]: ClassWorkspaceAdmin | undefined;
+  };
 }
 
 export interface WorkspaceHierarchy {

@@ -1,5 +1,28 @@
 import { USER_ROLES } from "@/lib/roles";
 import type { Event, Task, UserProfile, UserRole } from "@/types";
+import type { ActiveWorkspace, ClassWorkspaceDoc } from "@/types/workspace";
+import { normalizeWhatsAppNumber } from "@/lib/whatsapp";
+import { DUMMY_ORMAWAS } from "@/lib/workspace-dummy-data";
+
+export type WorkspaceLike =
+  | ActiveWorkspace
+  | ClassWorkspaceDoc
+  | {
+      id?: string;
+      org_id?: string;
+      type?: string;
+      workspace_type?: string;
+      org_type?: string;
+      authorized_admins?: any;
+    }
+  | Record<string, any>
+  | string
+  | null;
+
+export function normalizePhoneNumber(phone?: string | null): string {
+  if (!phone) return "";
+  return normalizeWhatsAppNumber(String(phone));
+}
 
 function getRole(input: UserProfile | UserRole | null | undefined) {
   if (!input) {
@@ -25,32 +48,135 @@ export function isKoordinatorAcara(
   return getRole(input) === USER_ROLES.KOORDINATOR_ACARA;
 }
 
-export function isKorti(
-  input: UserProfile | UserRole | null | undefined,
-  workspaceId?: string,
-) {
-  if (!input) return false;
-  const role = getRole(input);
-  if (role === "korti" || role === "admin_komunitas") return true;
+function getWorkspaceId(workspace?: WorkspaceLike): string {
+  if (!workspace) return "";
+  if (typeof workspace === "string") return workspace;
+  const ws = workspace as unknown as Record<string, unknown>;
+  return String(ws.id || ws.org_id || "");
+}
+
+function getWorkspaceType(workspace?: WorkspaceLike): string {
+  if (!workspace || typeof workspace === "string") return "";
+  const ws = workspace as unknown as Record<string, unknown>;
+  return String(ws.type || ws.workspace_type || ws.org_type || "").toLowerCase();
+}
+
+function getAuthorizedAdmins(workspace?: WorkspaceLike): Record<string, any> | undefined {
+  if (!workspace || typeof workspace === "string") return undefined;
+  const ws = workspace as unknown as Record<string, unknown>;
+  return ws.authorized_admins as Record<string, any> | undefined;
+}
+
+/**
+ * Strict Class Community Admin RBAC validation.
+ * Pengguna HANYA dianggap Admin Komunitas Kelas jika:
+ * 1. Pengguna adalah `super_admin`, ATAU
+ * 2. `user.workspace_roles?.[workspace.id] === 'korti'`, ATAU
+ * 3. Nomor WhatsApp pengguna (`user.whatsapp_number` / `user.phone`) terdaftar di `workspace.authorized_admins.admin_1.phone` atau `admin_2.phone`.
+ *
+ * Jika nomor WhatsApp pengguna tidak cocok (seperti akun Sila), peran aktifnya di ruang kerja tersebut WAJIB dikunci ke `anggota` (read-only).
+ */
+export function isClassAdmin(
+  user: UserProfile | null | undefined,
+  workspace?: WorkspaceLike,
+): boolean {
+  if (!user) return false;
+
+  // 1. Super admin check
   if (
-    typeof input === "object" &&
-    input.email === "agus.sumerta@student.undiksha.ac.id" &&
-    (!workspaceId || workspaceId === "ws_ilkom_2024")
+    user.role === "super_admin" ||
+    (user as unknown as Record<string, unknown>).is_super_admin === true ||
+    (user as unknown as Record<string, unknown>).super_admin === true
   ) {
     return true;
   }
-  if (
-    typeof input === "object" &&
-    workspaceId &&
-    (input.workspace_roles?.[workspaceId] === "korti" ||
-      input.workspace_roles?.[workspaceId] === "admin_komunitas")
-  ) {
-    return true;
+
+  // Resolve workspace ID & authorized_admins
+  let workspaceId = getWorkspaceId(workspace);
+  let authorizedAdmins = getAuthorizedAdmins(workspace);
+
+  // Fallback to dummy ormawas if authorized_admins is not provided directly
+  if (!authorizedAdmins && workspaceId) {
+    const matchedDummy = DUMMY_ORMAWAS.find((o) => o.id === workspaceId);
+    if (matchedDummy && (matchedDummy as unknown as Record<string, unknown>).authorized_admins) {
+      authorizedAdmins = (matchedDummy as unknown as Record<string, unknown>).authorized_admins as Record<string, any>;
+    }
   }
+
+  // Default fallback to ws_ilkom_2024 dummy data if workspace not specified or matches ws_ilkom_2024
+  if (!authorizedAdmins && (!workspaceId || workspaceId === "ws_ilkom_2024")) {
+    const ilkomDummy = DUMMY_ORMAWAS.find((o) => o.id === "ws_ilkom_2024");
+    if (ilkomDummy && (ilkomDummy as unknown as Record<string, unknown>).authorized_admins) {
+      authorizedAdmins = (ilkomDummy as unknown as Record<string, unknown>).authorized_admins as Record<string, any>;
+    }
+  }
+
+  // 2. Check user.workspace_roles?.[workspace.id] === 'korti'
+  if (workspaceId && user.workspace_roles) {
+    const assignedRole = user.workspace_roles[workspaceId];
+    if (assignedRole === "korti" || assignedRole === "admin_komunitas") {
+      return true;
+    }
+  }
+
+  // 3. Check WhatsApp number against authorized_admins (admin_1, admin_2, super_admin)
+  const rawUserPhone =
+    user.whatsapp_number ||
+    (user as unknown as Record<string, unknown>).phone ||
+    (user as unknown as Record<string, unknown>).whatsappNumber;
+  const userPhone = normalizePhoneNumber(rawUserPhone as string | undefined);
+
+  if (userPhone && authorizedAdmins) {
+    const admin1Phone = normalizePhoneNumber(authorizedAdmins.admin_1?.phone);
+    const admin2Phone = normalizePhoneNumber(authorizedAdmins.admin_2?.phone);
+    const superAdminPhone = normalizePhoneNumber(authorizedAdmins.super_admin?.phone);
+
+    if (
+      (admin1Phone && userPhone === admin1Phone) ||
+      (admin2Phone && userPhone === admin2Phone) ||
+      (superAdminPhone && userPhone === superAdminPhone)
+    ) {
+      return true;
+    }
+  }
+
   return false;
 }
 
+export function isKorti(
+  input: UserProfile | UserRole | null | undefined,
+  workspace?: WorkspaceLike,
+) {
+  if (!input) return false;
+  if (typeof input === "string") {
+    return input === "korti" || input === "admin_komunitas" || input === "super_admin";
+  }
+  return isClassAdmin(input, workspace);
+}
+
 export const isAdminKomunitas = isKorti;
+
+export function getEffectiveWorkspaceRole(
+  user: UserProfile | null | undefined,
+  workspace?: WorkspaceLike,
+): string {
+  if (!user) return "anggota";
+  if (user.role === "super_admin") return "super_admin";
+
+  const wsId = getWorkspaceId(workspace);
+  const rawType = getWorkspaceType(workspace);
+  const isClass = rawType === "kelas" || wsId === "ws_ilkom_2024" || wsId.startsWith("ws_kelas_");
+
+  if (isClass) {
+    return isClassAdmin(user, workspace || wsId) ? "korti" : "anggota";
+  }
+
+  if (wsId && user.workspace_roles?.[wsId]) {
+    return user.workspace_roles[wsId];
+  }
+
+  return user.role || "anggota";
+}
 
 export function isKoordinator(
   input: UserProfile | UserRole | null | undefined,
@@ -108,31 +234,40 @@ export function canCreateTask(
   profile: UserProfile | UserRole | null | undefined,
   eventRole?: string,
   workspaceId?: string,
+  workspace?: WorkspaceLike,
 ) {
   if (!profile) return false;
   const role = getRole(profile);
+
+  if (role === "super_admin") return true;
+
+  const targetWs = workspace || (workspaceId ? { id: workspaceId, org_id: workspaceId } : undefined);
+  const targetWsId = workspaceId || getWorkspaceId(workspace);
+  const rawType = getWorkspaceType(workspace);
+
+  const isClass =
+    targetWsId === "ws_ilkom_2024" ||
+    targetWsId.startsWith("ws_kelas_") ||
+    rawType === "kelas";
+
+  if (isClass) {
+    if (typeof profile === "object") {
+      return isClassAdmin(profile, targetWs || targetWsId);
+    }
+    return role === "korti" || role === "admin_komunitas";
+  }
+
+  if (
+    typeof profile === "object" &&
+    targetWsId &&
+    (profile.workspace_roles?.[targetWsId] === "super_admin" ||
+      profile.workspace_roles?.[targetWsId] === "koordinator_divisi" ||
+      profile.workspace_roles?.[targetWsId] === "koordinator_acara")
+  ) {
+    return true;
+  }
+
   const normalizedRole = eventRole?.toLowerCase().replace(/\s+/g, "_");
-
-  if (role === "super_admin" || role === "korti" || role === "admin_komunitas") return true;
-
-  if (
-    typeof profile === "object" &&
-    profile.email === "agus.sumerta@student.undiksha.ac.id" &&
-    (!workspaceId || workspaceId === "ws_ilkom_2024")
-  ) {
-    return true;
-  }
-
-  if (
-    typeof profile === "object" &&
-    workspaceId &&
-    (profile.workspace_roles?.[workspaceId] === "korti" ||
-      profile.workspace_roles?.[workspaceId] === "admin_komunitas" ||
-      profile.workspace_roles?.[workspaceId] === "super_admin")
-  ) {
-    return true;
-  }
-
   if (normalizedRole === "koordinator_acara" || normalizedRole === "sekretaris_acara") {
     return true;
   }
@@ -148,6 +283,7 @@ export function canManageTask(
   profile: UserProfile | null | undefined,
   task: Task | null | undefined,
   eventRole?: string,
+  workspace?: WorkspaceLike,
 ) {
   if (!profile || !task) {
     return false;
@@ -159,18 +295,9 @@ export function canManageTask(
   if (role === "super_admin") return true;
 
   if (task.type === ("tugas_kuliah" as Task["type"])) {
-    if (role === "korti" || role === "admin_komunitas") return true;
-    if (profile.email === "agus.sumerta@student.undiksha.ac.id") return true;
+    const taskWs = workspace || task.workspace_id || task.org_id || task.organization_id;
+    if (isClassAdmin(profile, taskWs)) return true;
     if (task.coordinator_id === profile.id || task.created_by === profile.id) return true;
-    const taskWs = task.workspace_id || task.org_id || task.organization_id;
-    if (
-      taskWs &&
-      (profile.workspace_roles?.[taskWs] === "korti" ||
-        profile.workspace_roles?.[taskWs] === "admin_komunitas" ||
-        profile.workspace_roles?.[taskWs] === "super_admin")
-    ) {
-      return true;
-    }
     return false;
   }
 

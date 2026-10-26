@@ -23,6 +23,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { ActiveWorkspaceBanner } from "@/components/workspace/active-workspace-banner";
+import { isClassAdmin, canCreateTask } from "@/lib/permissions";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,11 @@ function formatIndonesianDate(): string {
 export function RoleDashboardContent() {
   const { userProfile } = useAuth();
   const { activeWorkspace, isClassWorkspace } = useWorkspace();
+
+  const canCreateInWorkspace = isClassWorkspace
+    ? isClassAdmin(userProfile, activeWorkspace)
+    : canCreateTask(userProfile, undefined, activeWorkspace.org_id, activeWorkspace);
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -485,8 +491,8 @@ export function RoleDashboardContent() {
             </button>
           )}
 
-          {/* Tombol Input Tugas via Suara Khusus Mode Kelas */}
-          {isClassWorkspace && (
+          {/* Tombol Input Tugas via Suara Khusus Mode Kelas (Hanya untuk Admin Komunitas Kelas) */}
+          {isClassWorkspace && canCreateInWorkspace && (
             <Link
               href="/dashboard/tasks?voice=1"
               title="Input Tugas via Suara"
@@ -497,14 +503,16 @@ export function RoleDashboardContent() {
             </Link>
           )}
 
-          {/* Tombol Tambah Tugas / Job Desk Baru (Bersih dari simbol dobel) */}
-          <Link
-            href="/dashboard/tasks"
-            className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-none bg-primary hover:bg-primary-hover text-primary-foreground shadow-none transition-colors active:translate-y-px"
-          >
-            <Plus className="size-3.5" />
-            <span>{isClassWorkspace ? "Tambah Tugas" : "Buat Job Desk Baru"}</span>
-          </Link>
+          {/* Tombol Tambah Tugas / Job Desk Baru (Hanya jika memiliki hak akses buat tugas) */}
+          {canCreateInWorkspace && (
+            <Link
+              href="/dashboard/tasks"
+              className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-none bg-primary hover:bg-primary-hover text-primary-foreground shadow-none transition-colors active:translate-y-px"
+            >
+              <Plus className="size-3.5" />
+              <span>{isClassWorkspace ? "Tambah Tugas" : "Buat Job Desk Baru"}</span>
+            </Link>
+          )}
         </div>
       </header>
 

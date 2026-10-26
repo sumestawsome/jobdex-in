@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { USER_ROLE_LABELS } from "@/lib/roles";
+import { isClassAdmin } from "@/lib/permissions";
 import { getDivisions } from "@/lib/firebase/divisions";
 import { updateMember } from "@/lib/firebase/members";
 import { auth, db } from "@/lib/firebase/client";
@@ -450,10 +451,17 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-none shadow-none bg-teal-600 text-white dark:bg-teal-500">
-                    <Shield className="size-3.5" />
-                    <span>Admin Komunitas • ILKOM 24</span>
-                  </span>
+                  {isClassAdmin(userProfile, activeWorkspace) ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-none shadow-none bg-primary text-primary-foreground border border-primary/20">
+                      <Shield className="size-3.5" />
+                      <span>Admin Komunitas • {activeWorkspace.org_name || "Kelas"}</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-none shadow-none bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                      <User className="size-3.5 text-zinc-500 dark:text-zinc-400" />
+                      <span>Anggota Kelas • {activeWorkspace.org_name || "Kelas"}</span>
+                    </span>
+                  )}
                 </div>
               )}
             </div>

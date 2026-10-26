@@ -51,6 +51,23 @@ export const DUMMY_ORMAWAS: Ormawa[] = [
       urgent_threshold_days: 3,
       cron_hour_wita: 12,
     },
+    authorized_admins: {
+      admin_1: {
+        phone: "6285119459703",
+        name: "Sumesta C (Korti)",
+        allow_voice_note_dm: true,
+      },
+      admin_2: {
+        phone: "628814878194",
+        name: "Made Darma Tanaya (Wakil Korti)",
+        allow_voice_note_dm: true,
+      },
+      super_admin: {
+        phone: "6285119459703",
+        name: "Putu Agus Sumerta Yasa",
+        allow_voice_note_dm: false,
+      },
+    },
   },
 ];
 

@@ -29,7 +29,7 @@ import {
   getTaskDateInputValue,
   updateTask,
 } from "@/lib/firebase/tasks";
-import { canCreateTask, canManageTask } from "@/lib/permissions";
+import { canCreateTask, canManageTask, isClassAdmin } from "@/lib/permissions";
 import type { Division, Event, Task, TaskInput, TaskPriority, TaskStatus, TaskType, UserProfile } from "@/types";
 import { showConfirm, showSuccess, showError } from "@/lib/swal";
 import { db } from "@/lib/firebase/client";
@@ -38,6 +38,11 @@ import { doc, getDoc } from "firebase/firestore";
 export default function TasksPage() {
   const { user, userProfile } = useAuth();
   const { activeWorkspace, activeCampus, activeOrmawa, isClassWorkspace } = useWorkspace();
+
+  const canCreate = isClassWorkspace
+    ? isClassAdmin(userProfile, activeWorkspace)
+    : canCreateTask(userProfile, undefined, activeWorkspace.org_id, activeWorkspace);
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -92,13 +97,13 @@ export default function TasksPage() {
   const [autoFocusField, setAutoFocusField] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && userProfile) {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("voice") === "1") {
+      if (params.get("voice") === "1" && canCreate) {
         setVoiceDialogOpen(true);
       }
     }
-  }, []);
+  }, [userProfile, canCreate]);
 
   const handleVoiceTaskExtracted = (data: ExtractedVoiceTaskData) => {
     setSelectedTask(null);
@@ -451,8 +456,6 @@ export default function TasksPage() {
     return null;
   }
 
-  const canCreate = canCreateTask(userProfile);
-
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full pb-16">
       {/* ── Active Workspace Isolation Banner (Sembunyi di mode kelas) ── */}
@@ -600,7 +603,7 @@ export default function TasksPage() {
           tasks={filteredTasks}
           usersById={usersById}
           eventsById={eventsById}
-          canEdit={(task) => canManageTask(userProfile, task, task.event_id ? userEventRoles.get(task.event_id) : undefined)}
+          canEdit={(task) => canManageTask(userProfile, task, task.event_id ? userEventRoles.get(task.event_id) : undefined, activeWorkspace)}
           onEdit={(task) => {
             setSelectedTask(task);
             setFormOpen(true);
@@ -612,7 +615,7 @@ export default function TasksPage() {
           tasks={filteredTasks}
           usersById={usersById}
           eventsById={eventsById}
-          canEdit={(task) => canManageTask(userProfile, task, task.event_id ? userEventRoles.get(task.event_id) : undefined)}
+          canEdit={(task) => canManageTask(userProfile, task, task.event_id ? userEventRoles.get(task.event_id) : undefined, activeWorkspace)}
           onEdit={(task) => {
             setSelectedTask(task);
             setFormOpen(true);
@@ -639,11 +642,13 @@ export default function TasksPage() {
         onSave={handleSaveTask}
       />
 
-      <VoiceTaskDialog
-        open={voiceDialogOpen}
-        onClose={() => setVoiceDialogOpen(false)}
-        onTaskExtracted={handleVoiceTaskExtracted}
-      />
+      {canCreate && (
+        <VoiceTaskDialog
+          open={voiceDialogOpen}
+          onClose={() => setVoiceDialogOpen(false)}
+          onTaskExtracted={handleVoiceTaskExtracted}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import type { Campus, Ormawa, ActiveWorkspace } from "@/types/workspace";
+import type { UserProfile } from "@/types";
+import { isClassAdmin, getEffectiveWorkspaceRole } from "@/lib/permissions";
 import {
   DUMMY_CAMPUSES,
   DUMMY_ORMAWAS,
@@ -50,6 +52,8 @@ export interface WorkspaceContextType {
   selectWorkspace: (campusId: string, orgId: string) => boolean;
   getOrmawasByCampus: (campusId: string) => Ormawa[];
   resetWorkspace: () => void;
+  isClassAdminUser: (user?: UserProfile | null) => boolean;
+  getEffectiveRole: (user?: UserProfile | null) => string;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -64,8 +68,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const parsed = JSON.parse(stored) as ActiveWorkspace;
         const campusExists = DUMMY_CAMPUSES.some((c) => c.id === parsed.campus_id);
-        const ormawaExists = DUMMY_ORMAWAS.some((o) => o.id === parsed.org_id);
-        if (campusExists && ormawaExists) {
+        const ormawaObj = DUMMY_ORMAWAS.find((o) => o.id === parsed.org_id);
+        if (campusExists && ormawaObj) {
+          if (!parsed.authorized_admins && (ormawaObj as unknown as Record<string, unknown>).authorized_admins) {
+            parsed.authorized_admins = (ormawaObj as unknown as Record<string, unknown>).authorized_admins as ActiveWorkspace["authorized_admins"];
+          }
           return parsed;
         }
       }
@@ -107,6 +114,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       whatsapp_group_id: ormawa.whatsapp_group_id,
       whatsapp_announcement_group_id: (ormawa as unknown as Record<string, unknown>).whatsapp_announcement_group_id as string | undefined || ormawa.whatsapp_group_id,
       whatsapp_discussion_group_id: (ormawa as unknown as Record<string, unknown>).whatsapp_discussion_group_id as string | undefined,
+      authorized_admins: (ormawa as unknown as Record<string, unknown>).authorized_admins as ActiveWorkspace["authorized_admins"],
     };
 
     setActiveWorkspace(newWorkspace);
@@ -148,6 +156,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return getDummyEventsForWorkspace(activeWorkspace);
   }, [activeWorkspace]);
 
+  const isClassAdminUser = useCallback(
+    (user?: UserProfile | null) => {
+      return isClassAdmin(user, activeWorkspace);
+    },
+    [activeWorkspace]
+  );
+
+  const getEffectiveRole = useCallback(
+    (user?: UserProfile | null) => {
+      return getEffectiveWorkspaceRole(user, activeWorkspace);
+    },
+    [activeWorkspace]
+  );
+
   const value = useMemo<WorkspaceContextType>(
     () => ({
       activeWorkspace,
@@ -162,6 +184,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       selectWorkspace,
       getOrmawasByCampus,
       resetWorkspace,
+      isClassAdminUser,
+      getEffectiveRole,
     }),
     [
       activeWorkspace,
@@ -173,6 +197,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       selectWorkspace,
       getOrmawasByCampus,
       resetWorkspace,
+      isClassAdminUser,
+      getEffectiveRole,
     ]
   );
 

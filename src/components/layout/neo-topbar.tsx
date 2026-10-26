@@ -8,6 +8,7 @@ import { logoutUser } from "@/lib/firebase/auth";
 import { showSuccess } from "@/lib/swal";
 import { useTheme } from "@/components/theme/theme-provider";
 import { USER_ROLE_LABELS } from "@/lib/roles";
+import { isClassAdmin } from "@/lib/permissions";
 import { Sun, Moon, LogOut, User, Home, ChevronDown, Menu, AlertTriangle, GraduationCap } from "lucide-react";
 import { subscribeWhatsAppSystemSettings } from "@/lib/firebase/system-settings";
 import type { WhatsAppSystemSettings } from "@/types";
@@ -76,9 +77,7 @@ export function NeoTopbar(props: {
   const isDark = theme === "dark";
   const pageTitle = getPageTitle(pathname, isClassWorkspace);
   const effectiveRoleLabel = isClassWorkspace
-    ? userProfile?.workspace_roles?.[activeWorkspace.org_id] === "admin_komunitas" ||
-      userProfile?.role === "admin_komunitas" ||
-      userProfile?.email === "agus.sumerta@student.undiksha.ac.id"
+    ? isClassAdmin(userProfile, activeWorkspace)
       ? "Admin Komunitas"
       : "Anggota Kelas"
     : userProfile?.role
