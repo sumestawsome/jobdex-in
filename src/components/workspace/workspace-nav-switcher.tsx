@@ -12,16 +12,21 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useAuth } from "@/hooks/use-auth";
+import { isClassWorkspacePermitted } from "@/lib/permissions";
 import type { Campus, Ormawa } from "@/types/workspace";
 
 export function WorkspaceNavSwitcher() {
+  const { userProfile } = useAuth();
   const {
     activeWorkspace,
     activeCampus,
     activeOrmawa,
     campuses,
+    isClassWorkspace,
     getOrmawasByCampus,
     selectWorkspace,
+    resetWorkspace,
   } = useWorkspace();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -69,7 +74,21 @@ export function WorkspaceNavSwitcher() {
     };
   }, [isOpen]);
 
-  const availableOrmawas = getOrmawasByCampus(tempSelectedCampus.id);
+  // If user is currently in a class workspace without legitimate access, revert to default
+  useEffect(() => {
+    if (
+      userProfile &&
+      isClassWorkspace &&
+      !isClassWorkspacePermitted(userProfile, activeWorkspace)
+    ) {
+      resetWorkspace();
+    }
+  }, [userProfile, isClassWorkspace, activeWorkspace, resetWorkspace]);
+
+  const availableOrmawas = getOrmawasByCampus(tempSelectedCampus.id).filter((o) =>
+    isClassWorkspacePermitted(userProfile, o)
+  );
+
   const filteredOrmawas = availableOrmawas.filter((o) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
@@ -87,6 +106,9 @@ export function WorkspaceNavSwitcher() {
   };
 
   const handleSelectOrmawa = (ormawa: Ormawa) => {
+    if (!isClassWorkspacePermitted(userProfile, ormawa)) {
+      return;
+    }
     selectWorkspace(tempSelectedCampus.id, ormawa.id);
     setIsOpen(false);
   };

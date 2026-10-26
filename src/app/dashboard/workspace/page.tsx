@@ -17,6 +17,8 @@ import {
 import { DUMMY_CAMPUSES } from "@/lib/workspace-dummy-data";
 import type { OrmawaType } from "@/types/workspace";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useAuth } from "@/hooks/use-auth";
+import { isClassWorkspacePermitted, isClassAdmin } from "@/lib/permissions";
 
 export interface UserWorkspaceItem {
   id: string;
@@ -59,6 +61,7 @@ const INITIAL_USER_WORKSPACES: UserWorkspaceItem[] = [
 ];
 
 export default function WorkspaceManagementPage() {
+  const { userProfile } = useAuth();
   const { activeWorkspace, setActiveWorkspace, selectWorkspace, campuses } = useWorkspace();
 
   const [workspaceList] = useState<UserWorkspaceItem[]>(INITIAL_USER_WORKSPACES);
@@ -68,9 +71,21 @@ export default function WorkspaceManagementPage() {
 
   const allCampuses = campuses.length > 0 ? campuses : DUMMY_CAMPUSES;
 
+  const permittedWorkspaces = useMemo(() => {
+    return workspaceList
+      .filter((w) => isClassWorkspacePermitted(userProfile, w))
+      .map((w) => {
+        if (w.type === "KELAS") {
+          const roleLabel = isClassAdmin(userProfile, w) ? "Admin Komunitas" : "Anggota Kelas";
+          return { ...w, role: roleLabel };
+        }
+        return w;
+      });
+  }, [workspaceList, userProfile]);
+
   // Active workspace detail card
   const currentWorkspaceItem = useMemo(() => {
-    const found = workspaceList.find(
+    const found = permittedWorkspaces.find(
       (w) => w.id === activeWorkspace.org_id || w.name.toLowerCase() === activeWorkspace.org_name.toLowerCase()
     );
     if (found) return found;
@@ -93,11 +108,11 @@ export default function WorkspaceManagementPage() {
       activeTasks: 4,
       totalMembers: 48,
     };
-  }, [workspaceList, activeWorkspace]);
+  }, [permittedWorkspaces, activeWorkspace]);
 
   // Filtered list of workspaces
   const filteredWorkspaces = useMemo(() => {
-    return workspaceList.filter((item) => {
+    return permittedWorkspaces.filter((item) => {
       const matchesSearch =
         searchQuery.trim() === "" ||
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,10 +126,15 @@ export default function WorkspaceManagementPage() {
 
       return matchesSearch && matchesRole;
     });
-  }, [workspaceList, searchQuery, roleFilter]);
+  }, [permittedWorkspaces, searchQuery, roleFilter]);
 
   // Handler switch workspace
   const handleSwitchWorkspace = (workspace: UserWorkspaceItem) => {
+    if (!isClassWorkspacePermitted(userProfile, workspace)) {
+      setToastMessage("Anda tidak memiliki izin untuk mengakses ruang kerja kelas ini.");
+      return;
+    }
+
     const matchedCampus = allCampuses.find(
       (c) => c.id === workspace.campusId || c.code.toLowerCase() === workspace.campusCode.toLowerCase()
     ) || allCampuses[0];

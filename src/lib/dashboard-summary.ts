@@ -289,6 +289,42 @@ export async function getDashboardSummary(
     } satisfies DashboardSummary;
   }
 
+  const isClassWorkspace =
+    targetOrgId === "ws_ilkom_2024" ||
+    Boolean(targetOrgId?.startsWith("ws_kelas_"));
+
+  if (isClassWorkspace) {
+    const rawTasks = await safeDocs("tasks");
+    const classTaskDocs = rawTasks.filter(matchesTenant);
+
+    return {
+      title: "Ringkasan tugas kelas",
+      description: "Pantauan jadwal dan batas pengumpulan tugas kuliah kelas.",
+      items: [
+        {
+          label: "Total tugas kelas",
+          value: classTaskDocs.length,
+          description: "Tugas aktif",
+        },
+        {
+          label: "Belum selesai",
+          value: classTaskDocs.filter((t) => t.status !== "approved" && t.status !== "selesai").length,
+          description: "Perlu dikerjakan",
+        },
+        {
+          label: "Sedang dikerjakan",
+          value: countWhere(classTaskDocs, "status", "sedang_dikerjakan"),
+          description: "Sedang proses",
+        },
+        {
+          label: "Selesai",
+          value: classTaskDocs.filter((t) => t.status === "approved" || t.status === "selesai").length,
+          description: "Tugas selesai",
+        },
+      ],
+    } satisfies DashboardSummary;
+  }
+
   const rawTasks = await safeDocsByField("tasks", "pic_id", profile.id);
   const myTaskDocs = rawTasks.filter(matchesTenant);
 

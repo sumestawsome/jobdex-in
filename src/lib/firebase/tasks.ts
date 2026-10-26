@@ -46,15 +46,28 @@ export async function getTasksForProfile(
   workspaceFilter?: { org_id?: string; campus_id?: string },
   includeArchived: boolean = false
 ) {
+  const targetOrgId = workspaceFilter?.org_id || profile.organization_id || profile.org_id;
+  const targetCampusId = workspaceFilter?.campus_id || profile.campus_id || profile.univ_id;
+
+  const isClassWorkspace =
+    targetOrgId === "ws_ilkom_2024" ||
+    Boolean(targetOrgId?.startsWith("ws_kelas_"));
+
+  // In class workspaces, tasks are collective (class-wide), so we don't filter by pic_id
+  const canViewAll =
+    isSuperAdmin(profile) ||
+    isKoordinatorDivisi(profile) ||
+    isClassWorkspace;
+
   const tasksRef = collection(db, "tasks");
   const tasksQuery =
     includeArchived
-      ? (isSuperAdmin(profile) || isKoordinatorDivisi(profile)
+      ? (canViewAll
           ? query(tasksRef)
           : isKoordinatorAcara(profile)
             ? query(tasksRef, where("coordinator_id", "==", profile.id))
             : query(tasksRef, where("pic_id", "==", profile.id)))
-      : (isSuperAdmin(profile) || isKoordinatorDivisi(profile)
+      : (canViewAll
           ? query(tasksRef, where("is_archived", "==", false))
           : isKoordinatorAcara(profile)
             ? query(tasksRef, where("coordinator_id", "==", profile.id))
@@ -65,9 +78,6 @@ export async function getTasksForProfile(
     id: item.id,
     ...item.data(),
   })) as Task[];
-
-  const targetOrgId = workspaceFilter?.org_id || profile.organization_id || profile.org_id;
-  const targetCampusId = workspaceFilter?.campus_id || profile.campus_id || profile.univ_id;
 
   const filteredTasks = rawTasks.filter((task) => {
     if (!includeArchived && task.is_archived) return false;

@@ -136,10 +136,15 @@ export async function getDashboardData(
   workspaceFilter?: { org_id?: string; campus_id?: string }
 ): Promise<DashboardData> {
   const role = profile.role;
-  const isStaff = role === "super_admin" || role === "koordinator_divisi";
-
   const targetOrgId = workspaceFilter?.org_id || profile.organization_id || profile.org_id;
   const targetCampusId = workspaceFilter?.campus_id || profile.campus_id || profile.univ_id;
+
+  const isClassWorkspace =
+    targetOrgId === "ws_ilkom_2024" ||
+    Boolean(targetOrgId?.startsWith("ws_kelas_"));
+
+  // In class workspace, tasks are collective (class-wide), so all members view all tasks
+  const isStaff = role === "super_admin" || role === "koordinator_divisi" || isClassWorkspace;
 
   const matchesTenant = (item: Record<string, unknown>): boolean => {
     if (targetOrgId) {
@@ -182,10 +187,12 @@ export async function getDashboardData(
     tasks = tasks.filter((t) => matchesTenant(t as unknown as Record<string, unknown>));
     allEvents = allEvents.filter((e) => matchesTenant(e as unknown as Record<string, unknown>));
 
-    if (role === "koordinator_divisi" && profile.division_id) {
-      tasks = tasks.filter((t) => t.division_id === profile.division_id);
-    } else if (role === "super_admin" && filterDivisionId && filterDivisionId !== "all") {
-      tasks = tasks.filter((t) => t.division_id === filterDivisionId);
+    if (!isClassWorkspace) {
+      if (role === "koordinator_divisi" && profile.division_id) {
+        tasks = tasks.filter((t) => t.division_id === profile.division_id);
+      } else if (role === "super_admin" && filterDivisionId && filterDivisionId !== "all") {
+        tasks = tasks.filter((t) => t.division_id === filterDivisionId);
+      }
     }
   } else {
     // Non-staff (anggota)

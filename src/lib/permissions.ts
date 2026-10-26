@@ -381,3 +381,78 @@ export function formatEventRole(role?: string): string {
   return role;
 }
 
+/**
+ * Evaluates whether a user is allowed to access and view a class workspace.
+ * If workspace is NOT 'kelas', returns true.
+ * If workspace is 'kelas', returns true ONLY IF:
+ * 1. User is `super_admin`, OR
+ * 2. User is registered in `authorized_admins` of the class, OR
+ * 3. User has `workspace_roles[workspace.id]`.
+ * Otherwise returns false (e.g. Sila who is only member of Forkom KIP).
+ */
+export function isClassWorkspacePermitted(
+  user: UserProfile | null | undefined,
+  workspace?: WorkspaceLike,
+): boolean {
+  const wsId = getWorkspaceId(workspace);
+  const rawType = getWorkspaceType(workspace);
+  const isClass = rawType === "kelas" || wsId === "ws_ilkom_2024" || wsId.startsWith("ws_kelas_");
+
+  if (!isClass) {
+    return true;
+  }
+
+  if (!user) return false;
+
+  // 1. Super admin check
+  if (
+    user.role === "super_admin" ||
+    (user as unknown as Record<string, unknown>).is_super_admin === true ||
+    (user as unknown as Record<string, unknown>).super_admin === true
+  ) {
+    return true;
+  }
+
+  // 2. Authorized admins check (phone number)
+  const rawUserPhone =
+    user.whatsapp_number ||
+    (user as unknown as Record<string, unknown>).phone ||
+    (user as unknown as Record<string, unknown>).whatsappNumber;
+  const userPhone = normalizePhoneNumber(rawUserPhone as string | undefined);
+
+  let authorizedAdmins = getAuthorizedAdmins(workspace);
+  if (!authorizedAdmins && wsId) {
+    const matchedDummy = DUMMY_ORMAWAS.find((o) => o.id === wsId);
+    if (matchedDummy && (matchedDummy as unknown as Record<string, unknown>).authorized_admins) {
+      authorizedAdmins = (matchedDummy as unknown as Record<string, unknown>).authorized_admins as Record<string, any>;
+    }
+  }
+  if (!authorizedAdmins && (!wsId || wsId === "ws_ilkom_2024")) {
+    const ilkomDummy = DUMMY_ORMAWAS.find((o) => o.id === "ws_ilkom_2024");
+    if (ilkomDummy && (ilkomDummy as unknown as Record<string, unknown>).authorized_admins) {
+      authorizedAdmins = (ilkomDummy as unknown as Record<string, unknown>).authorized_admins as Record<string, any>;
+    }
+  }
+
+  if (userPhone && authorizedAdmins) {
+    const admin1 = normalizePhoneNumber(authorizedAdmins.admin_1?.phone);
+    const admin2 = normalizePhoneNumber(authorizedAdmins.admin_2?.phone);
+    const superAdmin = normalizePhoneNumber(authorizedAdmins.super_admin?.phone);
+
+    if (
+      (admin1 && userPhone === admin1) ||
+      (admin2 && userPhone === admin2) ||
+      (superAdmin && userPhone === superAdmin)
+    ) {
+      return true;
+    }
+  }
+
+  // 3. User has workspace_roles[workspace.id]
+  if (wsId && user.workspace_roles && user.workspace_roles[wsId]) {
+    return true;
+  }
+
+  return false;
+}
+
