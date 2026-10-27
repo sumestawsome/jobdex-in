@@ -5,7 +5,8 @@ import { getTaskDeadlineDiffDays, getRiskLevelFromTask } from "@/lib/task-risk";
 import type { Task, UserProfile, Event } from "@/types";
 import { sanitizePinFromMessage } from "./whatsapp-command-executor";
 import { WA_LABEL } from "@/lib/server/whatsapp-labels";
-import { resolveTaskNotificationTarget } from "@/lib/server/group-routing";
+import { resolveTaskNotificationTarget, isKnownClassGroupId } from "@/lib/server/group-routing";
+import { isAcademicClassTask } from "@/lib/server/academic-broadcast";
 
 export { getTaskDeadlineDiffDays };
 
@@ -668,12 +669,35 @@ export function buildDigestReminderMessage(
   digest: ReminderDigest,
   now = new Date(),
   maxTasks = 20,
+  targetContext?: {
+    targetGroupId?: string;
+    groupName?: string;
+    groupType?: string;
+    isOfficialOrmawaGroup?: boolean;
+  }
 ) {
   const dateText = formatIndonesianDate(now);
   const includedTaskIds = new Set<string>();
   let renderedCount = 0;
   let hasSevereOverdue = false;
   const taskLines: string[] = [];
+
+  // Determine dynamic greeting header
+  let greetingTitle = "Tim";
+  if (targetContext?.isOfficialOrmawaGroup) {
+    greetingTitle = "Forkom KIP";
+  } else if (targetContext?.groupName) {
+    greetingTitle = targetContext.groupName;
+  } else {
+    const firstOrg = digest.tasks[0]?.task.organization_id;
+    if (firstOrg === "org-undiksha-forkom-kip") {
+      greetingTitle = "Forkom KIP";
+    } else {
+      greetingTitle = "Tim";
+    }
+  }
+
+  const greetingHeader = `📢 *Halo rekan-rekan ${greetingTitle}!*`;
 
   for (const category of DIGEST_CATEGORY_ORDER) {
     const categoryTasks = digest.tasks.filter((item) =>
@@ -704,13 +728,34 @@ export function buildDigestReminderMessage(
         ? formatIndonesianDate(item.task.deadline)
         : "-";
       const statusText = getFriendlyStatusLabel(item.task.status);
-      const eventOrDivLabel = item.task.type === "acara" ? "Acara" : "Divisi";
-      const eventOrDivVal =
-        item.divisionOrEventName && item.divisionOrEventName !== "-"
-          ? item.divisionOrEventName
-          : item.task.type === "acara"
-          ? "Acara Ormawa"
-          : "Humas dan Media Kreatif";
+
+      // Distinguish academic vs event vs division tasks cleanly
+      const isClassTask =
+        item.task.type === "tugas_kuliah" ||
+        (item.task as unknown as Record<string, unknown>).workspace_type === "kelas";
+
+      let eventOrDivLabel = "Divisi";
+      let eventOrDivVal = "Umum";
+
+      if (isClassTask) {
+        eventOrDivLabel = "Mata Kuliah";
+        eventOrDivVal =
+          (item.task as unknown as Record<string, unknown>).course_name as string ||
+          (item.task as unknown as Record<string, unknown>).subject_name as string ||
+          "Umum";
+      } else if (item.task.type === "acara") {
+        eventOrDivLabel = "Acara";
+        eventOrDivVal =
+          item.divisionOrEventName && item.divisionOrEventName !== "-"
+            ? item.divisionOrEventName
+            : "Acara Ormawa";
+      } else {
+        eventOrDivLabel = "Divisi";
+        eventOrDivVal =
+          item.divisionOrEventName && item.divisionOrEventName !== "-"
+            ? item.divisionOrEventName
+            : "Umum";
+      }
 
       // Kondisi 3 & 2: Cek apakah tugas telat parah (> 3 hari) atau berjalan normal
       const diffDays = item.diffDays;
@@ -750,7 +795,7 @@ export function buildDigestReminderMessage(
 
   if (taskLines.length === 0) {
     return [
-      `📢 *Halo rekan-rekan Forkom KIP!*`,
+      greetingHeader,
       `Tidak ada tugas yang mendesak atau perlu dicek per siang ini (${dateText}). Semua pengerjaan aman terkendali! 🎉`,
       ``,
       `👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
@@ -768,7 +813,7 @@ export function buildDigestReminderMessage(
     : `Yuk yang belum update atau mau nyetor draf, bisa langsung setor yaa. Semangat! 🔥`;
 
   return [
-    `📢 *Halo rekan-rekan Forkom KIP!*`,
+    greetingHeader,
     `Ini rekap tugas yang lagi jalan dan butuh dicek per siang ini (${dateText}):`,
     ``,
     taskLines.join("\n\n"),
@@ -1063,6 +1108,36 @@ export async function logWhatsAppDispatch(data: {
   return logRef.id;
 }
 
+/**
+ * Retrieves the dedicated WhatsApp group ID for the Ormawa workspace from Firestore.
+ * Ensures that class group IDs are never returned as an Ormawa dedicated group.
+ */
+export async function getDedicatedOrmawaGroupId(
+  db: FirebaseFirestore.Firestore
+): Promise<string | null> {
+  try {
+    const wsDoc = await db.collection("workspaces").doc("main_org").get();
+    if (wsDoc.exists) {
+      const d = wsDoc.data();
+      const g = d?.whatsapp_group_id || d?.whatsapp_settings?.group_id;
+      if (typeof g === "string" && g.trim() && !isKnownClassGroupId(g.trim())) {
+        return g.trim();
+      }
+    }
+    const snap = await db.collection("workspaces").where("workspace_type", "==", "ormawa").get();
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      const g = d?.whatsapp_group_id || d?.whatsapp_settings?.group_id;
+      if (typeof g === "string" && g.trim() && !isKnownClassGroupId(g.trim())) {
+        return g.trim();
+      }
+    }
+  } catch (err) {
+    console.warn("[DeadlineReminders] Error checking dedicated ormawa group:", err);
+  }
+  return null;
+}
+
 export async function processSmartFollowupReminders(
   sendWhatsAppMessage: (payload: {
     target: string;
@@ -1106,7 +1181,12 @@ export async function processSmartFollowupReminders(
   
   for (const doc of tasksSnap.docs) {
     const task = { id: doc.id, ...doc.data() } as Task;
-    if (task.status === "approved") continue;
+    if (task.status === "approved" || task.status === ("selesai" as unknown as typeof task.status)) continue;
+
+    // Strict Ormawa isolation: smart follow-up reminders are strictly for Ormawa tasks (divisi & acara)
+    if (task.type === "tugas_kuliah" || isAcademicClassTask(task) || (task.type !== "divisi" && task.type !== "acara")) {
+      continue;
+    }
 
     const taskTitle =
       task.name || (task as { title?: string }).title || "Tugas Tanpa Judul";
@@ -1124,6 +1204,11 @@ export async function processSmartFollowupReminders(
       eventsCache,
       divisionsMap,
     );
+
+    // Prevent escalations from ever targeting known class groups
+    if (target?.recipient && isKnownClassGroupId(target.recipient)) {
+      continue;
+    }
     const targetGroupId =
       target?.targetType === "personal" ? "" : target?.recipient || "";
 

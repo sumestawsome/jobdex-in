@@ -11,16 +11,17 @@ import {
   buildReminderDigest,
   checkDigestAlreadySentToday,
   createTaskReminderDigestLog,
+  getDedicatedOrmawaGroupId,
   getDigestDateKey,
   getTaskIdsAlreadyInDigestToday,
   logWhatsAppDigestDispatch,
   normalizeMentionPhone,
   processSmartFollowupReminders,
 } from "@/lib/server/deadline-reminders";
-import { groupTasksByTarget } from "@/lib/server/group-routing";
+import { groupTasksByTarget, isKnownClassGroupId } from "@/lib/server/group-routing";
 import type { GroupRouteTarget } from "@/lib/server/group-routing";
 import type { ReminderDigest } from "@/lib/server/deadline-reminders";
-import { processAcademicCronReminders } from "@/lib/server/academic-broadcast";
+import { processAcademicCronReminders, isAcademicClassTask } from "@/lib/server/academic-broadcast";
 import type { Task, UserProfile, Event } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -89,7 +90,8 @@ async function handleCron(request: Request) {
   try {
     const tasksSnapshot = await db.collection("tasks").get();
     const checkedTasks = tasksSnapshot.size;
-    const activeTasks: Task[] = [];
+    const activeOrmawaTasks: Task[] = [];
+    let academicTasksCount = 0;
 
     tasksSnapshot.forEach((doc) => {
       const data = doc.data() as Partial<Task>;
@@ -104,8 +106,26 @@ async function handleCron(request: Request) {
         return;
       }
 
-      activeTasks.push({ id: doc.id, ...data } as Task);
+      // Filter out academic / class tasks completely from Ormawa handling
+      if (data.type === "tugas_kuliah" || isAcademicClassTask(data)) {
+        academicTasksCount++;
+        return;
+      }
+
+      // Only include valid Ormawa tasks (type 'divisi' or 'acara', and belonging to Ormawa)
+      if (data.type === "divisi" || data.type === "acara") {
+        const wsId = String(data.workspace_id || data.org_id || data.organization_id || "");
+        if (wsId === "ws_ilkom_2024" || wsId.startsWith("ws_kelas_")) {
+          academicTasksCount++;
+          return;
+        }
+
+        activeOrmawaTasks.push({ id: doc.id, ...data } as Task);
+      }
     });
+
+    // Check if Ormawa workspace has a dedicated WhatsApp group configured in the database
+    const dedicatedOrmawaGroupId = await getDedicatedOrmawaGroupId(db);
 
     const [usersSnapshot, eventsSnapshot, divisionsSnapshot] =
       await Promise.all([
@@ -148,15 +168,15 @@ async function handleCron(request: Request) {
       eventsCache.set(doc.id, { id: doc.id, ...doc.data() } as Event);
     });
 
-    // Group tasks using the routing helper
-    const taskGroups = await groupTasksByTarget(activeTasks, eventsCache, divisionsMap);
+    // Group Ormawa tasks using the routing helper
+    const taskGroups = await groupTasksByTarget(activeOrmawaTasks, eventsCache, divisionsMap);
 
     // Collect active events with a configured WhatsApp group that have no active tasks (Condition 1)
     const emptyEvents: Event[] = [];
     eventsCache.forEach((event) => {
       const isActive = event.status === "persiapan" || event.status === "berlangsung";
       const hasGroup = Boolean(event.whatsapp_group_id && event.whatsapp_group_id.trim());
-      const hasNoActiveTasks = !activeTasks.some((t) => t.event_id === event.id);
+      const hasNoActiveTasks = !activeOrmawaTasks.some((t) => t.event_id === event.id);
 
       if (isActive && hasGroup && hasNoActiveTasks) {
         emptyEvents.push(event);
@@ -178,14 +198,14 @@ async function handleCron(request: Request) {
           allActiveTasksForTest.push(...groupData.tasks);
         }
         taskGroups.clear();
-        if (allActiveTasksForTest.length > 0 || activeTasks.length > 0) {
+        if (allActiveTasksForTest.length > 0 || activeOrmawaTasks.length > 0) {
           taskGroups.set(targetGroupIdParam, {
             target: {
               groupId: targetGroupIdParam,
               groupType: "default_group",
               groupName: "Test Group Override",
             },
-            tasks: allActiveTasksForTest.length > 0 ? allActiveTasksForTest : activeTasks,
+            tasks: allActiveTasksForTest.length > 0 ? allActiveTasksForTest : activeOrmawaTasks,
           });
         }
       }
@@ -292,6 +312,46 @@ async function handleCron(request: Request) {
     const digestErrors: { target: string; reason: string }[] = [];
 
     const groupPromises = groupDigests.map(async ({ targetGroupId, target, digest }) => {
+      // Guard against sending Ormawa digest to class groups or fallback default groups without dedicated Ormawa group
+      if (!targetGroupIdParam) {
+        // 1. Never send Ormawa digests to a known class group
+        if (isKnownClassGroupId(targetGroupId)) {
+          groupResults.push({
+            targetGroupId,
+            groupName: target.groupName || "Grup Kelas Terisolasi",
+            taskCount: digest.taskIds.length,
+            newTaskCount: 0,
+            status: "skipped",
+            reason: "no_dedicated_ormawa_group",
+          });
+          return;
+        }
+
+        // 2. If target is default_group and Ormawa does not have a dedicated group configured in database: SKIP
+        if (target.groupType === "default_group" && !dedicatedOrmawaGroupId) {
+          groupResults.push({
+            targetGroupId,
+            groupName: target.groupName || "Ormawa Default Group",
+            taskCount: digest.taskIds.length,
+            newTaskCount: 0,
+            status: "skipped",
+            reason: "no_dedicated_ormawa_group",
+          });
+          await logWhatsAppDigestDispatch({
+            organizationId: digest.tasks[0]?.task.organization_id ?? "main_org",
+            recipient: targetGroupId,
+            messageContent: `[Digest Skipped: no_dedicated_ormawa_group for ${digest.taskIds.length} tasks]`,
+            status: "skipped",
+            taskIds: digest.taskIds,
+            categories: digest.categories,
+            mentionedPhones: digest.mentionedPhones,
+            errorMessage: "skipped: no_dedicated_ormawa_group",
+            provider: process.env.WHATSAPP_PROVIDER || "fonnte",
+          });
+          return;
+        }
+      }
+
       // Check anti-spam: tasks already sent today in this group (unless force is true)
       let newTaskIds = digest.taskIds;
       if (!force && !dryRun) {
@@ -315,7 +375,15 @@ async function handleCron(request: Request) {
         }
       }
 
-      const messageContent = buildDigestReminderMessage(digest);
+      const isOfficialOrmawa = Boolean(
+        dedicatedOrmawaGroupId && targetGroupId === dedicatedOrmawaGroupId
+      );
+      const messageContent = buildDigestReminderMessage(digest, new Date(), 20, {
+        targetGroupId,
+        groupName: target.groupName,
+        groupType: target.groupType,
+        isOfficialOrmawaGroup: isOfficialOrmawa,
+      });
 
       // Dry-Run Mode
       if (dryRun) {
@@ -715,9 +783,9 @@ async function handleCron(request: Request) {
 
     await Promise.allSettled([...groupPromises, ...emptyEventPromises]);
 
-    // 5. Process Academic / Class Task Reminders (Skenario 2: H-5, H-3, H-1)
+    // 5. Process Academic / Class Task Reminders (Skenario 2: H-5, H-3, H-1, Hari Ini)
     let academicCronResult = { checked: 0, sent: 0, skipped: 0, errors: [] as string[], tasks: [] as Array<{ id: string; milestone: string; status: string; taskName: string }> };
-    if (!targetGroupIdParam || targetGroupIdParam === "120363411033795051@g.us") {
+    if (!targetGroupIdParam || isKnownClassGroupId(targetGroupIdParam)) {
       try {
         academicCronResult = await processAcademicCronReminders(db, { force, dryRun });
       } catch (acadErr) {
@@ -744,7 +812,9 @@ async function handleCron(request: Request) {
       failed: totalFailed,
       errors: allErrors,
       checkedTasks,
-      activeTasks: activeTasks.length,
+      activeOrmawaTasks: activeOrmawaTasks.length,
+      activeTasks: activeOrmawaTasks.length,
+      academicTasksCount,
       eligibleTasks: eligibleTasksCount,
       groupsChecked: taskGroups.size + emptyEventsToProcess.length,
       groups: groupResults,

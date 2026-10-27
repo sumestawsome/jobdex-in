@@ -30,6 +30,19 @@ export type GroupRouteTarget = {
   fallbackReason?: string;
 };
 
+export const KNOWN_CLASS_GROUP_IDS = [
+  "120363411033795051@g.us", // Class Broadcast
+  "120363432766465224@g.us", // Class Discussion
+  "120363406214041077@g.us", // Legacy Class Group
+];
+
+export function isKnownClassGroupId(groupId?: string | null): boolean {
+  if (!groupId) return false;
+  const clean = groupId.replace(/\D/g, "");
+  if (!clean) return false;
+  return KNOWN_CLASS_GROUP_IDS.some((cg) => cg.replace(/\D/g, "") === clean);
+}
+
 function getDefaultGroupId() {
   const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as "fonnte" | "wablas";
   let rawGroupId = "";
@@ -170,6 +183,11 @@ export async function resolveTaskNotificationTarget(
   }
 
   if (defaultGroupId) {
+    // CRITICAL: If defaultGroupId points to a class group, do NOT route Ormawa tasks to it!
+    if (!isClassTask && isKnownClassGroupId(defaultGroupId)) {
+      return null;
+    }
+
     const target = {
       targetType: "default_group",
       recipient: defaultGroupId,
@@ -190,16 +208,38 @@ export async function resolveTaskNotificationTarget(
 
 /**
  * Resolves the WhatsApp group target for a task's reminder.
- * Priority: event group > division group > default group
+ * Priority: event group > division group > default group.
+ * Academic tasks (tugas_kuliah) are strictly excluded from group reminder digests.
  */
 export async function resolveTaskReminderTarget(
   task: Task,
   eventsCache?: Map<string, Event>,
   divisionsCache?: Map<string, DivisionWithWhatsApp>,
 ): Promise<GroupRouteTarget | null> {
+  // CRITICAL: Academic tasks (tugas_kuliah / class workspace) MUST NEVER be grouped into division/event digest reminders!
+  const isClassTask =
+    task.type === ("tugas_kuliah" as Task["type"]) ||
+    (task as unknown as Record<string, unknown>).workspace_type === "kelas" ||
+    (task as unknown as Record<string, unknown>).org_type === "kelas" ||
+    (task as unknown as Record<string, unknown>).type === "kelas" ||
+    task.workspace_id === "ws_ilkom_2024" ||
+    task.org_id === "ws_ilkom_2024" ||
+    task.organization_id === "ws_ilkom_2024" ||
+    Boolean(task.workspace_id?.startsWith("ws_kelas_")) ||
+    Boolean(task.org_id?.startsWith("ws_kelas_"));
+
+  if (isClassTask) {
+    return null;
+  }
+
   const target = await resolveTaskNotificationTarget(task, eventsCache, divisionsCache);
 
   if (!target || target.targetType === "personal") {
+    return null;
+  }
+
+  // Double check that Ormawa reminders NEVER target known class groups
+  if (isKnownClassGroupId(target.recipient)) {
     return null;
   }
 

@@ -10,7 +10,7 @@ import { getTaskDeadlineDiffDays } from "@/lib/task-risk";
 export const DEFAULT_CLASS_GROUP_ID = "120363411033795051@g.us"; // Coba JobdexIn (Broadcast Only)
 export const DEFAULT_CLASS_DISCUSSION_GROUP_ID = "120363432766465224@g.us"; // CONTOH KELAS (Diskusi & Command)
 export const DEFAULT_CLASS_WORKSPACE_ID = "ws_ilkom_2024";
-export const DEFAULT_CLASS_WORKSPACE_NAME = "Ilkom B";
+export const DEFAULT_CLASS_WORKSPACE_NAME = "Kelas Ilmu Komputer 2024";
 
 export type ClassWorkspaceConfig = {
   id: string;
@@ -35,7 +35,7 @@ export function isAcademicClassTask(task: Partial<Task> | null | undefined): boo
   if (task.type === "tugas_kuliah") return true;
   const tAny = task as Record<string, unknown>;
   if (tAny.workspace_type === "kelas" || tAny.org_type === "kelas" || tAny.type === "kelas") return true;
-  if (task.workspace_id === DEFAULT_CLASS_WORKSPACE_ID || task.workspace_id?.startsWith("ws_")) return true;
+  if (task.workspace_id === DEFAULT_CLASS_WORKSPACE_ID || task.workspace_id?.startsWith("ws_kelas_")) return true;
   if (task.org_id === DEFAULT_CLASS_WORKSPACE_ID || task.organization_id === DEFAULT_CLASS_WORKSPACE_ID) return true;
   if (tAny.orgId === DEFAULT_CLASS_WORKSPACE_ID) return true;
   return false;
@@ -121,7 +121,11 @@ export async function getClassWorkspaceConfig(
         data?.whatsapp_discussion_group_id ||
         data?.whatsapp_settings?.discussion_group_id ||
         DEFAULT_CLASS_DISCUSSION_GROUP_ID;
-      const name = data?.name || DEFAULT_CLASS_WORKSPACE_NAME;
+      const rawName = data?.name;
+      const name =
+        rawName && rawName !== "Ilkom B" && rawName !== "Ilmu Komputer Undiksha 2024"
+          ? rawName
+          : DEFAULT_CLASS_WORKSPACE_NAME;
       const gateways = (data?.whatsapp_settings?.gateways || undefined) as ClassWorkspaceGateways | undefined;
       const authorized_admins = (data?.authorized_admins || undefined) as Record<string, ClassWorkspaceAdmin> | undefined;
 
@@ -309,7 +313,7 @@ export function buildNewClassTaskMessage(params: {
     params.description && params.description.trim()
       ? params.description.trim()
       : "Tidak ada ketentuan khusus.";
-  const wsName = params.workspaceName || "Ilkom B";
+  const wsName = params.workspaceName || DEFAULT_CLASS_WORKSPACE_NAME;
 
   return [
     "📢 *PENGUMUMAN TUGAS KULIAH* ✨",
@@ -341,7 +345,7 @@ export function buildClassTaskCompletedMessage(params: {
 }): string {
   const course = params.courseName || "Mata Kuliah";
   const title = params.taskTitle || "Tugas";
-  const ws = params.workspaceName || "Ilkom B";
+  const ws = params.workspaceName || DEFAULT_CLASS_WORKSPACE_NAME;
 
   return [
     "🎉 *TUGAS SELESAI / DITUTUP*",
@@ -362,7 +366,7 @@ export function buildH5ClassReminderMessage(params: {
   appUrl?: string;
 }): string {
   const subLink = resolveSubmissionText(params.submissionUrl);
-  const wsName = params.workspaceName || "Ilkom B";
+  const wsName = params.workspaceName || DEFAULT_CLASS_WORKSPACE_NAME;
 
   return [
     "⏳ *PENGINGAT TUGAS KULIAH (H-5)* 📚",
@@ -393,7 +397,7 @@ export function buildH3ClassReminderMessage(params: {
   appUrl?: string;
 }): string {
   const subLink = resolveSubmissionText(params.submissionUrl);
-  const wsName = params.workspaceName || "Ilkom B";
+  const wsName = params.workspaceName || DEFAULT_CLASS_WORKSPACE_NAME;
 
   return [
     "⚠️ *PENGINGAT PROGRES TUGAS (H-3)* 📌",
@@ -424,7 +428,7 @@ export function buildH1ClassReminderMessage(params: {
   appUrl?: string;
 }): string {
   const subLink = resolveSubmissionText(params.submissionUrl);
-  const wsName = params.workspaceName || "Ilkom B";
+  const wsName = params.workspaceName || DEFAULT_CLASS_WORKSPACE_NAME;
 
   return [
     "⏰ *PENGINGAT DEADLINE BESOK!* 🔥",
@@ -443,6 +447,36 @@ export function buildH1ClassReminderMessage(params: {
 }
 
 /**
+ * Skenario 2D - Format pengingat Hari H (Deadline Hari Ini)
+ */
+export function buildTodayClassReminderMessage(params: {
+  workspaceName?: string;
+  courseName: string;
+  taskName: string;
+  deadlineFormatted: string;
+  submissionUrl?: string;
+  appUrl?: string;
+}): string {
+  const subLink = resolveSubmissionText(params.submissionUrl);
+  const wsName = params.workspaceName || DEFAULT_CLASS_WORKSPACE_NAME;
+
+  return [
+    "🚨 *PENGINGAT DEADLINE HARI INI!* ⏰",
+    `Halo rekan-rekan *${wsName}*! Jangan lupa tugas berikut batas pengumpulannya HARI INI ya:`,
+    "",
+    `📚 *Mata Kuliah:* ${params.courseName || "Umum"}`,
+    `📝 *Tugas:* ${params.taskName}`,
+    `🚨 *Deadline:* ${params.deadlineFormatted}`,
+    "",
+    "🔗 *Link Pengumpulan / LMS:*",
+    subLink,
+    "",
+    "Pastikan file/link tugas sudah siap disubmit sebelum tenggat waktu berakhir. Semangat menyelesaikannya! 🚀",
+    `👉 Cek kalender & jadwal lengkap: ${PUBLIC_CLASS_SCHEDULE_URL}`,
+  ].join("\n");
+}
+
+/**
  * Skenario 3A - Format perubahan tanggal deadline
  */
 export function buildDeadlineChangedMessage(params: {
@@ -455,7 +489,7 @@ export function buildDeadlineChangedMessage(params: {
   appUrl?: string;
 }): string {
   const subLink = resolveSubmissionText(params.submissionUrl);
-  const wsName = params.workspaceName || "Ilkom B";
+  const wsName = params.workspaceName || DEFAULT_CLASS_WORKSPACE_NAME;
 
   return [
     "⚠️ *INFO PERUBAHAN DEADLINE KULIAH* ⏰",
@@ -490,7 +524,7 @@ export function buildDescriptionChangedMessage(params: {
   appUrl?: string;
 }): string {
   const subLink = resolveSubmissionText(params.submissionUrl);
-  const wsName = params.workspaceName || "Ilkom B";
+  const wsName = params.workspaceName || DEFAULT_CLASS_WORKSPACE_NAME;
 
   return [
     "📝 *UPDATE KETENTUAN TUGAS KULIAH* 💡",
@@ -873,11 +907,24 @@ export async function processAcademicCronReminders(
       const deadlineFormatted = formatWitaDate(task.deadline);
       const subUrl = task.submission_url || task.submission_link || "";
 
-      let targetMilestone: "h5" | "h3" | "h1" | null = null;
+      let targetMilestone: "today" | "h5" | "h3" | "h1" | null = null;
       let messageContent = "";
 
-      // H-1: diffDays === 1 atau diffDays === 0
-      if (diffDays <= 1 && diffDays >= 0) {
+      // Hari H: diffDays === 0
+      if (diffDays === 0) {
+        if (force || !remindersSent.includes("today")) {
+          targetMilestone = "today";
+          messageContent = buildTodayClassReminderMessage({
+            workspaceName: wsConfig.name,
+            courseName,
+            taskName,
+            deadlineFormatted,
+            submissionUrl: subUrl,
+          });
+        }
+      }
+      // H-1: diffDays === 1
+      else if (diffDays === 1) {
         if (force || !remindersSent.includes("h1")) {
           targetMilestone = "h1";
           messageContent = buildH1ClassReminderMessage({
