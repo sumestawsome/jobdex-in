@@ -59,6 +59,7 @@ export function normalizePhone(value: string | null | undefined): string {
   return value
     .replace(/@s\.whatsapp\.net$/i, "")
     .replace(/@c\.us$/i, "")
+    .replace(/[\s\-\+\(\)]/g, "")
     .replace(/\D/g, "")
     .replace(/^0/, "62")
     .replace(/^8/, "628");
@@ -295,7 +296,12 @@ export async function verifyBulkJobdeskAuthorization(
     const u = { id: doc.id, ...doc.data() } as UserProfile;
     const uPhone = normalizePhone(u.whatsapp_number);
 
-    if (uPhone && uPhone === cleanSender) {
+    if (
+      uPhone &&
+      (uPhone === cleanSender ||
+        (cleanSender.length >= 9 && uPhone.endsWith(cleanSender.slice(-9))) ||
+        (uPhone.length >= 9 && cleanSender.endsWith(uPhone.slice(-9))))
+    ) {
       senderProfile = u;
     }
 

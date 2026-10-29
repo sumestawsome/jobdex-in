@@ -105,6 +105,50 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // Normalisasi Pengirim Fonnte untuk Pesan Grup
+  let rawSender = (payloadObj.sender as string) || incoming.sender;
+  const isGroup =
+    payloadObj.isgroup === true ||
+    payloadObj.isGroup === true ||
+    String(payloadObj.sender || "").includes("@g.us") ||
+    String(payloadObj.sender || "").startsWith("1203") ||
+    incoming.isGroup;
+
+  if (isGroup) {
+    incoming.isGroup = true;
+
+    // Jika pesan berasal dari grup, ambil dari pengirim/member
+    if (payloadObj.pengirim || payloadObj.member) {
+      rawSender = (payloadObj.pengirim || payloadObj.member) as string;
+    }
+
+    // Pastikan groupId tetap mencatat ID grup WhatsApp aslinya (120363...)
+    if (!incoming.groupId) {
+      const candidateGroup = String(
+        payloadObj.group_id ||
+        payloadObj.groupId ||
+        payloadObj.group ||
+        payloadObj.remoteJid ||
+        (String(payloadObj.sender || "").includes("@g.us") || String(payloadObj.sender || "").startsWith("1203") ? payloadObj.sender : "") ||
+        ""
+      );
+      if (candidateGroup) {
+        incoming.groupId = candidateGroup.endsWith("@g.us") ? candidateGroup : `${candidateGroup}@g.us`;
+      }
+    }
+  }
+
+  // Sanitasi Nomor: Bersihkan dari @s.whatsapp.net, @c.us, spasi, -, +, non-digit (contoh: 6285119459703)
+  if (rawSender) {
+    incoming.sender = String(rawSender)
+      .replace(/@s\.whatsapp\.net$/i, "")
+      .replace(/@c\.us$/i, "")
+      .replace(/[\s\-\+\(\)]/g, "")
+      .replace(/\D/g, "")
+      .replace(/^0/, "62")
+      .replace(/^8/, "628");
+  }
+
   console.log("[fonnte webhook] request received", {
     timestamp: incoming.timestamp || "",
     groupId: incoming.groupId || "personal",

@@ -74,9 +74,12 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
 
   // Determine if it is a group message
   const isGroupVal = pickString(data.is_group, data.isGroup, data.isgroup, root.is_group, root.isGroup, root.isgroup);
+  const rawSenderCandidate = pickString(data.sender, root.sender);
   const isGroupBool = 
     rawGroupId.includes("@g.us") ||
     rawGroupId.startsWith("120363") ||
+    rawSenderCandidate.includes("@g.us") ||
+    rawSenderCandidate.startsWith("1203") ||
     isGroupVal === "true" ||
     isGroupVal === "1" ||
     isGroupVal === "yes" ||
@@ -91,19 +94,47 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
   let finalGroupId: string | undefined = undefined;
   let finalSender = sender;
 
-  if (isGroup && rawGroupId) {
-    finalGroupId = normalizeWhatsAppGroupId(rawGroupId, "fonnte");
-    // If the sender is empty, fallback to rawGroupId
-    if (!finalSender) {
-      finalSender = rawGroupId;
+  if (isGroup) {
+    if (rawGroupId) {
+      finalGroupId = normalizeWhatsAppGroupId(rawGroupId, "fonnte");
+    } else if (rawSenderCandidate.includes("@g.us") || rawSenderCandidate.startsWith("1203")) {
+      finalGroupId = normalizeWhatsAppGroupId(rawSenderCandidate, "fonnte");
+    }
+
+    // Jika pesan dari grup, ambil pengirim asli dari member / pengirim
+    const groupMember = pickString(
+      data.pengirim,
+      data.member,
+      data.participant,
+      data.phone,
+      data.number,
+      data.sender_number,
+      data.senderNumber,
+      root.pengirim,
+      root.member,
+      root.participant,
+      root.phone,
+      root.number
+    );
+
+    if (groupMember) {
+      finalSender = groupMember;
+    } else if (!finalSender && (!rawSenderCandidate.includes("@g.us") && !rawSenderCandidate.startsWith("1203"))) {
+      finalSender = rawSenderCandidate;
     }
   } else {
     // Personal chat: sender is rawGroupId (or sender if populated)
-    finalSender = finalSender || rawGroupId;
+    finalSender = finalSender || rawSenderCandidate || rawGroupId;
   }
 
-  // Clean the sender phone number from any suffix
-  finalSender = finalSender.replace(/@s\.whatsapp\.net$/i, "").replace(/@c\.us$/i, "");
+  // Clean the sender phone number to pure digits (62xxx)
+  finalSender = finalSender
+    .replace(/@s\.whatsapp\.net$/i, "")
+    .replace(/@c\.us$/i, "")
+    .replace(/[\s\-\+\(\)]/g, "")
+    .replace(/\D/g, "")
+    .replace(/^0/, "62")
+    .replace(/^8/, "628");
 
   // Read sender display name
   const senderName = pickString(

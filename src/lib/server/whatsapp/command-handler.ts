@@ -616,6 +616,61 @@ export async function executeWhatsAppWebhook(
   incoming: NormalizedIncomingWhatsAppMessage,
   payload: unknown
 ): Promise<NextResponse> {
+  // Resolusi pengirim Fonnte / WhatsApp untuk pesan grup:
+  // Jika pesan berasal dari grup, ambil nomor pengirim sebenarnya dari payload.pengirim / payload.member
+  if (payload && typeof payload === "object") {
+    const root = payload as Record<string, unknown>;
+    const firstChoice = Array.isArray(root.choices) && root.choices[0] && typeof root.choices[0] === "object"
+      ? (root.choices[0] as Record<string, unknown>)
+      : null;
+
+    const isGroup =
+      incoming.isGroup ||
+      root.isgroup === true ||
+      root.isGroup === true ||
+      String(root.sender || "").includes("@g.us") ||
+      String(root.sender || "").startsWith("1203") ||
+      String(incoming.sender || "").includes("@g.us") ||
+      String(incoming.sender || "").startsWith("1203");
+
+    if (isGroup) {
+      incoming.isGroup = true;
+
+      const realSender =
+        (root.pengirim ||
+        root.member ||
+        root.participant ||
+        root.sender_number ||
+        firstChoice?.pengirim ||
+        firstChoice?.member ||
+        firstChoice?.participant) as string | undefined;
+
+      if (realSender) {
+        incoming.sender = normalizePhone(realSender);
+      }
+
+      // Pastikan groupId mencatat ID grup aslinya (120363...)
+      if (!incoming.groupId) {
+        const candidateGid = String(
+          root.group_id ||
+          root.groupId ||
+          root.group ||
+          root.remoteJid ||
+          (String(root.sender || "").includes("@g.us") || String(root.sender || "").startsWith("1203") ? root.sender : "") ||
+          ""
+        );
+        if (candidateGid) {
+          incoming.groupId = candidateGid.endsWith("@g.us") ? candidateGid : `${candidateGid}@g.us`;
+        }
+      }
+    }
+  }
+
+  // Sanitasi sender number agar bebas dari karakter non-digit dan berformat kanonikal 62xxx
+  if (incoming.sender) {
+    incoming.sender = normalizePhone(incoming.sender);
+  }
+
   // Fast exit: Filter Self-Echo & Pesan Bot Sendiri
   if (isBotSelfEchoMessage(incoming.message)) {
     console.log("[whatsapp command] Fast exit - ignored bot self-echo output message:", (incoming.message || "").slice(0, 50));
