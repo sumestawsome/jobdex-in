@@ -198,6 +198,8 @@ export type Task = {
   title?: string;
   description: string;
   pic_id: string;
+  pic_ids?: string[];
+  pic_names?: string[];
   coordinator_id: string;
   deadline: unknown;
   status: TaskStatus;
@@ -253,6 +255,7 @@ export type Task = {
   design_ref_links?: ReferenceLink[];
   drive_ref_links?: ReferenceLink[];
   design_kit_source?: "event" | "division" | "manual" | null;
+  brief_notified_at?: unknown;
 };
 
 export type TaskStatusLog = {
@@ -534,6 +537,7 @@ export type TaskInput = {
   drive_ref_links?: ReferenceLink[];
   design_kit_source?: "event" | "division" | "manual" | null;
   is_archived?: boolean;
+  notify_brief?: boolean;
 };
 
 export type Organization = {

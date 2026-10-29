@@ -349,9 +349,32 @@ export default function TasksPage() {
         const descriptionChanged = Boolean(oldDesc !== newDesc);
 
         await updateTask(taskId, input);
-        void showSuccess("Job desk berhasil diperbarui!");
 
-        if (user && (deadlineChanged || descriptionChanged)) {
+        if (input.notify_brief) {
+          toast.success("Jobdesk diperbarui & notifikasi brief berhasil disiarkan ke WhatsApp!");
+        } else {
+          void showSuccess("Job desk berhasil diperbarui!");
+        }
+
+        if (user && input.notify_brief) {
+          void (async () => {
+            try {
+              const token = await user.getIdToken();
+              await fetch(`/api/tasks/${taskId}`, {
+                method: "PATCH",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  notify_brief: true,
+                }),
+              });
+            } catch (err) {
+              console.error("[TasksPage] Failed to broadcast brief:", err);
+            }
+          })();
+        } else if (user && (deadlineChanged || descriptionChanged)) {
           void (async () => {
             try {
               const token = await user.getIdToken();
@@ -392,24 +415,42 @@ export default function TasksPage() {
           univId: input.univId || activeWorkspace.campus_id,
         };
         const newTaskId = await createTask(inputWithTenant as TaskInput, userProfile.id);
-        void showSuccess("Job desk baru berhasil ditambahkan!");
+
+        if (input.notify_brief) {
+          toast.success("Jobdesk baru ditambahkan & notifikasi brief berhasil disiarkan ke WhatsApp!");
+        } else {
+          void showSuccess("Job desk baru berhasil ditambahkan!");
+        }
 
         // Non-blocking asynchronous WhatsApp broadcast
         if (newTaskId && user) {
           void (async () => {
             try {
               const token = await user.getIdToken();
-              await fetch("/api/notifications/whatsapp", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  taskId: newTaskId,
-                  eventType: "task_created",
-                }),
-              });
+              if (input.notify_brief) {
+                await fetch(`/api/tasks/${newTaskId}`, {
+                  method: "PATCH",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    notify_brief: true,
+                  }),
+                });
+              } else {
+                await fetch("/api/notifications/whatsapp", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    taskId: newTaskId,
+                    eventType: "task_created",
+                  }),
+                });
+              }
             } catch {
               // Notification failure doesn't block task creation
             }

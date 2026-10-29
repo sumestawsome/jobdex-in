@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { canTriggerTaskNotification, getServerAuthContext } from "@/lib/server/auth";
 import { getAdminDb } from "@/lib/server/firebase-admin";
 import { notifyTaskEvent } from "@/lib/server/notifications";
+import { sendJobdeskBriefReadyBroadcast } from "@/lib/server/jobdesk-brief-broadcast";
 import {
   isAcademicClassTask,
   handleAcademicTaskCreated,
@@ -48,6 +49,8 @@ export async function POST(request: NextRequest) {
       "task_result_uploaded",
       "task_revision_requested",
       "task_approved",
+      "brief_ready",
+      "jobdesk_brief_ready",
     ];
 
     if (!allowedEvents.includes(body.eventType)) {
@@ -79,6 +82,17 @@ export async function POST(request: NextRequest) {
         { error: "Anda tidak punya akses untuk task ini." },
         { status: 403 },
       );
+    }
+
+    // --- Notifikasi Brief Siap Kerjakan ---
+    if (body.eventType === "brief_ready" || body.eventType === "jobdesk_brief_ready") {
+      const briefRes = await sendJobdeskBriefReadyBroadcast(body.taskId, profile.id);
+      return NextResponse.json({
+        ok: true,
+        whatsappSent: briefRes.sent,
+        target: briefRes.target,
+        reason: briefRes.reason,
+      });
     }
 
     // --- Khusus Ruang Kerja Kelas / Akademik ---

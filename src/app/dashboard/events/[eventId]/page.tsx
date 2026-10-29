@@ -21,6 +21,7 @@ import { canManageEvent, isSuperAdmin, isKoordinatorDivisi } from "@/lib/permiss
 import type { Event, EventMember, Task, TaskInput, UserProfile } from "@/types";
 
 import { showConfirm, showSuccess, showError } from "@/lib/swal";
+import { toast } from "sonner";
 
 import { useWorkspace } from "@/hooks/use-workspace";
 
@@ -189,24 +190,42 @@ export default function EventDetailPage() {
         event_id: eventId,
       };
       const newTaskId = await createTask(taskWithTenant, userProfile.id);
-      void showSuccess("Job desk berhasil ditambahkan ke acara!");
+
+      if (input.notify_brief) {
+        toast.success("Jobdesk diperbarui & notifikasi brief berhasil disiarkan ke WhatsApp!");
+      } else {
+        void showSuccess("Job desk berhasil ditambahkan ke acara!");
+      }
 
       // Non-blocking asynchronous WhatsApp broadcast
       if (newTaskId && user) {
         void (async () => {
           try {
             const token = await user.getIdToken();
-            await fetch("/api/notifications/whatsapp", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                taskId: newTaskId,
-                eventType: "task_created",
-              }),
-            });
+            if (input.notify_brief) {
+              await fetch(`/api/tasks/${newTaskId}`, {
+                method: "PATCH",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  notify_brief: true,
+                }),
+              });
+            } else {
+              await fetch("/api/notifications/whatsapp", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  taskId: newTaskId,
+                  eventType: "task_created",
+                }),
+              });
+            }
           } catch {
             // Notification failure doesn't block task creation
           }

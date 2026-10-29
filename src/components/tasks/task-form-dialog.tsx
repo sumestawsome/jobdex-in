@@ -221,6 +221,22 @@ function TaskForm({
   const [colorPaletteManuallyEdited, setColorPaletteManuallyEdited] = useState(false);
   const [visualDirectionManuallyEdited, setVisualDirectionManuallyEdited] = useState(false);
 
+  // Fase 4: Opsi siarkan materi & brief ke grup WhatsApp
+  const [notifyBrief, setNotifyBrief] = useState(() => {
+    if (task) {
+      return Boolean(
+        task.drive_reference_url ||
+        task.drive_ref_links?.length ||
+        task.copywriting ||
+        task.copywriting_docs_url ||
+        task.design_reference_url ||
+        task.design_ref_links?.length ||
+        task.description
+      );
+    }
+    return false;
+  });
+
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -708,6 +724,7 @@ function TaskForm({
           design_ref_links: designRefLinks,
           drive_ref_links: driveRefLinks,
           design_kit_source: isClass ? null : designKitSource,
+          notify_brief: isClass ? false : notifyBrief,
         },
         task?.id,
       );
@@ -1349,6 +1366,28 @@ function TaskForm({
             ) : null}
           </div>
             </>
+          )}
+
+          {!isClass && (
+            <div className="p-3 border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/40 rounded-none shadow-none space-y-1">
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  id="notifyBrief"
+                  checked={notifyBrief}
+                  onChange={(e) => setNotifyBrief(e.target.checked)}
+                  className="size-4 mt-0.5 rounded-none border-zinc-300 dark:border-zinc-700 text-primary focus:ring-0 cursor-pointer shrink-0"
+                />
+                <div>
+                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                    <span>📢 Siarkan pembaruan materi &amp; brief ke grup WhatsApp panitia</span>
+                  </span>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Kirim notifikasi otomatis &quot;Brief Siap Kerjakan&quot; ke WhatsApp acara lengkap dengan link Drive, referensi desain, dan tag mention langsung ke PIC.
+                  </p>
+                </div>
+              </label>
+            </div>
           )}
 
           {error ? (
