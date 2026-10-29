@@ -10,7 +10,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatTaskDate } from "@/lib/firebase/tasks";
 import type { Event, Task, TaskInput, UserProfile } from "@/types";
 
-import { Plus, Eye } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Eye, Mic } from "lucide-react";
+import { VoiceJobdeskDialog, type BulkExtractionData } from "@/components/jobdesk/voice-jobdesk-dialog";
+import { BulkJobdeskModal } from "@/components/jobdesk/bulk-jobdesk-modal";
 
 type EventTasksSectionProps = {
   event: Event;
@@ -27,8 +30,18 @@ export function EventTasksSection({
   canManage,
   onCreateTask,
 }: EventTasksSectionProps) {
+  const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
+  const [voiceJobdeskOpen, setVoiceJobdeskOpen] = useState(false);
+  const [bulkJobdeskOpen, setBulkJobdeskOpen] = useState(false);
+  const [bulkExtractionData, setBulkExtractionData] = useState<BulkExtractionData | null>(null);
   const usersById = new Map(users.map((user) => [user.id, user]));
+
+  const handleBulkExtracted = (data: BulkExtractionData) => {
+    setBulkExtractionData(data);
+    setVoiceJobdeskOpen(false);
+    setBulkJobdeskOpen(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -40,10 +53,20 @@ export function EventTasksSection({
           </p>
         </div>
         {canManage ? (
-          <Button type="button" size="sm" onClick={() => setFormOpen(true)}>
-            <Plus className="size-3.5" />
-            <span>Tambah Job Desk</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setVoiceJobdeskOpen(true)}
+              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-none bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-zinc-300 dark:border-zinc-700 shadow-none transition-all active:scale-[0.98] cursor-pointer shrink-0"
+            >
+              <Mic className="size-3.5" />
+              <span>🎙️ Input Suara AI</span>
+            </button>
+            <Button type="button" size="sm" onClick={() => setFormOpen(true)}>
+              <Plus className="size-3.5" />
+              <span>Tambah Job Desk</span>
+            </Button>
+          </div>
         ) : null}
       </div>
 
@@ -140,6 +163,34 @@ export function EventTasksSection({
           setFormOpen(false);
         }}
       />
+
+      {canManage && (
+        <>
+          <VoiceJobdeskDialog
+            open={voiceJobdeskOpen}
+            onClose={() => setVoiceJobdeskOpen(false)}
+            events={[event]}
+            defaultEventId={event.id}
+            onExtracted={handleBulkExtracted}
+          />
+          <BulkJobdeskModal
+            open={bulkJobdeskOpen}
+            onClose={() => {
+              setBulkJobdeskOpen(false);
+              setBulkExtractionData(null);
+            }}
+            extractionData={bulkExtractionData}
+            events={[event]}
+            users={users}
+            onSuccess={() => {
+              router.refresh();
+              if (typeof window !== "undefined") {
+                window.location.reload();
+              }
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

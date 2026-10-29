@@ -12,6 +12,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
 import { Plus, Building2, ArrowRight, Mic } from "lucide-react";
 import { VoiceTaskDialog, type ExtractedVoiceTaskData } from "@/components/tasks/voice-task-dialog";
+import { VoiceJobdeskDialog, type BulkExtractionData } from "@/components/jobdesk/voice-jobdesk-dialog";
+import { BulkJobdeskModal } from "@/components/jobdesk/bulk-jobdesk-modal";
 import { LoadingState } from "@/components/ui/loading-state";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -93,17 +95,30 @@ export default function TasksPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [userEventRoles, setUserEventRoles] = useState<Map<string, string>>(new Map());
   const [voiceDialogOpen, setVoiceDialogOpen] = useState(false);
+  const [voiceJobdeskOpen, setVoiceJobdeskOpen] = useState(false);
+  const [bulkJobdeskOpen, setBulkJobdeskOpen] = useState(false);
+  const [bulkExtractionData, setBulkExtractionData] = useState<BulkExtractionData | null>(null);
   const [formInitialValues, setFormInitialValues] = useState<Partial<TaskInput> | null>(null);
   const [autoFocusField, setAutoFocusField] = useState<string | null>(null);
+
+  const handleBulkJobdeskExtracted = (data: BulkExtractionData) => {
+    setBulkExtractionData(data);
+    setVoiceJobdeskOpen(false);
+    setBulkJobdeskOpen(true);
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined" && userProfile) {
       const params = new URLSearchParams(window.location.search);
       if (params.get("voice") === "1" && canCreate) {
-        setVoiceDialogOpen(true);
+        if (isClassWorkspace) {
+          setVoiceDialogOpen(true);
+        } else {
+          setVoiceJobdeskOpen(true);
+        }
       }
     }
-  }, [userProfile, canCreate]);
+  }, [userProfile, canCreate, isClassWorkspace]);
 
   const handleVoiceTaskExtracted = (data: ExtractedVoiceTaskData) => {
     setSelectedTask(null);
@@ -477,7 +492,7 @@ export default function TasksPage() {
         </div>
         {canCreate ? (
           <div className="flex items-center gap-2">
-            {isClassWorkspace && (
+            {isClassWorkspace ? (
               <button
                 type="button"
                 onClick={() => setVoiceDialogOpen(true)}
@@ -486,6 +501,15 @@ export default function TasksPage() {
               >
                 <Mic className="size-4 text-primary" />
                 <span className="sr-only">Input Tugas via Suara</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setVoiceJobdeskOpen(true)}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-none bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-zinc-300 dark:border-zinc-700 shadow-none transition-all active:scale-[0.98] cursor-pointer shrink-0"
+              >
+                <Mic className="size-3.5" />
+                <span>🎙️ Input Suara AI</span>
               </button>
             )}
             <button
@@ -648,6 +672,29 @@ export default function TasksPage() {
           onClose={() => setVoiceDialogOpen(false)}
           onTaskExtracted={handleVoiceTaskExtracted}
         />
+      )}
+
+      {canCreate && !isClassWorkspace && (
+        <>
+          <VoiceJobdeskDialog
+            open={voiceJobdeskOpen}
+            onClose={() => setVoiceJobdeskOpen(false)}
+            events={events}
+            defaultEventId={eventFilter !== "all" ? eventFilter : undefined}
+            onExtracted={handleBulkJobdeskExtracted}
+          />
+          <BulkJobdeskModal
+            open={bulkJobdeskOpen}
+            onClose={() => {
+              setBulkJobdeskOpen(false);
+              setBulkExtractionData(null);
+            }}
+            extractionData={bulkExtractionData}
+            events={events}
+            users={users}
+            onSuccess={() => void loadData()}
+          />
+        </>
       )}
     </div>
   );
