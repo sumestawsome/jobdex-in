@@ -265,6 +265,31 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
     return null;
   }
 
+  // Read fromMe flag (anti-echo detection)
+  const rawFromMe =
+    data.fromMe ??
+    data.from_me ??
+    data.fromme ??
+    root.fromMe ??
+    root.from_me ??
+    root.fromme;
+
+  const fromMe =
+    rawFromMe === true ||
+    rawFromMe === "true" ||
+    rawFromMe === 1 ||
+    rawFromMe === "1";
+
+  // Read device number (connected WhatsApp bot device)
+  const device = pickString(
+    data.device,
+    root.device,
+    data.device_id,
+    root.device_id,
+    data.sender_device,
+    root.sender_device
+  );
+
   return {
     provider: "fonnte",
     message: effectiveMessage,
@@ -281,5 +306,7 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
     filetype: filetype || undefined,
     messageType: filetype || undefined,
     extension: extension || undefined,
+    fromMe,
+    device: device || undefined,
   } satisfies NormalizedIncomingWhatsAppMessage;
 }

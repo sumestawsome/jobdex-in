@@ -671,6 +671,8 @@ export type NormalizedIncomingWhatsAppMessage = {
   filetype?: string;
   messageType?: string;
   extension?: string;
+  fromMe?: boolean;
+  device?: string;
 };
 
 export interface WhatsAppSystemSettings {

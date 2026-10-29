@@ -510,7 +510,7 @@ export function formatBulkJobdeskPreviewMessage(draft: BulkJobdeskDraft): string
     lines.push(
       `Halo ${koorMention} (${koorName}) & ${sekreMention} (${sekreName}), daftar tugas di atas belum memiliki tenggat waktu!`
     );
-    lines.push("Silakan balas chat ini untuk mengisi tenggat (contoh: *1 tenggat 5 Nov 20:00, 2 tenggat 8 Nov*).\n");
+    lines.push("Silakan balas chat ini untuk mengisi tenggat (format: *[nomor] tenggat [tanggal/jam]*).\n");
     lines.push("👉 Ketik *!jobdesk acc* untuk menerbitkan semua tugas (wajib ada deadline).");
     lines.push("👉 Ketik *!jobdesk acc paksa* jika ingin tetap menerbitkan tanpa deadline.");
     lines.push("👉 Ketik *!jobdesk batal* untuk membatalkan draf.");
@@ -740,8 +740,8 @@ export async function handleBulkJobdeskAccCommand(
       `Masih terdapat tugas dalam draf *${activeDraft.event_name}* yang belum ditentukan tenggat waktunya. Koordinator atau Sekretaris wajib menentukan deadline agar tugas terpantau oleh sistem pengingat otomatis.`,
       "",
       "💡 *Cara mengisi deadline susulan:*",
-      "Balas chat ini dengan format nomor tugas dan tenggatnya, contoh:",
-      "*1 tenggat 5 Nov 20:00, 2 tenggat 8 Nov*",
+      "Balas chat ini dengan menyebutkan nomor tugas dan tenggatnya, format:",
+      "*[nomor] tenggat [tanggal/jam]* (atau *semua tenggat [tanggal]*).",
       "",
       "👉 Atau jika memang ingin menerbitkan tugas tanpa deadline sekarang, ketik:",
       "*!jobdesk acc paksa*",
@@ -963,6 +963,36 @@ export async function handleBulkJobdeskAccCommand(
 }
 
 /**
+ * Helper untuk memformat tampilan tenggat waktu ke zona WITA
+ */
+function formatDeadlineDisplay(deadlineStr: string | null | undefined): string {
+  if (!deadlineStr || !deadlineStr.trim()) return "Belum ditentukan";
+  const clean = deadlineStr.trim().replace(/\s*WITA$/i, "");
+  const isoFormatted = clean.includes("T") ? clean : clean.replace(" ", "T");
+  const withTz = isoFormatted.match(/[Zz]|[+-]\d{2}:?\d{2}$/)
+    ? isoFormatted
+    : (isoFormatted.length === 10 ? `${isoFormatted}T23:59:00+08:00` : `${isoFormatted}+08:00`);
+  const dateObj = new Date(withTz);
+  if (isNaN(dateObj.getTime())) {
+    return clean;
+  }
+  const hasTime = clean.includes(":");
+  try {
+    const formatted = new Intl.DateTimeFormat("id-ID", {
+      timeZone: "Asia/Makassar",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      ...(hasTime ? { hour: "2-digit", minute: "2-digit" } : {}),
+    }).format(dateObj);
+    return formatted;
+  } catch {
+    return clean;
+  }
+}
+
+/**
  * Handler pesan balasan/susulan tenggat waktu dari koordinator/sekretaris
  */
 export async function handleBulkJobdeskDeadlineFollowUp(
@@ -993,11 +1023,8 @@ export async function handleBulkJobdeskDeadlineFollowUp(
         "⚠️ *Format Tenggat Waktu Belum Terbaca*",
         "Silakan balas dengan format nomor tugas dan tanggal tenggatnya.",
         "",
-        "*Contoh:*",
-        "1 tenggat 5 Nov 20:00, 2 tenggat 8 Nov",
-        "",
-        "Atau jika ingin menetapkan tanggal yang sama untuk semua tugas:",
-        "semua tenggat 10 Nov",
+        "👉 *Format:* *[nomor] tenggat [tanggal/jam]* (contoh: *nomor tugas tenggat DD Bulan HH:MM*)",
+        "👉 Atau untuk seluruh tugas sekaligus: *semua tenggat [tanggal]*",
       ].join("\n");
 
       await baseSendWhatsAppMessage({
@@ -1013,13 +1040,28 @@ export async function handleBulkJobdeskDeadlineFollowUp(
     return null;
   }
 
-  // Terapkan update deadline ke draf
+  // Terapkan update deadline ke draf dan catat tugas-tugas yang baru diperbarui
+  const updatedTasks: Array<{
+    taskIndex: number;
+    task: ParsedJobdeskTask;
+    deadlineStr: string;
+  }> = [];
+
   for (const up of updates) {
     const taskIdx = up.task_index - 1;
     if (taskIdx >= 0 && taskIdx < activeDraft.tasks.length) {
       activeDraft.tasks[taskIdx].deadline = up.deadline;
       activeDraft.tasks[taskIdx].requires_deadline = false;
+      updatedTasks.push({
+        taskIndex: up.task_index,
+        task: activeDraft.tasks[taskIdx],
+        deadlineStr: up.deadline,
+      });
     }
+  }
+
+  if (updatedTasks.length === 0) {
+    return null;
   }
 
   const missingCount = activeDraft.tasks.filter((t) => !t.deadline).length;
@@ -1031,26 +1073,101 @@ export async function handleBulkJobdeskDeadlineFollowUp(
 
   await saveBulkJobdeskDraft(activeDraft);
 
-  const updatedPreview = formatBulkJobdeskPreviewMessage(activeDraft);
-  const responseMsg = [
-    `✅ *Tenggat Waktu Berhasil Diperbarui!*`,
-    `Berhasil memperbarui deadline untuk *${updates.length} tugas*.\n`,
-    updatedPreview,
-  ].join("\n");
+  // Ambil profil PIC dari Firestore untuk nomor WhatsApp tag mention
+  const db = getAdminDb();
+  const allUpdatedPicIds = Array.from(
+    new Set(updatedTasks.flatMap((ut) => ut.task.pic_ids || []))
+  );
+  const picUserMap = new Map<string, UserProfile>();
+  if (allUpdatedPicIds.length > 0) {
+    try {
+      const usersSnap = await db.collection("users").get();
+      usersSnap.forEach((uDoc) => {
+        if (allUpdatedPicIds.includes(uDoc.id)) {
+          picUserMap.set(uDoc.id, { id: uDoc.id, ...uDoc.data() } as UserProfile);
+        }
+      });
+    } catch (err) {
+      console.warn("[BulkJobdeskDraft] Gagal mengambil profil PIC untuk deadline follow up:", err);
+    }
+  }
+
+  const mentionedPhones = new Set<string>();
+
+  // Format pesan balasan terfokus yang HANYA memuat tugas-tugas yang baru saja diperbarui
+  const taskBlocks = updatedTasks.map(({ taskIndex, task, deadlineStr }) => {
+    const picDisplays: string[] = [];
+    if (task.pic_ids && task.pic_ids.length > 0) {
+      for (const pId of task.pic_ids) {
+        const u = picUserMap.get(pId);
+        const uAny = u as Record<string, unknown> | undefined;
+        const cleanP = normalizePhone(
+          u?.whatsapp_number || (uAny?.whatsapp as string) || (uAny?.phone as string)
+        );
+        if (cleanP && cleanP.length > 5) {
+          mentionedPhones.add(cleanP);
+          picDisplays.push(`@${cleanP}${u?.name ? ` (${u.name})` : ""}`);
+        } else if (u?.name) {
+          picDisplays.push(u.name);
+        }
+      }
+    }
+    if (picDisplays.length === 0) {
+      if (task.pic_names && task.pic_names.length > 0) {
+        picDisplays.push(...task.pic_names);
+      } else {
+        picDisplays.push("Belum ditentukan");
+      }
+    }
+
+    const formattedDeadline = formatDeadlineDisplay(deadlineStr || task.deadline);
+    const deadlineOutput =
+      formattedDeadline === "Belum ditentukan"
+        ? "Belum ditentukan"
+        : `${formattedDeadline} WITA`;
+
+    return [
+      `📌 *Nomor ${taskIndex}: ${task.name}*`,
+      `⏰ *Tenggat:* ${deadlineOutput}`,
+      `👥 *PIC:* ${picDisplays.join(", ")}`,
+    ].join("\n");
+  });
+
+  const totalTasks = activeDraft.tasks.length;
+  const countWithDeadline = activeDraft.tasks.filter((t) => Boolean(t.deadline && t.deadline.trim())).length;
+
+  const responseLines = [
+    `✅ *Tenggat Jobdesk Berhasil Diperbarui!*\n`,
+    taskBlocks.join("\n\n"),
+    "",
+    "Halo rekan-rekan PIC, tugas di atas sudah ditentukan tenggatnya ya! Minta tolong mulai dipersiapkan dan dicicil pengerjaannya, jangan sampai lewat dari batas waktu. Semangat! 💪🔥",
+    "",
+    `📊 *Progres Draf:* ${countWithDeadline} dari ${totalTasks} tugas sudah memiliki tenggat waktu.`,
+    "",
+    "👉 Balas nomor tugas lain untuk mengisi tenggat (atau ketik *!jobdesk acc* untuk menerbitkan draf ke database).",
+  ];
+
+  const responseMsg = responseLines.join("\n");
 
   await baseSendWhatsAppMessage({
     target: replyTarget,
-    message: responseMsg,
+    message: formatWhatsAppText(responseMsg),
     type: isGroupTarget ? "group" : "phone",
+    mentions: Array.from(mentionedPhones),
     provider: incoming.provider,
   });
 
   return NextResponse.json({
     ok: true,
     status: "bulk_draft_deadlines_updated",
-    updated_count: updates.length,
+    updated_count: updatedTasks.length,
   });
 }
+
+/**
+ * Alias untuk kompatibilitas
+ */
+export const handleConversationalDeadlineUpdate = handleBulkJobdeskDeadlineFollowUp;
 
 /**
  * Handler utama untuk pembatalan draf: !jobdesk batal

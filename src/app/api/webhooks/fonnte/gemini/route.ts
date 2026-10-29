@@ -197,10 +197,80 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // 1. Filter Self-Echo & Pesan Bot Sendiri
+  // 1. Deteksi Anti-Echo / Pesan Bot Sendiri (Self-Trigger)
+  // A. Periksa properti fromMe / from_me
+  const isFromMe =
+    payloadObj.fromMe === true ||
+    payloadObj.from_me === true ||
+    payloadObj.fromme === true ||
+    payloadObj.fromMe === "true" ||
+    payloadObj.from_me === "true" ||
+    payloadObj.fromme === "true" ||
+    payloadObj.fromMe === 1 ||
+    payloadObj.from_me === 1 ||
+    Boolean(
+      firstChoice &&
+        (firstChoice.fromMe === true ||
+          firstChoice.from_me === true ||
+          firstChoice.fromme === true ||
+          firstChoice.fromMe === "true" ||
+          firstChoice.from_me === "true" ||
+          firstChoice.fromme === "true" ||
+          firstChoice.fromMe === 1 ||
+          firstChoice.from_me === 1)
+    ) ||
+    incoming.fromMe === true;
+
+  if (isFromMe) {
+    console.log("[fonnte webhook] Fast exit - ignored bot self-message (fromMe: true)");
+    return NextResponse.json({ status: "ignored_self_message" });
+  }
+
+  // B. Periksa apakah nomor pengirim (rawSender / member) sama dengan nomor HP bot / device
+  const rawSenderCandidate = String(
+    payloadObj.member ||
+    payloadObj.memberlid ||
+    (firstChoice && (firstChoice.member || firstChoice.memberlid)) ||
+    rawSender ||
+    incoming.sender ||
+    ""
+  );
+  const cleanSenderCandidate = rawSenderCandidate.replace(/\D/g, "");
+
+  const botPhoneCandidates = [
+    String(payloadObj.device || ""),
+    String((firstChoice && firstChoice.device) || ""),
+    String(incoming.device || ""),
+    process.env.FONNTE_DEVICE_ID || "",
+    process.env.FONNTE_DEVICE_NUMBER || "",
+    process.env.FONNTE_DEVICE_PHONE || "",
+    process.env.FONNTE_SENDER || "",
+    process.env.WABLAS_DEVICE_PHONE || "6287798799068",
+  ]
+    .map((p) => p.replace(/\D/g, ""))
+    .filter(Boolean);
+
+  const isBotSender = botPhoneCandidates.some(
+    (botNum) =>
+      cleanSenderCandidate &&
+      botNum &&
+      (cleanSenderCandidate === botNum ||
+        (botNum.length >= 9 && cleanSenderCandidate.endsWith(botNum.slice(-9))) ||
+        (cleanSenderCandidate.length >= 9 && botNum.endsWith(cleanSenderCandidate.slice(-9))))
+  );
+
+  if (isBotSender) {
+    console.log("[fonnte webhook] Fast exit - ignored bot self-sender message (device match):", {
+      sender: cleanSenderCandidate,
+      botPhoneCandidates,
+    });
+    return NextResponse.json({ status: "ignored_self_message" });
+  }
+
+  // C. Periksa apakah pesan teks diawali awalan keluaran bot (output header echo)
   if (isBotSelfEchoMessage(incoming.message)) {
     console.log("[fonnte webhook] Fast exit - ignored bot self-echo output message:", incoming.message.slice(0, 50));
-    return NextResponse.json({ status: "ignored_bot_output" }, { status: 200 });
+    return NextResponse.json({ status: "ignored_self_message" });
   }
 
   // 2. Batasi Peran Webhook Fonnte (One-Way Separation)
