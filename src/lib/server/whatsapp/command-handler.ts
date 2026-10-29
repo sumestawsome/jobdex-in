@@ -83,6 +83,12 @@ import {
   approveAndPublishTaskDraft,
   isBotSelfEchoMessage,
 } from "@/lib/server/voice-task-processor";
+import {
+  handleBulkJobdeskTambahCommand,
+  handleBulkJobdeskAccCommand,
+  handleBulkJobdeskBatalCommand,
+  getBulkJobdeskDraft,
+} from "@/lib/server/bulk-jobdesk-draft";
 
 export { findFaqMatch } from "@/lib/server/faq-matcher";
 export { formatWhatsAppText } from "@/lib/server/whatsapp";
@@ -694,6 +700,40 @@ export async function executeWhatsAppWebhook(
   }
 
   // ============================================================================
+  // BULK JOBDESK ACARA COMMANDS (!jobdesk tambah, !jobdesk acc, !jobdesk batal)
+  // ============================================================================
+  const isBulkJobdeskTambah = /^[!/](?:jobde[xs]\s+)?(?:jobdesk|jobdes)\s+(?:tambah|input)\b/i.test(stripped);
+  if (isBulkJobdeskTambah) {
+    console.log("[whatsapp command] step: process_bulk_jobdesk_tambah", {
+      sender: incoming.sender,
+      isGroup: incoming.isGroup,
+      groupId: incoming.groupId,
+      commandPreview: stripped.slice(0, 40),
+    });
+    return await handleBulkJobdeskTambahCommand(incoming, stripped);
+  }
+
+  const isBulkJobdeskAcc = /^[!/](?:jobde[xs]\s+)?(?:jobdesk|jobdes)\s+acc\b/i.test(stripped);
+  if (isBulkJobdeskAcc) {
+    console.log("[whatsapp command] step: process_bulk_jobdesk_acc", {
+      sender: incoming.sender,
+      isGroup: incoming.isGroup,
+      groupId: incoming.groupId,
+    });
+    return await handleBulkJobdeskAccCommand(incoming);
+  }
+
+  const isBulkJobdeskBatal = /^[!/](?:jobde[xs]\s+)?(?:jobdesk|jobdes)\s+batal\b/i.test(stripped);
+  if (isBulkJobdeskBatal) {
+    console.log("[whatsapp command] step: process_bulk_jobdesk_batal", {
+      sender: incoming.sender,
+      isGroup: incoming.isGroup,
+      groupId: incoming.groupId,
+    });
+    return await handleBulkJobdeskBatalCommand(incoming);
+  }
+
+  // ============================================================================
   // CONVERSATIONAL CLARIFICATION & DRAFT APPROVAL (ACC / BATAL / REVISION)
   // Tangkap perintah persetujuan (!tugas acc, !acc, acc), pembatalan, atau revisi draf.
   // ============================================================================
@@ -701,6 +741,12 @@ export async function executeWhatsAppWebhook(
   if (isApprovalCommand) {
     const activeDraft = await getWhatsAppTaskDraft(incoming.sender);
     if (!activeDraft) {
+      // Cek apakah ada draf bulk jobdesk acara aktif untuk pengirim
+      const activeBulkDraft = await getBulkJobdeskDraft(incoming.sender);
+      if (activeBulkDraft) {
+        return await handleBulkJobdeskAccCommand(incoming);
+      }
+
       console.log("[whatsapp draft] ACC received but no active draft found for sender:", incoming.sender);
       const replyTarget = incoming.isGroup
         ? (incoming.groupId || getDefaultGroupId())
@@ -754,13 +800,18 @@ export async function executeWhatsAppWebhook(
         stopFurtherProcessing: true,
         reason: "draft_cancelled",
       });
+    } else {
+      const activeBulkDraft = await getBulkJobdeskDraft(incoming.sender);
+      if (activeBulkDraft) {
+        return await handleBulkJobdeskBatalCommand(incoming);
+      }
     }
   }
 
   const activeDraft = await getWhatsAppTaskDraft(incoming.sender);
   if (activeDraft) {
     const isExplicitSystemCommand =
-      /^[!/](?:jobde[xs]\b|tugas\s+(?:tambah|edit|selesai|arsip|tutup|beres|list|mepet|menu|bantuan)\b)/i.test(
+      /^[!/](?:jobde[xs]\b|jobdesk\b|tugas\s+(?:tambah|edit|selesai|arsip|tutup|beres|list|mepet|menu|bantuan)\b)/i.test(
         stripped
       );
 
