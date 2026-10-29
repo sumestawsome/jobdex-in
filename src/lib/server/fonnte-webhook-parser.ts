@@ -44,42 +44,40 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
     data.groupId,
     data.group,
     data.remoteJid,
-    data.from,
-    data.sender,
     root.group_id,
     root.groupId,
     root.group,
-    root.remoteJid,
-    root.from,
-    root.sender
+    root.remoteJid
   );
 
-  // Read sender phone / member
-  const sender = pickString(
+  // Read sender phone / member candidates
+  const senderCandidate = pickString(
     data.member,
+    data.memberlid,
     data.participant,
     data.phone,
     data.number,
     data.sender_number,
     data.senderNumber,
-    data.from_number,
-    data.fromNumber,
-    data.pengirim,
     root.member,
+    root.memberlid,
     root.participant,
     root.phone,
-    root.number,
-    root.pengirim
+    root.number
   );
 
   // Determine if it is a group message
   const isGroupVal = pickString(data.is_group, data.isGroup, data.isgroup, root.is_group, root.isGroup, root.isgroup);
   const rawSenderCandidate = pickString(data.sender, root.sender);
+  const rawPengirimCandidate = pickString(data.pengirim, root.pengirim);
+
   const isGroupBool = 
     rawGroupId.includes("@g.us") ||
-    rawGroupId.startsWith("120363") ||
+    rawGroupId.startsWith("1203") ||
     rawSenderCandidate.includes("@g.us") ||
     rawSenderCandidate.startsWith("1203") ||
+    rawPengirimCandidate.includes("@g.us") ||
+    rawPengirimCandidate.startsWith("1203") ||
     isGroupVal === "true" ||
     isGroupVal === "1" ||
     isGroupVal === "yes" ||
@@ -92,45 +90,71 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
   const isGroup = Boolean(isGroupBool);
 
   let finalGroupId: string | undefined = undefined;
-  let finalSender = sender;
+  let finalSender = "";
 
   if (isGroup) {
-    if (rawGroupId) {
-      finalGroupId = normalizeWhatsAppGroupId(rawGroupId, "fonnte");
-    } else if (rawSenderCandidate.includes("@g.us") || rawSenderCandidate.startsWith("1203")) {
-      finalGroupId = normalizeWhatsAppGroupId(rawSenderCandidate, "fonnte");
+    // 1. Group ID: ambil dari ID grup yang sebenarnya
+    const effectiveGroupId =
+      rawGroupId ||
+      (rawSenderCandidate.includes("@g.us") || rawSenderCandidate.startsWith("1203") ? rawSenderCandidate : "") ||
+      (rawPengirimCandidate.includes("@g.us") || rawPengirimCandidate.startsWith("1203") ? rawPengirimCandidate : "");
+
+    if (effectiveGroupId) {
+      finalGroupId = normalizeWhatsAppGroupId(effectiveGroupId, "fonnte");
     }
 
-    // Jika pesan dari grup, ambil pengirim asli dari member / pengirim
-    const groupMember = pickString(
-      data.pengirim,
+    // 2. Real Sender Phone: Wajib dahulukan payload.member! JANGAN gunakan pengirim/sender karena itu ID grup
+    finalSender = pickString(
       data.member,
+      data.memberlid,
       data.participant,
-      data.phone,
-      data.number,
       data.sender_number,
       data.senderNumber,
-      root.pengirim,
       root.member,
+      root.memberlid,
       root.participant,
-      root.phone,
-      root.number
+      root.sender_number,
+      root.senderNumber
     );
 
-    if (groupMember) {
-      finalSender = groupMember;
-    } else if (!finalSender && (!rawSenderCandidate.includes("@g.us") && !rawSenderCandidate.startsWith("1203"))) {
-      finalSender = rawSenderCandidate;
+    // Guardrail Anti-ID-Grup: Jika finalSender masih kosong, atau masih berawalan 1203 / mengandung @g.us
+    if (!finalSender || finalSender.includes("@g.us") || finalSender.startsWith("1203")) {
+      const fallbackMember = pickString(
+        root.member,
+        data.member,
+        root.memberlid,
+        data.memberlid,
+        root.participant,
+        data.participant
+      );
+      if (fallbackMember && !fallbackMember.includes("@g.us") && !fallbackMember.startsWith("1203")) {
+        finalSender = fallbackMember;
+      }
     }
   } else {
-    // Personal chat: sender is rawGroupId (or sender if populated)
-    finalSender = finalSender || rawSenderCandidate || rawGroupId;
+    // Personal chat: sender adalah nomor HP dari sender / from / phone / pengirim / member
+    finalSender = pickString(
+      data.sender,
+      root.sender,
+      data.from,
+      root.from,
+      data.pengirim,
+      root.pengirim,
+      data.member,
+      root.member,
+      data.phone,
+      root.phone,
+      senderCandidate,
+      rawGroupId
+    );
   }
 
   // Clean the sender phone number to pure digits (62xxx)
   finalSender = finalSender
     .replace(/@s\.whatsapp\.net$/i, "")
     .replace(/@c\.us$/i, "")
+    .replace(/@lid$/i, "")
+    .replace(/@g\.us$/i, "")
     .replace(/[\s\-\+\(\)]/g, "")
     .replace(/\D/g, "")
     .replace(/^0/, "62")

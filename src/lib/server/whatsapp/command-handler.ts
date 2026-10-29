@@ -617,7 +617,7 @@ export async function executeWhatsAppWebhook(
   payload: unknown
 ): Promise<NextResponse> {
   // Resolusi pengirim Fonnte / WhatsApp untuk pesan grup:
-  // Jika pesan berasal dari grup, ambil nomor pengirim sebenarnya dari payload.pengirim / payload.member
+  // Wajib dahulukan payload.member daripada payload.pengirim karena pengirim berisi ID grup
   if (payload && typeof payload === "object") {
     const root = payload as Record<string, unknown>;
     const firstChoice = Array.isArray(root.choices) && root.choices[0] && typeof root.choices[0] === "object"
@@ -631,38 +631,60 @@ export async function executeWhatsAppWebhook(
       String(root.sender || "").includes("@g.us") ||
       String(root.sender || "").startsWith("1203") ||
       String(incoming.sender || "").includes("@g.us") ||
-      String(incoming.sender || "").startsWith("1203");
+      String(incoming.sender || "").startsWith("1203") ||
+      String(root.pengirim || "").includes("@g.us") ||
+      String(root.pengirim || "").startsWith("1203");
 
     if (isGroup) {
       incoming.isGroup = true;
 
+      // Wajib dahulukan payload.member / memberlid! Jangan gunakan payload.pengirim karena itu alias sender (berisi ID grup)
       const realSender =
-        (root.pengirim ||
-        root.member ||
-        root.participant ||
-        root.sender_number ||
-        firstChoice?.pengirim ||
+        (root.member ||
+        root.memberlid ||
         firstChoice?.member ||
-        firstChoice?.participant) as string | undefined;
+        firstChoice?.memberlid ||
+        root.participant ||
+        firstChoice?.participant ||
+        root.sender_number ||
+        firstChoice?.sender_number) as string | undefined;
 
-      if (realSender) {
+      if (realSender && !String(realSender).startsWith("1203") && !String(realSender).includes("@g.us")) {
         incoming.sender = normalizePhone(realSender);
       }
 
       // Pastikan groupId mencatat ID grup aslinya (120363...)
-      if (!incoming.groupId) {
+      if (!incoming.groupId || !incoming.groupId.includes("@g.us")) {
         const candidateGid = String(
           root.group_id ||
           root.groupId ||
           root.group ||
           root.remoteJid ||
           (String(root.sender || "").includes("@g.us") || String(root.sender || "").startsWith("1203") ? root.sender : "") ||
+          (String(root.pengirim || "").includes("@g.us") || String(root.pengirim || "").startsWith("1203") ? root.pengirim : "") ||
           ""
         );
         if (candidateGid) {
           incoming.groupId = candidateGid.endsWith("@g.us") ? candidateGid : `${candidateGid}@g.us`;
         }
       }
+    }
+  }
+
+  // Guardrail Anti-ID-Grup: Jika incoming.sender masih ID grup (1203...) tetapi payload memiliki member
+  if (
+    incoming.sender &&
+    (incoming.sender.startsWith("1203") || incoming.sender.includes("@g.us")) &&
+    payload &&
+    typeof payload === "object"
+  ) {
+    const root = payload as Record<string, unknown>;
+    const firstChoice = Array.isArray(root.choices) && root.choices[0] && typeof root.choices[0] === "object"
+      ? (root.choices[0] as Record<string, unknown>)
+      : null;
+    const fallbackMember = (root.member || root.memberlid || firstChoice?.member || firstChoice?.memberlid) as string | undefined;
+    if (fallbackMember && !String(fallbackMember).startsWith("1203")) {
+      incoming.sender = normalizePhone(fallbackMember);
     }
   }
 
