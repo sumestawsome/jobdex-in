@@ -437,7 +437,8 @@ export type DigestType =
   | "OVERDUE_DIGEST"
   | "APPROVAL_DIGEST"
   | "URGENT_DIGEST"
-  | "EMPTY_EVENT_DIGEST";
+  | "EMPTY_EVENT_DIGEST"
+  | "NO_DEADLINE_TASK_DIGEST";
 
 export type DigestCategoryKey =
   | "overdue"
@@ -840,6 +841,40 @@ export function buildEmptyEventReminderMessage(
     ``,
     `Biar semua pengerjaan ke-track rapi dan gak ada yang keteteran pas hari H. Semangat semuanya! 🔥`,
     `👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
+  ].join("\n");
+}
+
+export function buildNoDeadlineEventReminderMessage(
+  eventName: string,
+  tasks: Array<{ name: string; picName?: string }>,
+  coordDisplay: string,
+  secDisplay: string,
+  now = new Date()
+): string {
+  const dateText = formatIndonesianDate(now);
+  const taskLines = tasks.slice(0, 10).map((t, idx) => {
+    return `${idx + 1}. *${t.name}* (PIC: ${t.picName || "Belum ditentukan"})`;
+  });
+  const remaining = tasks.length > 10 ? `\n_(dan ${tasks.length - 10} tugas lainnya)_\n` : "";
+
+  return [
+    `⚠️ *PERHATIAN: TUGAS KEPANITIAAN BELUM MEMILIKI DEADLINE* ⏰`,
+    `Acara: *${eventName}* (${dateText})`,
+    ``,
+    `Halo Koordinator ${coordDisplay} & Sekretaris ${secDisplay},`,
+    `Terdapat *${tasks.length} tugas kepanitiaan* yang belum memiliki tenggat waktu (deadline):`,
+    ``,
+    taskLines.join("\n"),
+    remaining,
+    ``,
+    `📌 *Mengapa deadline penting?*`,
+    `Sistem pengingat berkala JobDex (H-7, H-3, H-1) hanya bisa berjalan jika tenggat waktu sudah ditentukan. Tanpa deadline, sistem tidak dapat mengawal kepanitiaan dengan optimal.`,
+    ``,
+    `💡 *Segera atur deadline melalui:*`,
+    `👉 Buka dashboard web: https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
+    `Atau koordinasikan bersama PIC untuk menetapkan tanggal target selesai.`,
+    ``,
+    `Semangat bertugas rekan-rekan panitia! 🙌`,
   ].join("\n");
 }
 

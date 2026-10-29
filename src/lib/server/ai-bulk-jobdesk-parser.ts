@@ -29,6 +29,11 @@ export interface BulkJobdeskParseResult {
   missing_deadlines_summary: string;
 }
 
+export interface TaskDeadlineUpdate {
+  task_index: number; // 1-based index
+  deadline: string; // format YYYY-MM-DD atau YYYY-MM-DDTHH:mm
+}
+
 export interface MemberCandidate {
   id: string;
   name: string;
@@ -205,11 +210,11 @@ async function callGeminiBulkParser(
     throw new Error("GEMINI_API_KEY belum dikonfigurasi pada environment server.");
   }
 
+  const configuredModel = process.env.GEMINI_MODEL?.trim();
   const modelsToTry = [
-    process.env.GEMINI_MODEL,
+    configuredModel && !configuredModel.includes("1.5") ? configuredModel : null,
     "gemini-3.8-flash",
     "gemini-3.5-flash-lite",
-    "gemini-3.8-pro",
   ].filter(Boolean) as string[];
 
   const uniqueModels = [...new Set(modelsToTry)];
@@ -710,4 +715,216 @@ Silakan ekstrak seluruh tugas pra-acara dan pasca-acara serta kecualikan tugas o
     );
     return fallbackParseJobdesk(rawText, eventName, activeCandidates);
   }
+}
+
+// ============================================================================
+// Conversational Deadline Follow-up Parser (Gemini 3.8 Flash + Heuristic)
+// ============================================================================
+
+const INDO_MONTH_NAMES: Record<string, string> = {
+  jan: "01",
+  januari: "01",
+  january: "01",
+  feb: "02",
+  februari: "02",
+  february: "02",
+  mar: "03",
+  maret: "03",
+  march: "03",
+  apr: "04",
+  april: "04",
+  mei: "05",
+  may: "05",
+  jun: "06",
+  juni: "06",
+  june: "06",
+  jul: "07",
+  juli: "07",
+  july: "07",
+  agu: "08",
+  ags: "08",
+  agustus: "08",
+  aug: "08",
+  august: "08",
+  sep: "09",
+  september: "09",
+  okt: "10",
+  oct: "10",
+  oktober: "10",
+  october: "10",
+  nov: "11",
+  november: "11",
+  des: "12",
+  dec: "12",
+  desember: "12",
+  december: "12",
+};
+
+/**
+ * Heuristic regex fallback untuk mengekstrak tenggat dari teks seperti:
+ * "1 tenggat 5 Nov 20:00, 2 tenggat 8 Nov" atau "tugas 1 deadline 5 nov"
+ */
+export function heuristicParseDeadlines(
+  rawText: string,
+  totalTasks: number
+): TaskDeadlineUpdate[] {
+  const updates: TaskDeadlineUpdate[] = [];
+  if (!rawText.trim() || totalTasks <= 0) return updates;
+
+  const currentYear = new Date().getFullYear(); // e.g. 2026
+  const clean = rawText.trim().toLowerCase();
+
+  // Cek apakah perintah berlaku untuk SEMUA tugas, misal: "semua tenggat 10 nov"
+  const allMatch = clean.match(
+    /(?:semua|all|seluruh)\s+(?:tugas\s+)?(?:tenggat|deadline|tgl|tanggal)\s+(\d{1,2})\s+([a-z]+)(?:\s+(\d{1,2}[:.]\d{2}))?/i
+  );
+  if (allMatch) {
+    const day = allMatch[1].padStart(2, "0");
+    const monthKey = allMatch[2].toLowerCase();
+    const month = INDO_MONTH_NAMES[monthKey];
+    const timeStr = allMatch[3] ? allMatch[3].replace(".", ":") : "";
+    if (month) {
+      const deadline = timeStr ? `${currentYear}-${month}-${day}T${timeStr}` : `${currentYear}-${month}-${day}`;
+      for (let i = 1; i <= totalTasks; i++) {
+        updates.push({ task_index: i, deadline });
+      }
+      return updates;
+    }
+  }
+
+  // Pecah berdasarkan koma, titik koma, baris baru, atau kata penghubung "dan"
+  const segments = clean.split(/[,;\n]|\s+dan\s+/);
+
+  for (const seg of segments) {
+    const s = seg.trim();
+    if (!s) continue;
+
+    // Pola 1: "1 tenggat 5 Nov 20:00" atau "no 1: 5 nov" atau "tugas 2 deadline 8 nov"
+    const pattern =
+      /(?:(?:no|nomor|tugas)\s*)?(\d+)[\s:\-.]*(?:tenggat|deadline|tgl|tanggal)?[\s:\-]*(\d{1,2})\s+([a-z]+)(?:\s+(\d{1,2}[:.]\d{2}))?/i;
+    const m = s.match(pattern);
+
+    if (m) {
+      const taskIndex = parseInt(m[1], 10);
+      if (taskIndex >= 1 && taskIndex <= totalTasks) {
+        const day = m[2].padStart(2, "0");
+        const monthKey = m[3].toLowerCase();
+        const month = INDO_MONTH_NAMES[monthKey];
+        const timeStr = m[4] ? m[4].replace(".", ":") : "";
+
+        if (month) {
+          const deadline = timeStr ? `${currentYear}-${month}-${day}T${timeStr}` : `${currentYear}-${month}-${day}`;
+          updates.push({ task_index: taskIndex, deadline });
+          continue;
+        }
+      }
+    }
+
+    // Pola 2: Format ISO standar "1: 2026-11-05" atau "1 deadline 2026-11-05 20:00"
+    const isoPattern =
+      /(?:(?:no|nomor|tugas)\s*)?(\d+)[\s:\-.]*(?:tenggat|deadline|tgl|tanggal)?[\s:\-]*(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})(?:[\sT]+(\d{1,2}[:.]\d{2}))?/i;
+    const isoM = s.match(isoPattern);
+    if (isoM) {
+      const taskIndex = parseInt(isoM[1], 10);
+      if (taskIndex >= 1 && taskIndex <= totalTasks) {
+        const datePart = isoM[2].replace(/\//g, "-");
+        const timeStr = isoM[3] ? isoM[3].replace(".", ":") : "";
+        const deadline = timeStr ? `${datePart}T${timeStr}` : datePart;
+        updates.push({ task_index: taskIndex, deadline });
+      }
+    }
+  }
+
+  return updates;
+}
+
+/**
+ * Mengekstrak pemetaan deadline tugas dari pesan percakapan koordinator/sekretaris.
+ * Menggunakan Gemini 3.8 Flash dengan fallback ke Heuristic Regex Parser.
+ */
+export async function parseConversationalDeadlines(
+  rawText: string,
+  currentTasks: ParsedJobdeskTask[]
+): Promise<TaskDeadlineUpdate[]> {
+  if (!rawText.trim() || currentTasks.length === 0) {
+    return [];
+  }
+
+  // Ringkas daftar tugas yang ada
+  const taskDescriptions = currentTasks
+    .map(
+      (t, idx) =>
+        `${idx + 1}. ${t.name} (PIC: ${t.pic_names.join(", ") || "-"}, Deadline: ${t.deadline || "Belum ada"})`
+    )
+    .join("\n");
+
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const todayStr = today.toISOString().slice(0, 10);
+
+  const systemPrompt = `Kamu adalah asisten AI JobDex.in yang bertugas memetakan penetapan tenggat waktu (deadline) dari pesan koordinator/sekretaris acara ke dalam tugas-tugas draf panitia.
+
+INFORMASI WAKTU:
+Tahun saat ini: ${currentYear}
+Tanggal hari ini: ${todayStr}
+
+DAFTAR TUGAS DALAM DRAF:
+${taskDescriptions}
+
+ATURAN UTAMA:
+1. Cocokkan nomor tugas (1-based index) atau nama tugas yang dirujuk pengguna.
+2. Ekstrak tanggal target (dan jam jika ada):
+   - Format deadline HARUS: 'YYYY-MM-DD' atau 'YYYY-MM-DDTHH:mm' (ISO string).
+   - Contoh: '5 Nov 20:00' -> '${currentYear}-11-05T20:00'.
+   - Contoh: '8 Nov' -> '${currentYear}-11-08'.
+   - Jika pengguna menyebutkan 'semua tenggat 10 nov', berikan update untuk SEMUA tugas dari 1 hingga ${currentTasks.length}.
+3. Kembalikan HANYA format JSON valid berikut tanpa teks pendahuluan:
+{
+  "updates": [
+    {
+      "task_index": 1,
+      "deadline": "${currentYear}-11-05T20:00"
+    }
+  ]
+}
+Jika teks tidak berkaitan dengan penetapan tenggat waktu tugas, kembalikan:
+{
+  "updates": []
+}`;
+
+  const userPrompt = `Pesan Pengguna:
+---
+${rawText}
+---
+
+Silakan ekstrak pemetaan deadline untuk tugas di atas.`;
+
+  try {
+    const rawJson = await callGeminiBulkParser(systemPrompt, userPrompt);
+    const parsed = parseJsonSafely(rawJson);
+    const rawUpdates = Array.isArray(parsed.updates) ? parsed.updates : [];
+
+    const validUpdates: TaskDeadlineUpdate[] = [];
+    for (const item of rawUpdates) {
+      if (!item || typeof item !== "object") continue;
+      const idx = typeof item.task_index === "number" ? item.task_index : parseInt(item.task_index, 10);
+      const dl = typeof item.deadline === "string" ? item.deadline.trim() : "";
+
+      if (idx >= 1 && idx <= currentTasks.length && dl.match(/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?)?$/)) {
+        validUpdates.push({ task_index: idx, deadline: dl });
+      }
+    }
+
+    if (validUpdates.length > 0) {
+      return validUpdates;
+    }
+  } catch (err) {
+    console.warn(
+      "[AI Bulk Jobdesk Parser] Gemini gagal memproses conversational deadline, beralih ke Heuristic:",
+      err
+    );
+  }
+
+  // Fallback Heuristic
+  return heuristicParseDeadlines(rawText, currentTasks.length);
 }

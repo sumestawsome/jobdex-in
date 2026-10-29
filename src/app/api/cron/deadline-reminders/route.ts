@@ -8,6 +8,7 @@ import {
 import {
   buildDigestReminderMessage,
   buildEmptyEventReminderMessage,
+  buildNoDeadlineEventReminderMessage,
   buildReminderDigest,
   checkDigestAlreadySentToday,
   createTaskReminderDigestLog,
@@ -140,8 +141,10 @@ async function handleCron(request: Request) {
     });
 
     const eventsMap = new Map<string, { name?: string }>();
+    const eventsFullMap = new Map<string, Event>();
     eventsSnapshot.forEach((doc) => {
       eventsMap.set(doc.id, doc.data() as { name?: string });
+      eventsFullMap.set(doc.id, { id: doc.id, ...doc.data() } as Event);
     });
 
     const divisionsMap = new Map<
@@ -781,7 +784,244 @@ async function handleCron(request: Request) {
       }
     });
 
-    await Promise.allSettled([...groupPromises, ...emptyEventPromises]);
+    // 4B. Process Active Event Tasks with Missing Deadlines (Tugas Tanpa Tenggat Waktu)
+    const noDeadlineTasksByEvent = new Map<string, Task[]>();
+    for (const t of activeOrmawaTasks) {
+      if (t.type === "acara" && t.event_id && (!t.deadline || t.deadline === null)) {
+        const list = noDeadlineTasksByEvent.get(t.event_id) || [];
+        list.push(t);
+        noDeadlineTasksByEvent.set(t.event_id, list);
+      }
+    }
+
+    const noDeadlineEventPromises = Array.from(noDeadlineTasksByEvent.entries()).map(
+      async ([eventId, tasksWithoutDeadline]) => {
+        const event = eventsFullMap.get(eventId);
+        if (!event || !event.whatsapp_group_id) {
+          return;
+        }
+
+        // Only process events that are in preparation or in progress
+        if (event.status && !["persiapan", "berlangsung"].includes(event.status)) {
+          return;
+        }
+
+        const targetGroupId = event.whatsapp_group_id;
+        const groupName = event.name;
+
+        // Skip if targetGroupIdParam is set and doesn't match
+        if (targetGroupIdParam && targetGroupId !== targetGroupIdParam) {
+          return;
+        }
+
+        // Anti-spam check: don't resend no-deadline reminder today unless force=true or dryRun=true
+        if (!force && !dryRun) {
+          const alreadySentToday = await checkDigestAlreadySentToday({
+            digestType: "NO_DEADLINE_TASK_DIGEST",
+            groupId: targetGroupId,
+            digestDateKey,
+          });
+
+          if (alreadySentToday) {
+            groupResults.push({
+              targetGroupId,
+              groupName,
+              taskCount: tasksWithoutDeadline.length,
+              newTaskCount: 0,
+              status: "skipped",
+              reason: "No-deadline reminder already sent today. Use ?force=true to override.",
+            });
+            return;
+          }
+        }
+
+        // Resolve Koordinator & Sekretaris
+        let coordUser = event.coordinator_id ? usersMap.get(event.coordinator_id) : undefined;
+        let secUser = event.secretary_id ? usersMap.get(event.secretary_id) : undefined;
+
+        if (!coordUser || !secUser) {
+          try {
+            const membersSnap = await db
+              .collection("events")
+              .doc(eventId)
+              .collection("event_members")
+              .get();
+
+            membersSnap.forEach((mDoc) => {
+              const mData = mDoc.data();
+              const role = (mData.role_in_event || "").toLowerCase();
+              const uId = mData.user_id || mDoc.id;
+              if (!coordUser && (role.includes("koor") || role.includes("ketua"))) {
+                coordUser = usersMap.get(uId);
+              }
+              if (!secUser && (role.includes("sekretaris") || role.includes("sekre"))) {
+                secUser = usersMap.get(uId);
+              }
+            });
+          } catch (err) {
+            console.warn(`Could not fetch event_members for no-deadline reminder ${eventId}:`, err);
+          }
+        }
+
+        const coordName = coordUser?.name || "Koordinator Acara";
+        const coordPhone = normalizeMentionPhone(coordUser?.whatsapp_number);
+        const coordDisplay = coordPhone ? `@${coordPhone} (${coordName})` : coordName;
+
+        const secName = secUser?.name || "Sekretaris Acara";
+        const secPhone = normalizeMentionPhone(secUser?.whatsapp_number);
+        const secDisplay = secPhone ? `@${secPhone} (${secName})` : secName;
+
+        const mentionedPhones = [coordPhone, secPhone].filter(
+          (p): p is string => Boolean(p && p.length > 5)
+        );
+
+        const taskItems = tasksWithoutDeadline.map((t) => {
+          const picUser = t.pic_id ? usersMap.get(t.pic_id) : undefined;
+          const picName = picUser?.name || (t.pic_names && t.pic_names[0]) || "Belum ditentukan";
+          return { name: t.name, picName };
+        });
+
+        const messageContent = buildNoDeadlineEventReminderMessage(
+          event.name,
+          taskItems,
+          coordDisplay,
+          secDisplay
+        );
+
+        // Dry-Run Mode
+        if (dryRun) {
+          groupResults.push({
+            targetGroupId,
+            groupName,
+            taskCount: tasksWithoutDeadline.length,
+            newTaskCount: tasksWithoutDeadline.length,
+            status: "dry_run",
+            messagePreview: messageContent.slice(0, 200),
+            fullMessage: messageContent,
+          });
+          for (const phone of mentionedPhones) {
+            sentMentionedPhones.add(phone);
+          }
+          return;
+        }
+
+        // Live Send Mode
+        try {
+          const eventOrgId =
+            event.organization_id ||
+            event.org_id ||
+            event.orgId ||
+            "main_org";
+
+          const dispatchResult = await sendWhatsAppMessage({
+            target: targetGroupId,
+            message: messageContent,
+            type: "group",
+            mentions: mentionedPhones,
+            org_id: eventOrgId,
+          });
+
+          if (dispatchResult.skipped) {
+            await logWhatsAppDigestDispatch({
+              organizationId: eventOrgId,
+              recipient: targetGroupId,
+              messageContent,
+              status: "skipped",
+              taskIds: tasksWithoutDeadline.map((t) => t.id),
+              categories: {
+                overdue: 0,
+                today: 0,
+                h_1: 0,
+                h_2_h_3: 0,
+                h_5_h_7: 0,
+                waitingApproval: 0,
+                stuck: 0,
+              },
+              mentionedPhones,
+              errorMessage: dispatchResult.error || "Gateway WhatsApp ormawa belum dikonfigurasi.",
+              provider: dispatchResult.provider,
+            });
+            return;
+          }
+
+          const whatsappLogId = await logWhatsAppDigestDispatch({
+            organizationId: eventOrgId,
+            recipient: targetGroupId,
+            messageContent,
+            status: "sent",
+            taskIds: tasksWithoutDeadline.map((t) => t.id),
+            categories: {
+              overdue: 0,
+              today: 0,
+              h_1: 0,
+              h_2_h_3: 0,
+              h_5_h_7: 0,
+              waitingApproval: 0,
+              stuck: 0,
+            },
+            mentionedPhones,
+            wablasResponse: dispatchResult.responseText,
+            provider: dispatchResult.provider,
+          });
+
+          await createTaskReminderDigestLog({
+            digestType: "NO_DEADLINE_TASK_DIGEST",
+            groupId: targetGroupId,
+            digestDateKey,
+            taskIds: tasksWithoutDeadline.map((t) => t.id),
+            allCurrentTaskIds: tasksWithoutDeadline.map((t) => t.id),
+            newTaskIds: tasksWithoutDeadline.map((t) => t.id),
+            categories: {
+              overdue: 0,
+              today: 0,
+              h_1: 0,
+              h_2_h_3: 0,
+              h_5_h_7: 0,
+              waitingApproval: 0,
+              stuck: 0,
+            },
+            mentionedPhones,
+            status: "sent",
+            messageContent,
+            whatsappLogId,
+            target_group_id: targetGroupId,
+            target_group_type: "event_group",
+            linked_event_id: eventId,
+          });
+
+          digestSentCount++;
+          for (const phone of mentionedPhones) {
+            sentMentionedPhones.add(phone);
+          }
+
+          groupResults.push({
+            targetGroupId,
+            groupName,
+            taskCount: tasksWithoutDeadline.length,
+            newTaskCount: tasksWithoutDeadline.length,
+            status: "sent",
+            messagePreview: messageContent.slice(0, 150),
+          });
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Gagal mengirim pengingat tugas tanpa deadline.";
+          digestFailedCount++;
+          digestErrors.push({ target: targetGroupId, reason: errorMessage });
+          errors.push(`Group ${targetGroupId}: ${errorMessage}`);
+
+          groupResults.push({
+            targetGroupId,
+            groupName,
+            taskCount: tasksWithoutDeadline.length,
+            newTaskCount: tasksWithoutDeadline.length,
+            status: "failed",
+            reason: errorMessage,
+          });
+        }
+      }
+    );
+
+    await Promise.allSettled([...groupPromises, ...emptyEventPromises, ...noDeadlineEventPromises]);
 
     // 5. Process Academic / Class Task Reminders (Skenario 2: H-5, H-3, H-1, Hari Ini)
     let academicCronResult = { checked: 0, sent: 0, skipped: 0, errors: [] as string[], tasks: [] as Array<{ id: string; milestone: string; status: string; taskName: string }> };
@@ -816,13 +1056,13 @@ async function handleCron(request: Request) {
       activeTasks: activeOrmawaTasks.length,
       academicTasksCount,
       eligibleTasks: eligibleTasksCount,
-      groupsChecked: taskGroups.size + emptyEventsToProcess.length,
+      groupsChecked: taskGroups.size + emptyEventsToProcess.length + noDeadlineTasksByEvent.size,
       groups: groupResults,
       academicReminders: academicCronResult,
       digestSent:
         digestSentCount > 0 ||
         academicCronResult.sent > 0 ||
-        (dryRun && (eligibleTasksCount > 0 || emptyEventsToProcess.length > 0 || academicCronResult.tasks.length > 0)),
+        (dryRun && (eligibleTasksCount > 0 || emptyEventsToProcess.length > 0 || noDeadlineTasksByEvent.size > 0 || academicCronResult.tasks.length > 0)),
       digestTaskCount,
       newTaskIdsInDigest,
       categories: categoriesSum,

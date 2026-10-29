@@ -87,7 +87,9 @@ import {
   handleBulkJobdeskTambahCommand,
   handleBulkJobdeskAccCommand,
   handleBulkJobdeskBatalCommand,
+  handleBulkJobdeskDeadlineFollowUp,
   getBulkJobdeskDraft,
+  findActiveDraftForEventOrGroup,
 } from "@/lib/server/bulk-jobdesk-draft";
 
 export { findFaqMatch } from "@/lib/server/faq-matcher";
@@ -700,9 +702,9 @@ export async function executeWhatsAppWebhook(
   }
 
   // ============================================================================
-  // BULK JOBDESK ACARA COMMANDS (!jobdesk tambah, !jobdesk acc, !jobdesk batal)
+  // BULK JOBDESK ACARA COMMANDS (!jobdesk tambah, !jobdesk acc, !jobdesk batal, jobdex ...)
   // ============================================================================
-  const isBulkJobdeskTambah = /^[!/](?:jobde[xs]\s+)?(?:jobdesk|jobdes)\s+(?:tambah|input)\b/i.test(stripped);
+  const isBulkJobdeskTambah = /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+(?:tambah|input)\b/i.test(stripped);
   if (isBulkJobdeskTambah) {
     console.log("[whatsapp command] step: process_bulk_jobdesk_tambah", {
       sender: incoming.sender,
@@ -713,17 +715,19 @@ export async function executeWhatsAppWebhook(
     return await handleBulkJobdeskTambahCommand(incoming, stripped);
   }
 
-  const isBulkJobdeskAcc = /^[!/](?:jobde[xs]\s+)?(?:jobdesk|jobdes)\s+acc\b/i.test(stripped);
+  const isBulkJobdeskAcc = /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+acc(?:\s+paksa)?\b/i.test(stripped);
+  const isExplicitForceAcc = /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+acc\s+paksa\b/i.test(stripped);
   if (isBulkJobdeskAcc) {
     console.log("[whatsapp command] step: process_bulk_jobdesk_acc", {
       sender: incoming.sender,
       isGroup: incoming.isGroup,
       groupId: incoming.groupId,
+      isForceAcc: isExplicitForceAcc,
     });
-    return await handleBulkJobdeskAccCommand(incoming);
+    return await handleBulkJobdeskAccCommand(incoming, isExplicitForceAcc);
   }
 
-  const isBulkJobdeskBatal = /^[!/](?:jobde[xs]\s+)?(?:jobdesk|jobdes)\s+batal\b/i.test(stripped);
+  const isBulkJobdeskBatal = /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+batal\b/i.test(stripped);
   if (isBulkJobdeskBatal) {
     console.log("[whatsapp command] step: process_bulk_jobdesk_batal", {
       sender: incoming.sender,
@@ -737,14 +741,19 @@ export async function executeWhatsAppWebhook(
   // CONVERSATIONAL CLARIFICATION & DRAFT APPROVAL (ACC / BATAL / REVISION)
   // Tangkap perintah persetujuan (!tugas acc, !acc, acc), pembatalan, atau revisi draf.
   // ============================================================================
-  const isApprovalCommand = /^(?:[!/]tugas\s+acc|[!/]acc|acc)$/i.test(stripped);
+  const isApprovalCommand = /^(?:[!/]tugas\s+acc|[!/]acc|acc|acc\s+paksa|[!/]acc\s+paksa)$/i.test(stripped);
+  const isGeneralForceAcc = /^(?:acc\s+paksa|[!/]acc\s+paksa)$/i.test(stripped);
+
   if (isApprovalCommand) {
     const activeDraft = await getWhatsAppTaskDraft(incoming.sender);
     if (!activeDraft) {
-      // Cek apakah ada draf bulk jobdesk acara aktif untuk pengirim
-      const activeBulkDraft = await getBulkJobdeskDraft(incoming.sender);
+      // Cek apakah ada draf bulk jobdesk acara aktif untuk pengirim / grup
+      let activeBulkDraft = await getBulkJobdeskDraft(incoming.sender);
+      if (!activeBulkDraft && incoming.isGroup && incoming.groupId) {
+        activeBulkDraft = await findActiveDraftForEventOrGroup(undefined, incoming.groupId);
+      }
       if (activeBulkDraft) {
-        return await handleBulkJobdeskAccCommand(incoming);
+        return await handleBulkJobdeskAccCommand(incoming, isGeneralForceAcc);
       }
 
       console.log("[whatsapp draft] ACC received but no active draft found for sender:", incoming.sender);
@@ -801,9 +810,66 @@ export async function executeWhatsAppWebhook(
         reason: "draft_cancelled",
       });
     } else {
-      const activeBulkDraft = await getBulkJobdeskDraft(incoming.sender);
+      let activeBulkDraft = await getBulkJobdeskDraft(incoming.sender);
+      if (!activeBulkDraft && incoming.isGroup && incoming.groupId) {
+        activeBulkDraft = await findActiveDraftForEventOrGroup(undefined, incoming.groupId);
+      }
       if (activeBulkDraft) {
         return await handleBulkJobdeskBatalCommand(incoming);
+      }
+    }
+  }
+
+  // ============================================================================
+  // BULK JOBDESK CONVERSATIONAL DEADLINE FOLLOW-UP
+  // Tangkap pesan susulan pengisian tenggat waktu ketika draf acara aktif ada
+  // ============================================================================
+  let activeBulkDraft = await getBulkJobdeskDraft(incoming.sender);
+  if (!activeBulkDraft && incoming.isGroup && incoming.groupId) {
+    activeBulkDraft = await findActiveDraftForEventOrGroup(undefined, incoming.groupId);
+  }
+
+  if (activeBulkDraft) {
+    const isExplicitSystemCommand =
+      /^(?:[!/])?(?:jobde[xs]\b|jobdesk\b|tugas\b|acc\b|batal\b)/i.test(stripped);
+
+    const lower = stripped.toLowerCase();
+    const hasDeadlineKeyword =
+      lower.includes("tenggat") ||
+      lower.includes("deadline") ||
+      lower.includes("tgl") ||
+      lower.includes("tanggal") ||
+      lower.includes("besok") ||
+      lower.includes("lusa");
+
+    const hasDatePattern =
+      /\b\d{1,2}\s+(?:jan|feb|mar|apr|mei|jun|jul|agu|ags|sep|okt|nov|des)/i.test(lower) ||
+      /\b\d{4}[-\/]\d{1,2}[-\/]\d{1,2}\b/.test(lower) ||
+      /\b\d{1,2}[/-]\d{1,2}\b/.test(lower);
+
+    const hasTaskIndexIndicator =
+      /(?:^|\s)(?:no|nomor|tugas)?\s*\d+[\s:.-]/i.test(lower) ||
+      /^(?:semua|all|seluruh)\s+/i.test(lower);
+
+    const isPotentialDeadlineUpdate =
+      !isExplicitSystemCommand &&
+      (hasDeadlineKeyword || (hasTaskIndexIndicator && hasDatePattern));
+
+    if (isPotentialDeadlineUpdate) {
+      console.log("[whatsapp bulk draft] Processing conversational deadline follow-up:", {
+        sender: incoming.sender,
+        event: activeBulkDraft.event_name,
+        preview: stripped.slice(0, 50),
+      });
+
+      const deadlineRes = await handleBulkJobdeskDeadlineFollowUp(
+        incoming,
+        stripped,
+        activeBulkDraft
+      );
+
+      if (deadlineRes) {
+        return deadlineRes;
       }
     }
   }
@@ -872,9 +938,9 @@ export async function executeWhatsAppWebhook(
     return await handleAcademicTaskMenu(incoming);
   }
 
-  const isJobdexPrefixed = /^[!/]jobde[xs]/i.test(stripped);
+  const isJobdexPrefixed = /^(?:[!/])?jobde[xs]/i.test(stripped);
 
-  // Di grup WhatsApp, abaikan pesan yang bukan untuk bot (tidak berawalan !jobdex) agar tidak spam obrolan panitia
+  // Di grup WhatsApp, abaikan pesan yang bukan untuk bot (tidak berawalan !jobdex atau jobdex/jobdesk) agar tidak spam obrolan panitia
   if (incoming.isGroup && !isJobdexPrefixed) {
     console.log("[whatsapp command] step: non_jobdex_group_message_ignored", {
       isGroup: incoming.isGroup,
@@ -888,7 +954,7 @@ export async function executeWhatsAppWebhook(
   }
 
   // --- Penanganan Langsung: Perintah !jobdex Tunggal (Tanpa Argumen) ---
-  const cleanAfterPrefix = stripped.replace(/^[!/]jobde[xs]\b/i, "").trim();
+  const cleanAfterPrefix = stripped.replace(/^(?:[!/])?jobde[xs]\b/i, "").trim();
   if (isJobdexPrefixed && cleanAfterPrefix === "") {
     console.log("[whatsapp command] step: empty_jobdex_greeting");
     const singleJobdexReply = [
@@ -960,7 +1026,7 @@ export async function executeWhatsAppWebhook(
     const target = customPhone || defaultTarget;
     const isGroup = incoming.isGroup || isGroupRecipient(target);
     const type = isGroup ? "group" : "phone";
-    const cleanCmd = stripped.replace(/^[!/]jobde[xs]\b/i, "").trim().toLowerCase();
+    const cleanCmd = stripped.replace(/^(?:[!/])?jobde[xs]\b/i, "").trim().toLowerCase();
 
     console.log("[whatsapp command] step: before_send_message", {
       sendReason: "standard_reply",
@@ -1150,7 +1216,7 @@ export async function executeWhatsAppWebhook(
   };
 
   // --- Bare & Help Command Handling (Fase 27A.2.5) ---
-  const cleanQuery = stripped.replace(/^[!/]jobde[xs]\b/i, "").trim().toLowerCase();
+  const cleanQuery = stripped.replace(/^(?:[!/])?jobde[xs]\b/i, "").trim().toLowerCase();
 
   const helpMenuReply = [
     "✨ *Halo rekan-rekan Forkom KIP!*",
