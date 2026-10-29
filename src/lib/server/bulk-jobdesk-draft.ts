@@ -288,21 +288,31 @@ export async function verifyBulkJobdeskAuthorization(
 
   // 1. Ambil profil user pengirim dari Firestore
   const usersSnap = await db.collection("users").get();
-  let senderProfile: UserProfile | null = null;
+  const matchedUsers: UserProfile[] = [];
   let coordinatorProfile: UserProfile | null = null;
   let secretaryProfile: UserProfile | null = null;
 
   usersSnap.forEach((doc) => {
-    const u = { id: doc.id, ...doc.data() } as UserProfile;
-    const uPhone = normalizePhone(u.whatsapp_number);
+    const uAny = doc.data() as Record<string, unknown>;
+    const u = { id: doc.id, ...uAny } as UserProfile;
+    const phonesToCheck = [
+      u.whatsapp_number,
+      uAny.whatsapp,
+      uAny.phone,
+      uAny.phone_number,
+    ]
+      .filter(Boolean)
+      .map((p) => normalizePhone(String(p)));
 
-    if (
-      uPhone &&
-      (uPhone === cleanSender ||
-        (cleanSender.length >= 9 && uPhone.endsWith(cleanSender.slice(-9))) ||
-        (uPhone.length >= 9 && cleanSender.endsWith(uPhone.slice(-9))))
-    ) {
-      senderProfile = u;
+    const isMatch = phonesToCheck.some(
+      (p) =>
+        p === cleanSender ||
+        (cleanSender.length >= 9 && p.endsWith(cleanSender.slice(-9))) ||
+        (p.length >= 9 && cleanSender.endsWith(p.slice(-9)))
+    );
+
+    if (isMatch) {
+      matchedUsers.push(u);
     }
 
     if (event.coordinator_id && u.id === event.coordinator_id) {
@@ -314,19 +324,53 @@ export async function verifyBulkJobdeskAuthorization(
     }
   });
 
-  if (!senderProfile) {
+  const superAdminUser = matchedUsers.find((u) => {
+    const uAny = u as Record<string, unknown>;
+    const role = (u.role || "").toString().toLowerCase().trim();
+    return (
+      role === "super_admin" ||
+      role === "superadmin" ||
+      role === "admin" ||
+      uAny.is_super_admin === true
+    );
+  });
+  const isSuperAdmin = Boolean(superAdminUser);
+
+  console.log("[BulkJobdesk Auth]", {
+    senderPhone,
+    matchedCount: matchedUsers.length,
+    isSuperAdmin,
+  });
+
+  if (matchedUsers.length === 0) {
     return {
       authorized: false,
       errorMessage: `⚠️ Nomor WhatsApp Anda (*${cleanSender}*) belum terdaftar sebagai anggota resmi di JobDex.in.`,
     };
   }
 
-  const senderUser = senderProfile as UserProfile;
+  // Jika salah satu profil yang cocok adalah Super Admin, langsung berikan izin (bypass otorisasi)
+  if (isSuperAdmin && superAdminUser) {
+    if (superAdminUser.is_active === false) {
+      return {
+        authorized: false,
+        senderProfile: superAdminUser,
+        errorMessage: "⚠️ Akun Anda dinonaktifkan di sistem JobDex.in.",
+      };
+    }
+    return {
+      authorized: true,
+      senderProfile: superAdminUser,
+      coordinatorProfile,
+      secretaryProfile,
+    };
+  }
 
-  if (senderUser.is_active === false) {
+  const activeMatchedUsers = matchedUsers.filter((u) => u.is_active !== false);
+  if (activeMatchedUsers.length === 0) {
     return {
       authorized: false,
-      senderProfile: senderUser,
+      senderProfile: matchedUsers[0],
       errorMessage: "⚠️ Akun Anda dinonaktifkan di sistem JobDex.in.",
     };
   }
@@ -357,52 +401,58 @@ export async function verifyBulkJobdeskAuthorization(
     }
   }
 
-  // 2. Validasi Otorisasi: Super Admin, Koordinator Acara, atau Sekretaris Acara
-  const isSuperAdmin = senderUser.role === "super_admin";
-  const isCoordinator =
-    Boolean(event.coordinator_id && senderUser.id === event.coordinator_id) ||
-    senderUser.role === "koordinator_acara";
-  const isSecretary =
-    Boolean(event.secretary_id && senderUser.id === event.secretary_id);
+  // 2. Validasi Otorisasi jika bukan Super Admin: Koordinator Acara atau Sekretaris Acara
+  let authorizedProfile: UserProfile | null = null;
 
-  let isMemberSecretary = false;
-  if (!isSuperAdmin && !isCoordinator && !isSecretary && event.id) {
-    try {
-      const memberDoc = await db
-        .collection("events")
-        .doc(event.id)
-        .collection("event_members")
-        .doc(senderUser.id)
-        .get();
+  for (const senderUser of activeMatchedUsers) {
+    const isCoordinator =
+      Boolean(event.coordinator_id && senderUser.id === event.coordinator_id) ||
+      senderUser.role === "koordinator_acara";
+    const isSecretary =
+      Boolean(event.secretary_id && senderUser.id === event.secretary_id);
 
-      if (memberDoc.exists) {
-        const role = (memberDoc.data()?.role_in_event || "").toLowerCase();
-        if (role.includes("sekretaris") || role.includes("koordinator")) {
-          isMemberSecretary = true;
+    if (isCoordinator || isSecretary) {
+      authorizedProfile = senderUser;
+      break;
+    }
+
+    if (event.id) {
+      try {
+        const memberDoc = await db
+          .collection("events")
+          .doc(event.id)
+          .collection("event_members")
+          .doc(senderUser.id)
+          .get();
+
+        if (memberDoc.exists) {
+          const role = (memberDoc.data()?.role_in_event || "").toLowerCase();
+          if (role.includes("sekretaris") || role.includes("koordinator")) {
+            authorizedProfile = senderUser;
+            break;
+          }
         }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
   }
 
-  const isAuthorized = isSuperAdmin || isCoordinator || isSecretary || isMemberSecretary;
-
-  if (!isAuthorized) {
+  if (authorizedProfile) {
     return {
-      authorized: false,
-      senderProfile: senderUser,
+      authorized: true,
+      senderProfile: authorizedProfile,
       coordinatorProfile,
       secretaryProfile,
-      errorMessage: `⛔ *Akses Ditolak*\nPerintah pembuatan bulk jobdesk hanya dapat dijalankan oleh *Super Admin*, *Koordinator Acara*, atau *Sekretaris Acara* (*${event.name}*).`,
     };
   }
 
   return {
-    authorized: true,
-    senderProfile: senderUser,
+    authorized: false,
+    senderProfile: activeMatchedUsers[0],
     coordinatorProfile,
     secretaryProfile,
+    errorMessage: `⛔ *Akses Ditolak*\nPerintah pembuatan bulk jobdesk hanya dapat dijalankan oleh *Super Admin*, *Koordinator Acara*, atau *Sekretaris Acara* (*${event.name}*).`,
   };
 }
 

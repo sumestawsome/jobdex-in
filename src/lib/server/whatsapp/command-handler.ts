@@ -1397,6 +1397,8 @@ export async function executeWhatsAppWebhook(
     const resolvedSenderNumber = incoming.sender ? incoming.sender.replace(/@s\.whatsapp\.net$/i, "").replace(/@c\.us$/i, "") : "";
     if (resolvedSenderNumber) {
       const usersSnap = await db.collection("users").get();
+      const matchedUsers: UserProfile[] = [];
+      const cleanResolved = normalizePhone(resolvedSenderNumber);
       for (const doc of usersSnap.docs) {
         const u = doc.data() as UserProfile;
         const fieldsToCheck = [
@@ -1407,13 +1409,31 @@ export async function executeWhatsAppWebhook(
         ];
         let matched = false;
         for (const f of fieldsToCheck) {
-          if (f && f.toString().replace(/\D/g, "") === resolvedSenderNumber.replace(/\D/g, "")) {
-            senderUserProfile = { ...u, id: doc.id };
-            matched = true;
-            break;
+          if (f) {
+            const norm = normalizePhone(String(f));
+            if (
+              norm === cleanResolved ||
+              (cleanResolved.length >= 9 && norm.endsWith(cleanResolved.slice(-9))) ||
+              (norm.length >= 9 && cleanResolved.endsWith(norm.slice(-9)))
+            ) {
+              matchedUsers.push({ ...u, id: doc.id });
+              matched = true;
+              break;
+            }
           }
         }
-        if (matched) break;
+      }
+      if (matchedUsers.length > 0) {
+        const sa = matchedUsers.find((u) => {
+          const role = (u.role || "").toString().toLowerCase().trim();
+          return (
+            role === "super_admin" ||
+            role === "superadmin" ||
+            role === "admin" ||
+            (u as Record<string, unknown>).is_super_admin === true
+          );
+        });
+        senderUserProfile = sa || matchedUsers[0];
       }
     }
 
@@ -1654,6 +1674,8 @@ export async function executeWhatsAppWebhook(
 
   if (resolvedSenderNumber) {
     const usersSnap = await getAdminDb().collection("users").get();
+    const matchedUsers: UserProfile[] = [];
+    const cleanResolved = normalizePhone(resolvedSenderNumber);
     for (const doc of usersSnap.docs) {
       const u = doc.data() as UserProfile;
       const fieldsToCheck = [
@@ -1665,14 +1687,29 @@ export async function executeWhatsAppWebhook(
       for (const f of fieldsToCheck) {
         if (f) {
           const norm = normalizePhone(String(f));
-          if (norm === resolvedSenderNumber) {
-            senderUserProfile = { ...u, id: doc.id };
-            isSenderMatched = true;
+          if (
+            norm === cleanResolved ||
+            (cleanResolved.length >= 9 && norm.endsWith(cleanResolved.slice(-9))) ||
+            (norm.length >= 9 && cleanResolved.endsWith(norm.slice(-9)))
+          ) {
+            matchedUsers.push({ ...u, id: doc.id });
             break;
           }
         }
       }
-      if (isSenderMatched) break;
+    }
+    if (matchedUsers.length > 0) {
+      const sa = matchedUsers.find((u) => {
+        const role = (u.role || "").toString().toLowerCase().trim();
+        return (
+          role === "super_admin" ||
+          role === "superadmin" ||
+          role === "admin" ||
+          (u as Record<string, unknown>).is_super_admin === true
+        );
+      });
+      senderUserProfile = sa || matchedUsers[0];
+      isSenderMatched = true;
     }
   }
 
