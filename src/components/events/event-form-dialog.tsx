@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useMemo, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EVENT_STATUS_OPTIONS } from "@/lib/event-status";
@@ -59,7 +59,9 @@ function EventForm({
   const [whatsappGroupName, setWhatsappGroupName] = useState(event?.whatsapp_group_name ?? "");
 
   const [secretaryId, setSecretaryId] = useState(() => {
-    if (!event || !eventMembers) return "";
+    if (!event) return "";
+    if (event.secretary_id) return event.secretary_id;
+    if (!eventMembers) return "";
     const sec = eventMembers.find((m) => {
       const r = m.role_in_event?.toLowerCase() || "";
       return r === "sekretaris_acara" || r === "sekretaris acara" || r === "sekretaris";
@@ -74,11 +76,72 @@ function EventForm({
       const r = m.role_in_event?.toLowerCase() || "";
       return r === "sekretaris_acara" || r === "sekretaris acara" || r === "sekretaris";
     });
-    const secId = sec?.user_id;
+    const secId = event.secretary_id || sec?.user_id;
     return eventMembers
       .filter((m) => m.user_id !== coordId && m.user_id !== secId)
       .map((m) => m.user_id);
   });
+
+  // 1. Opsi Koordinator Acara: Pastikan koordinator acara saat ini selalu ada, serta seluruh anggota aktif
+  const availableCoordinators = useMemo(() => {
+    const map = new Map<string, UserProfile>();
+    for (const c of coordinators) {
+      if (c.is_active !== false) map.set(c.id, c);
+    }
+    for (const u of users) {
+      if (u.is_active !== false && !map.has(u.id)) {
+        map.set(u.id, u);
+      }
+    }
+    // Pastikan koordinator acara yang sedang aktif selalu masuk opsi dropdown
+    if (event?.coordinator_id && !map.has(event.coordinator_id)) {
+      const currentCoord = users.find((u) => u.id === event.coordinator_id);
+      if (currentCoord) {
+        map.set(currentCoord.id, currentCoord);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [coordinators, users, event]);
+
+  // 2. Opsi Sekretaris Acara: Seluruh anggota aktif, kecuali yang sedang dipilih sebagai Koordinator
+  const availableSecretaries = useMemo(() => {
+    return users
+      .filter((u) => {
+        if (u.id === coordinatorId) return false;
+        return u.is_active !== false || u.id === secretaryId;
+      })
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [users, coordinatorId, secretaryId]);
+
+  // 3. Opsi Anggota Biasa: Seluruh anggota aktif, kecuali yang sedang menjabat Koordinator atau Sekretaris
+  const eligibleMembers = useMemo(() => {
+    return users
+      .filter((u) => {
+        if (u.id === coordinatorId || u.id === secretaryId) return false;
+        return u.is_active !== false || selectedMemberIds.includes(u.id);
+      })
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [users, coordinatorId, secretaryId, selectedMemberIds]);
+
+  // Sinkronisasi dinamis: saat koordinator diubah
+  const handleCoordinatorChange = (newCoordId: string) => {
+    setCoordinatorId(newCoordId);
+    // Hapus dari centang anggota biasa jika sebelumnya terpilih
+    setSelectedMemberIds((prev) => prev.filter((id) => id !== newCoordId));
+    // Jika koordinator baru sebelumnya adalah sekretaris, kosongkan sekretaris
+    if (secretaryId === newCoordId) {
+      setSecretaryId("");
+    }
+  };
+
+  // Sinkronisasi dinamis: saat sekretaris diubah
+  const handleSecretaryChange = (newSecId: string) => {
+    setSecretaryId(newSecId);
+    // Hapus dari centang anggota biasa jika sebelumnya terpilih
+    if (newSecId) {
+      setSelectedMemberIds((prev) => prev.filter((id) => id !== newSecId));
+    }
+  };
 
   // Fase 26A: Event Design Kit state
   const [showDesignKit, setShowDesignKit] = useState(
@@ -288,9 +351,10 @@ function EventForm({
               id="event-coordinator"
               className={selectClassName}
               value={coordinatorId}
-              onChange={(item) => setCoordinatorId(item.target.value)}
+              onChange={(item) => handleCoordinatorChange(item.target.value)}
             >
-              {coordinators.map((coordinator) => (
+              <option value="" disabled>Pilih koordinator acara</option>
+              {availableCoordinators.map((coordinator) => (
                 <option key={coordinator.id} value={coordinator.id}>
                   {coordinator.name || coordinator.email}
                 </option>
@@ -309,10 +373,10 @@ function EventForm({
               id="event-secretary"
               className={selectClassName}
               value={secretaryId}
-              onChange={(item) => setSecretaryId(item.target.value)}
+              onChange={(item) => handleSecretaryChange(item.target.value)}
             >
               <option value="">Pilih sekretaris acara (opsional)</option>
-              {users.map((u) => (
+              {availableSecretaries.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name || u.email}
                 </option>
@@ -326,30 +390,46 @@ function EventForm({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Anggota acara
-            </label>
-            <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-none bg-white dark:bg-slate-950 p-3 space-y-2">
-              {users.filter(u => u.id !== coordinatorId && u.id !== secretaryId).map((u) => {
-                const isChecked = selectedMemberIds.includes(u.id);
-                return (
-                  <label key={u.id} className="flex items-center gap-2 text-sm text-slate-900 dark:text-slate-100 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedMemberIds([...selectedMemberIds, u.id]);
-                        } else {
-                          setSelectedMemberIds(selectedMemberIds.filter(id => id !== u.id));
-                        }
-                      }}
-                      className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span>{u.name || u.email}</span>
-                  </label>
-                );
-              })}
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Anggota acara
+              </label>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {selectedMemberIds.length} anggota dipilih
+              </span>
+            </div>
+            <div className="max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-none bg-white dark:bg-slate-950 p-3 space-y-2">
+              {eligibleMembers.length === 0 ? (
+                <p className="text-xs text-slate-400 dark:text-slate-500 py-2 text-center">
+                  Tidak ada anggota aktif lain yang tersedia.
+                </p>
+              ) : (
+                eligibleMembers.map((u) => {
+                  const isChecked = selectedMemberIds.includes(u.id);
+                  return (
+                    <label key={u.id} className="flex items-center gap-2 text-sm text-slate-900 dark:text-slate-100 cursor-pointer select-none hover:bg-slate-50 dark:hover:bg-slate-900/50 p-1 rounded-none transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedMemberIds([...selectedMemberIds, u.id]);
+                          } else {
+                            setSelectedMemberIds(selectedMemberIds.filter(id => id !== u.id));
+                          }
+                        }}
+                        className="size-4 rounded-none border-slate-300 text-indigo-600 focus:ring-indigo-500 shadow-none"
+                      />
+                      <span>{u.name || u.email}</span>
+                      {u.division_id && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto uppercase font-mono">
+                          {u.division_id.replace(/_/g, " ")}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })
+              )}
             </div>
           </div>
 

@@ -136,19 +136,13 @@ function EventsManagement() {
   }, [users]);
 
   const coordinators = useMemo(() => {
-    if (!userProfile) {
-      return [];
+    if (!users.length) {
+      return userProfile ? [userProfile] : [];
     }
 
-    if (userProfile.role === "koordinator_acara") {
-      return [userProfile];
-    }
-
-    const coordinatorUsers = users.filter((user) =>
-      ["super_admin", "koordinator_divisi", "koordinator_acara"].includes(user.role),
-    );
-
-    return coordinatorUsers.length ? coordinatorUsers : [userProfile];
+    // Seluruh anggota aktif di organisasi berhak menjadi koordinator acara
+    const activeMembers = users.filter((user) => user.is_active !== false);
+    return activeMembers.length ? activeMembers : users;
   }, [userProfile, users]);
 
   const filteredEvents = useMemo(() => {
