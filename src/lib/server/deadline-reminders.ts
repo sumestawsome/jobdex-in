@@ -457,12 +457,27 @@ export type ReminderDigestTask = {
   categories: DigestCategoryKey[];
 };
 
+export function isCompletedTask(data: Partial<Task>): boolean {
+  return (
+    data.status === "approved" ||
+    data.status === ("selesai" as Task["status"]) ||
+    data.approval_status === "approved"
+  );
+}
+
 export type ReminderDigest = {
   digestType: DigestType;
   tasks: ReminderDigestTask[];
   taskIds: string[];
   categories: Record<DigestCategoryKey, number>;
   mentionedPhones: string[];
+  allTasks?: Task[];
+  statusCounts?: {
+    belumDimulai: number;
+    sedangDikerjakan: number;
+    selesai: number;
+  };
+  noDeadlineTasks?: Task[];
 };
 
 const DIGEST_CATEGORY_LABELS: Record<DigestCategoryKey, string> = {
@@ -619,6 +634,19 @@ export function buildReminderDigest(
     })
     .filter((item): item is ReminderDigestTask => Boolean(item));
 
+  const belumDimulai = tasks.filter((t) => t.status === "belum_dimulai" || !t.status).length;
+  const selesai = tasks.filter((t) => isCompletedTask(t)).length;
+  const sedangDikerjakan = tasks.filter((t) => t.status !== "belum_dimulai" && !isCompletedTask(t)).length;
+  const noDeadlineTasks = tasks.filter((t) => !isCompletedTask(t) && (!t.deadline || t.deadline === null));
+
+  for (const t of noDeadlineTasks) {
+    const pic = t.pic_id ? usersMap.get(t.pic_id) ?? null : null;
+    const phone = normalizeMentionPhone(pic?.whatsapp_number);
+    if (phone) {
+      mentionedPhones.add(phone);
+    }
+  }
+
   const digestType: DigestType =
     categories.overdue > 0
       ? "OVERDUE_DIGEST"
@@ -631,9 +659,16 @@ export function buildReminderDigest(
   return {
     digestType,
     tasks: digestTasks,
-    taskIds: Array.from(new Set(digestTasks.map((item) => item.task.id))),
+    taskIds: Array.from(new Set(tasks.map((item) => item.id))),
     categories,
     mentionedPhones: Array.from(mentionedPhones),
+    allTasks: tasks,
+    statusCounts: {
+      belumDimulai,
+      sedangDikerjakan,
+      selesai,
+    },
+    noDeadlineTasks,
   };
 }
 
@@ -675,13 +710,17 @@ export function buildDigestReminderMessage(
     groupName?: string;
     groupType?: string;
     isOfficialOrmawaGroup?: boolean;
+    allGroupTasks?: Task[];
+    eventCoordinator?: { name: string; phone?: string };
+    eventSecretary?: { name: string; phone?: string };
+    usersMap?: Map<string, UserProfile>;
   }
 ) {
   const dateText = formatIndonesianDate(now);
   const includedTaskIds = new Set<string>();
   let renderedCount = 0;
   let hasSevereOverdue = false;
-  const taskLines: string[] = [];
+  const urgentTaskLines: string[] = [];
 
   // Determine dynamic greeting header
   let greetingTitle = "Tim";
@@ -698,11 +737,54 @@ export function buildDigestReminderMessage(
     }
   }
 
-  const greetingHeader = `📢 *Halo rekan-rekan ${greetingTitle}!*`;
+  const greetingHeader = `📢 *Halo rekan-rekan ${greetingTitle}!*\nBerikut ringkasan progres kepanitiaan per siang ini (${dateText}):`;
 
+  // 1. Ringkasan Status Progres Visual
+  const allTasks = digest.allTasks || targetContext?.allGroupTasks || [];
+  const counts = digest.statusCounts || {
+    belumDimulai: allTasks.filter((t) => t.status === "belum_dimulai" || !t.status).length,
+    sedangDikerjakan: allTasks.filter((t) => t.status !== "belum_dimulai" && !isCompletedTask(t)).length,
+    selesai: allTasks.filter((t) => isCompletedTask(t)).length,
+  };
+
+  const statusSummary = [
+    `❌ *BELUM DIMULAI (${counts.belumDimulai})*`,
+    `🟡 *SEDANG DIKERJAKAN (${counts.sedangDikerjakan})*`,
+    `✅ *SELESAI / APPROVED (${counts.selesai})*`,
+  ].join("\n");
+
+  // 2. Tugas Tanpa Tenggat Waktu (Jika ada)
+  const noDeadlineTasks =
+    digest.noDeadlineTasks ||
+    allTasks.filter((t) => !isCompletedTask(t) && (!t.deadline || t.deadline === null));
+
+  let noDeadlineSection = "";
+  if (noDeadlineTasks.length > 0) {
+    const noDeadlineLines = noDeadlineTasks.slice(0, 10).map((t) => {
+      const picUser =
+        t.pic_id && targetContext?.usersMap ? targetContext.usersMap.get(t.pic_id) : undefined;
+      const phone = normalizeMentionPhone(picUser?.whatsapp_number);
+      const picDisplay = phone ? `@${phone}` : picUser?.name || (t.pic_names && t.pic_names[0]) || "Belum ditentukan";
+      return `• ${t.name} (PIC: ${picDisplay})`;
+    });
+
+    if (noDeadlineTasks.length > 10) {
+      noDeadlineLines.push(`_(dan ${noDeadlineTasks.length - 10} tugas lainnya)_`);
+    }
+
+    noDeadlineSection = [
+      "───────",
+      `⚠️ *Perhatian Koordinator & Sekretaris:*`,
+      `Terdapat ${noDeadlineTasks.length} tugas yang belum memiliki tenggat waktu:`,
+      noDeadlineLines.join("\n"),
+      "Ketik: `[No] tenggat [Waktu]` di grup ini untuk menentukan batas pengerjaan.",
+    ].join("\n");
+  }
+
+  // 3. Tugas Mendekati Tenggat / Perlu Perhatian Segera
   for (const category of DIGEST_CATEGORY_ORDER) {
     const categoryTasks = digest.tasks.filter((item) =>
-      item.categories.includes(category),
+      item.categories.includes(category)
     );
 
     if (!categoryTasks.length || renderedCount >= maxTasks) {
@@ -730,7 +812,6 @@ export function buildDigestReminderMessage(
         : "-";
       const statusText = getFriendlyStatusLabel(item.task.status);
 
-      // Distinguish academic vs event vs division tasks cleanly
       const isClassTask =
         item.task.type === "tugas_kuliah" ||
         (item.task as unknown as Record<string, unknown>).workspace_type === "kelas";
@@ -741,8 +822,8 @@ export function buildDigestReminderMessage(
       if (isClassTask) {
         eventOrDivLabel = "Mata Kuliah";
         eventOrDivVal =
-          (item.task as unknown as Record<string, unknown>).course_name as string ||
-          (item.task as unknown as Record<string, unknown>).subject_name as string ||
+          ((item.task as unknown as Record<string, unknown>).course_name as string) ||
+          ((item.task as unknown as Record<string, unknown>).subject_name as string) ||
           "Umum";
       } else if (item.task.type === "acara") {
         eventOrDivLabel = "Acara";
@@ -758,7 +839,6 @@ export function buildDigestReminderMessage(
             : "Umum";
       }
 
-      // Kondisi 3 & 2: Cek apakah tugas telat parah (> 3 hari) atau berjalan normal
       const diffDays = item.diffDays;
       const isSevereOverdue = diffDays !== null && diffDays <= -3;
       const overdueDays = diffDays !== null && diffDays < 0 ? Math.abs(diffDays) : 0;
@@ -786,7 +866,7 @@ export function buildDigestReminderMessage(
           : "";
 
       renderedCount++;
-      taskLines.push(
+      urgentTaskLines.push(
         `${renderedCount}. *${taskTitle}*\n   • ${eventOrDivLabel}: ${eventOrDivVal}\n   • PIC: ${picDisplay}\n   • Deadline: ${deadline}\n   • Status: ${taskStatusDisplay}${notes}${roastingNote}`
       );
 
@@ -794,36 +874,47 @@ export function buildDigestReminderMessage(
     }
   }
 
-  if (taskLines.length === 0) {
-    return [
-      greetingHeader,
-      `Tidak ada tugas yang mendesak atau perlu dicek per siang ini (${dateText}). Semua pengerjaan aman terkendali! 🎉`,
-      ``,
-      `👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
-    ].join("\n");
+  let urgentSection = "";
+  if (urgentTaskLines.length > 0) {
+    const remainingCount = Math.max(digest.taskIds.length - renderedCount, 0);
+    const remainingText =
+      remainingCount > 0 ? `\n_(dan ${remainingCount} tugas lainnya)_\n` : "";
+
+    const footerMessage = hasSevereOverdue
+      ? `Yuk yang tugasnya udah lewat deadline atau mendekati waktu setor, gercep disetor yaa biar gak jadi fosil! Tetap semangat tim! 🔥`
+      : `Yuk yang belum update atau mau nyetor draf, bisa langsung setor yaa. Semangat! 🔥`;
+
+    urgentSection = [
+      "───────",
+      `📌 *Tugas Perlu Perhatian / Mendekati Deadline:*`,
+      urgentTaskLines.join("\n\n"),
+      remainingText,
+      footerMessage,
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
-  const remainingCount = Math.max(digest.taskIds.length - renderedCount, 0);
-  const remainingText =
-    remainingCount > 0
-      ? `\n_(dan ${remainingCount} tugas lainnya)_\n`
-      : "";
+  // 4. Susun pesan utuh
+  const parts: string[] = [greetingHeader, statusSummary];
 
-  const footerMessage = hasSevereOverdue
-    ? `Yuk yang tugasnya udah lewat deadline atau mendekati waktu setor, gercep disetor yaa biar gak jadi fosil! Tetap semangat tim! 🔥`
-    : `Yuk yang belum update atau mau nyetor draf, bisa langsung setor yaa. Semangat! 🔥`;
+  if (noDeadlineSection) {
+    parts.push(noDeadlineSection);
+  }
 
-  return [
-    greetingHeader,
-    `Ini rekap tugas yang lagi jalan dan butuh dicek per siang ini (${dateText}):`,
-    ``,
-    taskLines.join("\n\n"),
-    remainingText,
-    footerMessage,
-    `👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks`,
-  ]
+  if (urgentSection) {
+    parts.push(urgentSection);
+  }
+
+  if (!noDeadlineSection && !urgentSection) {
+    parts.push("Semua pengerjaan tugas aman terkendali! Tetap semangat tim! 🎉");
+  }
+
+  parts.push("👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks");
+
+  return parts
     .filter((line, i, arr) => !(line === "" && arr[i - 1] === ""))
-    .join("\n");
+    .join("\n\n");
 }
 
 export function buildEmptyEventReminderMessage(

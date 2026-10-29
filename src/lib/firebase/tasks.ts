@@ -20,14 +20,21 @@ import {
 } from "@/lib/permissions";
 import type { ReferenceLink, Task, TaskInput, UserProfile } from "@/types";
 
-function dateToTimestamp(value: string) {
+function dateToTimestamp(value?: string | null) {
+  if (!value || typeof value !== "string" || !value.trim()) {
+    return null;
+  }
   if (value.includes("T")) {
     const parsed = new Date(value);
     if (!isNaN(parsed.getTime())) {
       return Timestamp.fromDate(parsed);
     }
   }
-  return Timestamp.fromDate(new Date(`${value}T00:00:00`));
+  const parsed = new Date(`${value}T00:00:00`);
+  if (!isNaN(parsed.getTime())) {
+    return Timestamp.fromDate(parsed);
+  }
+  return null;
 }
 
 function getTaskTimestampMillis(task: Task) {

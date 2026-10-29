@@ -17,7 +17,7 @@ import {
   getWhatsAppRecipient as getDefaultGroupId,
   isGroupRecipient,
 } from "@/lib/server/whatsapp";
-import type { Event, NormalizedIncomingWhatsAppMessage, UserProfile } from "@/types";
+import type { Event, NormalizedIncomingWhatsAppMessage, UserProfile, Task } from "@/types";
 
 // ============================================================================
 // Types & Constants
@@ -652,130 +652,9 @@ export async function handleBulkJobdeskTambahCommand(
     return NextResponse.json({ ok: true, status: "zero_tasks_extracted" });
   }
 
-  // 5. Simpan Draf Massal ke Firestore whatsapp_bulk_drafts/{senderNumber}
-  const cleanSenderPhone = normalizePhone(incoming.sender);
-  const draft: BulkJobdeskDraft = {
-    sender: cleanSenderPhone,
-    sender_id: authResult.senderProfile?.id,
-    sender_name: authResult.senderProfile?.name || "Panitia",
-    event_id: event.id,
-    event_name: event.name,
-    whatsapp_group_id: event.whatsapp_group_id || incoming.groupId || "",
-    tasks: parseResult.tasks,
-    skipped_tasks: parseResult.skipped_tasks,
-    missing_deadlines_summary: parseResult.missing_deadlines_summary,
-    coordinator_id: event.coordinator_id,
-    coordinator_name: authResult.coordinatorProfile?.name || "",
-    coordinator_phone: authResult.coordinatorProfile?.whatsapp_number || "",
-    secretary_id: event.secretary_id,
-    secretary_name: authResult.secretaryProfile?.name || "",
-    secretary_phone: authResult.secretaryProfile?.whatsapp_number || "",
-    reply_target: replyTarget,
-    is_group_target: isGroupTarget,
-    provider: incoming.provider,
-    created_at_ms: Date.now(),
-    expires_at_ms: Date.now() + BULK_DRAFT_TTL_MS,
-  };
-
-  await saveBulkJobdeskDraft(draft);
-
-  // 6. Kirim Kartu Pratinjau (Preview Card)
-  const previewCardMessage = formatBulkJobdeskPreviewMessage(draft);
-
-  await baseSendWhatsAppMessage({
-    target: replyTarget,
-    message: previewCardMessage,
-    type: isGroupTarget ? "group" : "phone",
-    provider: incoming.provider,
-  });
-
-  return NextResponse.json({
-    ok: true,
-    status: "bulk_draft_created",
-    total_extracted: parseResult.total_extracted,
-  });
-}
-
-/**
- * Handler utama untuk eksekusi persetujuan draf: !jobdesk acc
- */
-export async function handleBulkJobdeskAccCommand(
-  incoming: NormalizedIncomingWhatsAppMessage,
-  isForceAcc = false
-): Promise<NextResponse> {
-  const replyTarget = incoming.isGroup
-    ? incoming.groupId || getDefaultGroupId()
-    : incoming.sender || incoming.groupId || getDefaultGroupId();
-  const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
-
-  const cleanSender = normalizePhone(incoming.sender);
-
-  // 1. Ambil draf aktif pengirim (atau draf aktif grup/acara jika dikirim di grup)
-  let activeDraft = await getBulkJobdeskDraft(cleanSender);
-  if (!activeDraft && incoming.isGroup && incoming.groupId) {
-    activeDraft = await findActiveDraftForEventOrGroup(undefined, incoming.groupId);
-  }
-
-  if (!activeDraft) {
-    await baseSendWhatsAppMessage({
-      target: replyTarget,
-      message: formatWhatsAppText(
-        "⚠️ Tidak ada draf jobdesk acara yang sedang menunggu persetujuan. Kirim *!jobdesk tambah <teks>* untuk membuat draf baru."
-      ),
-      type: isGroupTarget ? "group" : "phone",
-      provider: incoming.provider,
-    });
-    return NextResponse.json({ ok: true, status: "no_active_draft" });
-  }
-
-  // 2. Proteksi ACC Tanpa Tenggat Waktu (Kecuali jika ACC Paksa)
-  const hasMissingDeadline = activeDraft.tasks.some(
-    (t) => !t.deadline || t.deadline.trim() === "" || t.requires_deadline
-  );
-
-  if (hasMissingDeadline && !isForceAcc) {
-    const warningLines = [
-      "⚠️ *Jobdesk Belum Memiliki Tenggat Waktu!*",
-      "",
-      `Masih terdapat tugas dalam draf *${activeDraft.event_name}* yang belum ditentukan tenggat waktunya. Koordinator atau Sekretaris wajib menentukan deadline agar tugas terpantau oleh sistem pengingat otomatis.`,
-      "",
-      "💡 *Cara mengisi deadline susulan:*",
-      "Balas chat ini dengan menyebutkan nomor tugas dan tenggatnya, format:",
-      "*[nomor] tenggat [tanggal/jam]* (atau *semua tenggat [tanggal]*).",
-      "",
-      "👉 Atau jika memang ingin menerbitkan tugas tanpa deadline sekarang, ketik:",
-      "*!jobdesk acc paksa*",
-    ];
-
-    await baseSendWhatsAppMessage({
-      target: replyTarget,
-      message: formatWhatsAppText(warningLines.join("\n")),
-      type: isGroupTarget ? "group" : "phone",
-      provider: incoming.provider,
-    });
-
-    return NextResponse.json({
-      ok: true,
-      status: "blocked_missing_deadlines",
-      message: "ACC ditolak karena masih ada tugas tanpa deadline. Gunakan acc paksa untuk override.",
-    });
-  }
-
+  // 5. Direct Save: Buat dokumen tugas secara massal di koleksi "tasks" (Tanpa Draf)
   const db = getAdminDb();
-
-  // 3. Ambil data acara terbaru untuk memastikan penanda organisasi & kampus
-  let eventData: Event | null = null;
-  try {
-    const eventSnap = await db.collection("events").doc(activeDraft.event_id).get();
-    if (eventSnap.exists) {
-      eventData = { id: eventSnap.id, ...eventSnap.data() } as Event;
-    }
-  } catch (err) {
-    console.warn("[BulkJobdeskDraft] Gagal mengambil data acara saat ACC:", err);
-  }
-
-  // 4. Kumpulkan profil user untuk nomor WhatsApp mention PIC
-  const allPicIds = Array.from(new Set(activeDraft.tasks.flatMap((t) => t.pic_ids || [])));
+  const allPicIds = Array.from(new Set(parseResult.tasks.flatMap((t) => t.pic_ids || [])));
   const picUserMap = new Map<string, UserProfile>();
   if (allPicIds.length > 0) {
     try {
@@ -791,12 +670,16 @@ export async function handleBulkJobdeskAccCommand(
   }
 
   const mentionedPhones = new Set<string>();
-
-  // 5. Batch Write: Buat dokumen tugas secara massal di koleksi "tasks"
   const batch = db.batch();
-  const createdTaskSummaries: Array<{ name: string; pic: string; deadline: string }> = [];
+  const createdTasksSummary: Array<{
+    name: string;
+    picDisplay: string;
+    deadlineDisplay: string;
+    checklistCount: number;
+    hasDeadline: boolean;
+  }> = [];
 
-  for (const t of activeDraft.tasks) {
+  for (const t of parseResult.tasks) {
     const taskRef = db.collection("tasks").doc();
     const primaryPicId = t.pic_ids && t.pic_ids.length > 0 ? t.pic_ids[0] : "";
 
@@ -804,10 +687,13 @@ export async function handleBulkJobdeskAccCommand(
     if (t.pic_ids && t.pic_ids.length > 0) {
       for (const pId of t.pic_ids) {
         const u = picUserMap.get(pId);
-        const cleanP = normalizePhone(u?.whatsapp_number);
+        const uAny = u as Record<string, unknown> | undefined;
+        const cleanP = normalizePhone(
+          u?.whatsapp_number || (uAny?.whatsapp as string) || (uAny?.phone as string)
+        );
         if (cleanP && cleanP.length > 5) {
           mentionedPhones.add(cleanP);
-          picDisplays.push(`@${cleanP} (${u?.name || "PIC"})`);
+          picDisplays.push(`@${cleanP}${u?.name ? ` (${u.name})` : ""}`);
         } else if (u?.name) {
           picDisplays.push(u.name);
         }
@@ -816,36 +702,56 @@ export async function handleBulkJobdeskAccCommand(
     if (picDisplays.length === 0 && t.pic_names && t.pic_names.length > 0) {
       picDisplays.push(...t.pic_names);
     }
-    const picDisplayStr = picDisplays.length > 0 ? picDisplays.join(", ") : "-";
+    const picDisplayStr = picDisplays.length > 0 ? picDisplays.join(", ") : "Belum ditentukan";
 
-    let deadlineDate: Date | null = null;
-    if (t.deadline) {
-      deadlineDate = new Date(`${t.deadline}T23:59:59+08:00`);
+    let deadlineTimestamp: Timestamp | null = null;
+    let deadlineDisplay = "⚠️ Belum ditentukan";
+    let hasDeadline = false;
+
+    if (t.deadline && t.deadline.trim()) {
+      let deadlineDate: Date | null = null;
+      if (t.deadline.includes("T")) {
+        deadlineDate = new Date(t.deadline);
+      } else if (t.deadline.includes(" ")) {
+        deadlineDate = new Date(t.deadline.replace(" ", "T") + "+08:00");
+      } else {
+        deadlineDate = new Date(`${t.deadline}T23:59:59+08:00`);
+      }
+
       if (isNaN(deadlineDate.getTime())) {
         deadlineDate = new Date(t.deadline);
       }
+
+      if (!isNaN(deadlineDate.getTime())) {
+        deadlineTimestamp = Timestamp.fromDate(deadlineDate);
+        const formatted = formatDeadlineDisplay(t.deadline);
+        deadlineDisplay = formatted === "Belum ditentukan" ? "Belum ditentukan" : `${formatted} WITA`;
+        hasDeadline = true;
+      }
     }
+
+    const checklistItems = getChecklistByTaskName(t.name);
 
     const taskPayload = {
       id: taskRef.id,
-      organization_id: eventData?.organization_id || "main_org",
-      org_id: eventData?.org_id || eventData?.organization_id || "main_org",
-      orgId: eventData?.orgId || eventData?.organization_id || "main_org",
-      campus_id: eventData?.campus_id || eventData?.univ_id || "",
-      campusId: eventData?.campusId || eventData?.campus_id || "",
-      univ_id: eventData?.univ_id || eventData?.campus_id || "",
-      univId: eventData?.univId || eventData?.univ_id || "",
+      organization_id: event.organization_id || "main_org",
+      org_id: event.org_id || event.organization_id || "main_org",
+      orgId: event.orgId || event.organization_id || "main_org",
+      campus_id: event.campus_id || event.univ_id || "",
+      campusId: event.campusId || event.campus_id || "",
+      univ_id: event.univ_id || event.campus_id || "",
+      univId: event.univId || event.univ_id || "",
       type: "acara",
-      division_id: eventData?.division_id || "",
-      event_id: activeDraft.event_id,
+      division_id: event.division_id || "",
+      event_id: event.id,
       name: t.name,
       title: t.name,
       description: "",
       pic_id: primaryPicId,
-      pic_ids: t.pic_ids,
-      pic_names: t.pic_names,
-      coordinator_id: eventData?.coordinator_id || activeDraft.sender_id || "",
-      deadline: deadlineDate ? Timestamp.fromDate(deadlineDate) : null,
+      pic_ids: t.pic_ids || [],
+      pic_names: t.pic_names || [],
+      coordinator_id: event.coordinator_id || authResult.senderProfile?.id || "",
+      deadline: deadlineTimestamp,
       status: "belum_dimulai",
       priority: t.priority || "sedang",
       stage: t.stage || "pra_acara",
@@ -860,10 +766,10 @@ export async function handleBulkJobdeskAccCommand(
       result_design_url: "",
       approval_status: "pending",
       is_archived: false,
-      created_by: activeDraft.sender_id || activeDraft.sender,
+      created_by: authResult.senderProfile?.id || incoming.sender,
       created_at: FieldValue.serverTimestamp(),
       updated_at: FieldValue.serverTimestamp(),
-      checklist_items: getChecklistByTaskName(t.name),
+      checklist_items: checklistItems,
     };
 
     batch.set(taskRef, taskPayload);
@@ -875,60 +781,98 @@ export async function handleBulkJobdeskAccCommand(
       task_id: taskRef.id,
       previous_status: null,
       new_status: "belum_dimulai",
-      notes: "Tugas diterbitkan melalui WhatsApp AI Bulk Jobdesk",
-      changed_by: activeDraft.sender_id || activeDraft.sender,
+      notes: "Tugas diterbitkan otomatis melalui WhatsApp AI Bulk Jobdesk (Direct Save)",
+      changed_by: authResult.senderProfile?.id || incoming.sender,
       changed_at: FieldValue.serverTimestamp(),
     });
 
-    createdTaskSummaries.push({
+    createdTasksSummary.push({
       name: t.name,
-      pic: picDisplayStr,
-      deadline: t.deadline || "Belum ditentukan",
+      picDisplay: picDisplayStr,
+      deadlineDisplay,
+      checklistCount: checklistItems.length,
+      hasDeadline,
     });
   }
 
-  // 6. Eksekusi Batch Firestore
+  // Bersihkan draf lama jika ada
+  await deleteBulkJobdeskDraft(incoming.sender);
+
+  // Commit batch ke Firestore
   await batch.commit();
 
-  // 7. Hapus Draf setelah Berhasil Diterbitkan
-  await deleteBulkJobdeskDraft(activeDraft.sender);
-
-  // 8. Format Siaran / Notifikasi Pengumuman Resmi ke Grup Acara
-  const celebrationMessageLines = [
-    `🚀 *JOBDESK ACARA RESMI DITERBITKAN: ${activeDraft.event_name.toUpperCase()}*`,
-    `Telah diterbitkan *${createdTaskSummaries.length} tugas kepanitiaan baru* oleh *${activeDraft.sender_name || "Admin"}*:\n`,
-    ...createdTaskSummaries.map(
+  // 6. Format Siaran Resmi Jobdesk ke Grup Acara
+  const broadcastLines = [
+    `🚀 *JOBDESK ACARA RESMI DITERBITKAN: ${event.name.toUpperCase()}*`,
+    `Telah diterbitkan *${createdTasksSummary.length} tugas kepanitiaan baru* oleh *${authResult.senderProfile?.name || "Admin"}*:\n`,
+    ...createdTasksSummary.map(
       (item, idx) =>
-        `${idx + 1}. *${item.name}*\n   👤 PIC: ${item.pic}\n   ⏰ Tenggat: ${item.deadline}`
+        `${idx + 1}. *${item.name}*\n   👤 PIC: ${item.picDisplay}\n   ⏰ Tenggat: ${item.deadlineDisplay}${
+          item.checklistCount > 0 ? `\n   📋 Checklist: ${item.checklistCount} butir standar` : ""
+        }`
     ),
     "",
+  ];
+
+  // Tugas Hari H (Operasional yang Dilewati)
+  if (parseResult.skipped_tasks && parseResult.skipped_tasks.length > 0) {
+    broadcastLines.push("ℹ️ *Tugas Hari H (Tidak masuk checklist deadline):*");
+    parseResult.skipped_tasks.forEach((s) => {
+      broadcastLines.push(`- ${s.raw_text} (${s.reason || "Dijalankan saat hari H"})`);
+    });
+    broadcastLines.push("");
+  }
+
+  // Pengingat jika ada tugas yang belum memiliki tenggat
+  const missingDeadlines = createdTasksSummary.filter((t) => !t.hasDeadline);
+  if (missingDeadlines.length > 0) {
+    const koorPhone = normalizePhone(authResult.coordinatorProfile?.whatsapp_number);
+    const sekrePhone = normalizePhone(authResult.secretaryProfile?.whatsapp_number);
+
+    if (koorPhone) mentionedPhones.add(koorPhone);
+    if (sekrePhone) mentionedPhones.add(sekrePhone);
+
+    const koorDisplay = koorPhone
+      ? `@${koorPhone} (${authResult.coordinatorProfile?.name || "Koordinator"})`
+      : authResult.coordinatorProfile?.name || "Koordinator";
+    const sekreDisplay = sekrePhone
+      ? `@${sekrePhone} (${authResult.secretaryProfile?.name || "Sekretaris"})`
+      : authResult.secretaryProfile?.name || "Sekretaris";
+
+    broadcastLines.push("⚠️ *Perhatian Koordinator & Sekretaris:*");
+    broadcastLines.push(
+      `Halo ${koorDisplay} & ${sekreDisplay}, terdapat *${missingDeadlines.length} tugas* di atas yang belum memiliki tenggat waktu.`
+    );
+    broadcastLines.push(
+      "Ketik: *[nomor] tenggat [tanggal/jam]* di grup ini untuk menentukan batas pengerjaan.\n"
+    );
+  }
+
+  broadcastLines.push(
     "🙌 *Semangat bertugas rekan-rekan panitia!*",
     "Mari bersama-sama mengawal persiapan acara ini agar berjalan sukses dan lancar.",
     "",
     "👉 Pantau dan perbarui progres tugas di:",
-    "https://jobdexin.sumestawsome.xyz/dashboard/tasks",
-    "",
-    "Ketik *!jobdesk summary* untuk memantau detail tugas via WhatsApp.",
-  ];
+    "https://jobdexin.sumestawsome.xyz/dashboard/tasks"
+  );
 
-  const celebrationMessage = formatWhatsAppText(celebrationMessageLines.join("\n"));
+  const broadcastMessage = formatWhatsAppText(broadcastLines.join("\n"));
   const mentionsList = Array.from(mentionedPhones);
-  const eventGroupId = activeDraft.whatsapp_group_id || eventData?.whatsapp_group_id;
+  const eventGroupId = event.whatsapp_group_id || (incoming.isGroup ? incoming.groupId : "");
 
   if (isGroupTarget) {
-    // A. Perintah dijalankan di grup WhatsApp
     await baseSendWhatsAppMessage({
       target: replyTarget,
-      message: celebrationMessage,
+      message: broadcastMessage,
       type: "group",
       mentions: mentionsList,
       provider: incoming.provider,
     });
   } else {
-    // B. Perintah dijalankan di DM
+    // Di DM
     const dmReply = [
-      `✅ *${createdTaskSummaries.length} Jobdesk Acara Berhasil Diterbitkan!*`,
-      `Seluruh tugas untuk *${activeDraft.event_name}* kini telah tersimpan aktif di JobDex.in dan disiarkan ke grup panitia.`,
+      `✅ *${createdTasksSummary.length} Jobdesk Acara Berhasil Diterbitkan!*`,
+      `Seluruh tugas untuk *${event.name}* kini telah tersimpan aktif di JobDex.in dan disiarkan ke grup panitia.`,
       "",
       "👉 Cek dashboard: https://jobdexin.sumestawsome.xyz/dashboard/tasks",
     ].join("\n");
@@ -944,7 +888,7 @@ export async function handleBulkJobdeskAccCommand(
       try {
         await baseSendWhatsAppMessage({
           target: eventGroupId,
-          message: celebrationMessage,
+          message: broadcastMessage,
           type: "group",
           mentions: mentionsList,
           provider: incoming.provider,
@@ -958,8 +902,57 @@ export async function handleBulkJobdeskAccCommand(
   return NextResponse.json({
     ok: true,
     status: "bulk_tasks_published",
-    count: createdTaskSummaries.length,
+    count: createdTasksSummary.length,
   });
+}
+
+/**
+ * Handler pesan purna-tugas: perintah ACC dipensiunkan dengan penjelasan ramah
+ */
+export async function handleBulkJobdeskAccCommand(
+  incoming: NormalizedIncomingWhatsAppMessage,
+  _isForceAcc = false
+): Promise<NextResponse> {
+  const replyTarget = incoming.isGroup
+    ? incoming.groupId || getDefaultGroupId()
+    : incoming.sender || incoming.groupId || getDefaultGroupId();
+  const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
+
+  const retiredMessage =
+    "ℹ️ *Alur draf telah disederhanakan!*\nTugas kini langsung tersimpan otomatis ke sistem tanpa perlu konfirmasi '!jobdesk acc'. Untuk mengubah tenggat atau detail tugas, Anda dapat langsung mengetik nomor tugas dan tenggatnya di grup atau melalui web JobDex.in.";
+
+  await baseSendWhatsAppMessage({
+    target: replyTarget,
+    message: formatWhatsAppText(retiredMessage),
+    type: isGroupTarget ? "group" : "phone",
+    provider: incoming.provider,
+  });
+
+  return NextResponse.json({ ok: true, status: "bulk_jobdesk_acc_retired" });
+}
+
+/**
+ * Handler pesan purna-tugas: perintah BATAL dipensiunkan dengan penjelasan ramah
+ */
+export async function handleBulkJobdeskBatalCommand(
+  incoming: NormalizedIncomingWhatsAppMessage
+): Promise<NextResponse> {
+  const replyTarget = incoming.isGroup
+    ? incoming.groupId || getDefaultGroupId()
+    : incoming.sender || incoming.groupId || getDefaultGroupId();
+  const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
+
+  const retiredMessage =
+    "ℹ️ *Alur draf telah disederhanakan!*\nTugas langsung tersimpan otomatis saat perintah '!jobdesk tambah' dikirimkan. Jika ingin membatalkan atau menghapus tugas yang sudah terlanjur dibuat, Anda dapat mengelolanya langsung melalui dashboard web JobDex.in.";
+
+  await baseSendWhatsAppMessage({
+    target: replyTarget,
+    message: formatWhatsAppText(retiredMessage),
+    type: isGroupTarget ? "group" : "phone",
+    provider: incoming.provider,
+  });
+
+  return NextResponse.json({ ok: true, status: "bulk_jobdesk_batal_retired" });
 }
 
 /**
@@ -993,25 +986,93 @@ function formatDeadlineDisplay(deadlineStr: string | null | undefined): string {
 }
 
 /**
- * Handler pesan balasan/susulan tenggat waktu dari koordinator/sekretaris
+ * Handler pembaruan tenggat waktu konversasional langsung ke tugas aktif di Firestore
  */
-export async function handleBulkJobdeskDeadlineFollowUp(
+export async function handleConversationalDeadlineUpdate(
   incoming: NormalizedIncomingWhatsAppMessage,
-  rawText: string,
-  activeDraft: BulkJobdeskDraft
+  rawText: string
 ): Promise<NextResponse | null> {
   const replyTarget = incoming.isGroup
     ? incoming.groupId || getDefaultGroupId()
     : incoming.sender || incoming.groupId || getDefaultGroupId();
   const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
 
-  const updates = await parseConversationalDeadlines(rawText, activeDraft.tasks);
+  // 1. Resolusi Acara
+  let event: Event | null = null;
+  if (incoming.isGroup && incoming.groupId) {
+    event = await findEventByGroupId(incoming.groupId);
+  }
+  if (!event) {
+    const res = await resolveEventForBulkJobdesk(incoming, rawText);
+    event = res.event;
+  }
+  if (!event) {
+    return null;
+  }
 
+  // 2. Ambil seluruh tugas aktif untuk acara terkait dari Firestore
+  const db = getAdminDb();
+  const tasksSnap = await db
+    .collection("tasks")
+    .where("event_id", "==", event.id)
+    .where("is_archived", "==", false)
+    .get();
+
+  if (tasksSnap.empty) {
+    return null;
+  }
+
+  const activeTasks: Task[] = [];
+  tasksSnap.forEach((doc) => {
+    activeTasks.push({ id: doc.id, ...doc.data() } as Task);
+  });
+
+  // Urutkan tugas berdasarkan created_at ascending
+  activeTasks.sort((a, b) => {
+    const aMs =
+      a.created_at && typeof a.created_at === "object" && "toMillis" in a.created_at
+        ? (a.created_at as { toMillis: () => number }).toMillis()
+        : a.created_at instanceof Date
+        ? a.created_at.getTime()
+        : 0;
+    const bMs =
+      b.created_at && typeof b.created_at === "object" && "toMillis" in b.created_at
+        ? (b.created_at as { toMillis: () => number }).toMillis()
+        : b.created_at instanceof Date
+        ? b.created_at.getTime()
+        : 0;
+    return aMs - bMs;
+  });
+
+  // 3. Format kandidat tugas untuk AI / Regex conversational deadline parser
+  const candidateTasks: ParsedJobdeskTask[] = activeTasks.map((t) => {
+    let deadlineStr = "";
+    if (t.deadline) {
+      if (typeof t.deadline === "object" && "toDate" in t.deadline) {
+        deadlineStr = (t.deadline as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
+      } else if (t.deadline instanceof Date) {
+        deadlineStr = t.deadline.toISOString().slice(0, 10);
+      } else {
+        deadlineStr = String(t.deadline);
+      }
+    }
+    return {
+      name: t.name || (t as { title?: string }).title || "Tugas",
+      pic_names: t.pic_names || [],
+      pic_ids: t.pic_ids || (t.pic_id ? [t.pic_id] : []),
+      priority: (t.priority === "kritis" ? "tinggi" : t.priority || "sedang") as "rendah" | "sedang" | "tinggi",
+      stage: (t as unknown as { stage?: "pra_acara" | "pasca_acara" }).stage || "pra_acara",
+      deadline: deadlineStr,
+      requires_deadline: !t.deadline,
+    };
+  });
+
+  // 4. Parse conversational deadlines
+  const updates = await parseConversationalDeadlines(rawText, candidateTasks);
   if (updates.length === 0) {
     if (incoming.isGroup) {
       return null;
     }
-
     const lower = rawText.toLowerCase();
     if (
       lower.includes("tenggat") ||
@@ -1023,7 +1084,7 @@ export async function handleBulkJobdeskDeadlineFollowUp(
         "⚠️ *Format Tenggat Waktu Belum Terbaca*",
         "Silakan balas dengan format nomor tugas dan tanggal tenggatnya.",
         "",
-        "👉 *Format:* *[nomor] tenggat [tanggal/jam]* (contoh: *nomor tugas tenggat DD Bulan HH:MM*)",
+        "👉 *Format:* *[nomor] tenggat [tanggal/jam]* (contoh: *1 tenggat 5 nov 20:00*)",
         "👉 Atau untuk seluruh tugas sekaligus: *semua tenggat [tanggal]*",
       ].join("\n");
 
@@ -1036,26 +1097,62 @@ export async function handleBulkJobdeskDeadlineFollowUp(
 
       return NextResponse.json({ ok: true, status: "deadline_format_hint_sent" });
     }
-
     return null;
   }
 
-  // Terapkan update deadline ke draf dan catat tugas-tugas yang baru diperbarui
+  // 5. Terapkan pembaruan langsung ke dokumen tugas Firestore menggunakan Timestamp
+  const batch = db.batch();
   const updatedTasks: Array<{
     taskIndex: number;
-    task: ParsedJobdeskTask;
+    task: Task;
     deadlineStr: string;
+    deadlineTimestamp: Timestamp;
   }> = [];
 
   for (const up of updates) {
     const taskIdx = up.task_index - 1;
-    if (taskIdx >= 0 && taskIdx < activeDraft.tasks.length) {
-      activeDraft.tasks[taskIdx].deadline = up.deadline;
-      activeDraft.tasks[taskIdx].requires_deadline = false;
+    if (taskIdx >= 0 && taskIdx < activeTasks.length) {
+      const targetTask = activeTasks[taskIdx];
+      const parsedDeadlineStr = up.deadline;
+
+      let deadlineDate: Date | null = null;
+      if (parsedDeadlineStr.includes("T")) {
+        deadlineDate = new Date(parsedDeadlineStr);
+      } else if (parsedDeadlineStr.includes(" ")) {
+        deadlineDate = new Date(parsedDeadlineStr.replace(" ", "T") + "+08:00");
+      } else {
+        deadlineDate = new Date(`${parsedDeadlineStr}T23:59:59+08:00`);
+      }
+
+      if (isNaN(deadlineDate.getTime())) {
+        deadlineDate = new Date(parsedDeadlineStr);
+      }
+
+      const deadlineTimestamp = Timestamp.fromDate(deadlineDate);
+      const taskRef = db.collection("tasks").doc(targetTask.id);
+
+      batch.update(taskRef, {
+        deadline: deadlineTimestamp,
+        updated_at: FieldValue.serverTimestamp(),
+      });
+
+      // Status / update log
+      const logRef = taskRef.collection("status_logs").doc();
+      batch.set(logRef, {
+        id: logRef.id,
+        task_id: targetTask.id,
+        previous_status: targetTask.status || "belum_dimulai",
+        new_status: targetTask.status || "belum_dimulai",
+        notes: `Tenggat waktu diperbarui menjadi ${parsedDeadlineStr} via WhatsApp`,
+        changed_by: incoming.sender,
+        changed_at: FieldValue.serverTimestamp(),
+      });
+
       updatedTasks.push({
         taskIndex: up.task_index,
-        task: activeDraft.tasks[taskIdx],
-        deadlineStr: up.deadline,
+        task: targetTask,
+        deadlineStr: parsedDeadlineStr,
+        deadlineTimestamp,
       });
     }
   }
@@ -1064,20 +1161,21 @@ export async function handleBulkJobdeskDeadlineFollowUp(
     return null;
   }
 
-  const missingCount = activeDraft.tasks.filter((t) => !t.deadline).length;
-  if (missingCount === 0) {
-    activeDraft.missing_deadlines_summary = "Seluruh tugas telah memiliki tenggat waktu.";
-  } else {
-    activeDraft.missing_deadlines_summary = `Terdapat ${missingCount} tugas yang belum memiliki tenggat waktu.`;
-  }
+  await batch.commit();
 
-  await saveBulkJobdeskDraft(activeDraft);
-
-  // Ambil profil PIC dari Firestore untuk nomor WhatsApp tag mention
-  const db = getAdminDb();
+  // 6. Ambil profil user PIC untuk mention WhatsApp
   const allUpdatedPicIds = Array.from(
-    new Set(updatedTasks.flatMap((ut) => ut.task.pic_ids || []))
+    new Set(
+      updatedTasks.flatMap((ut) =>
+        ut.task.pic_ids && ut.task.pic_ids.length > 0
+          ? ut.task.pic_ids
+          : ut.task.pic_id
+          ? [ut.task.pic_id]
+          : []
+      )
+    )
   );
+
   const picUserMap = new Map<string, UserProfile>();
   if (allUpdatedPicIds.length > 0) {
     try {
@@ -1088,17 +1186,24 @@ export async function handleBulkJobdeskDeadlineFollowUp(
         }
       });
     } catch (err) {
-      console.warn("[BulkJobdeskDraft] Gagal mengambil profil PIC untuk deadline follow up:", err);
+      console.warn("[BulkJobdeskDraft] Gagal mengambil profil PIC untuk deadline update:", err);
     }
   }
 
   const mentionedPhones = new Set<string>();
 
-  // Format pesan balasan terfokus yang HANYA memuat tugas-tugas yang baru saja diperbarui
+  // Format pesan konfirmasi terfokus (Hanya tugas yang baru saja diperbarui)
   const taskBlocks = updatedTasks.map(({ taskIndex, task, deadlineStr }) => {
     const picDisplays: string[] = [];
-    if (task.pic_ids && task.pic_ids.length > 0) {
-      for (const pId of task.pic_ids) {
+    const picIds =
+      task.pic_ids && task.pic_ids.length > 0
+        ? task.pic_ids
+        : task.pic_id
+        ? [task.pic_id]
+        : [];
+
+    if (picIds.length > 0) {
+      for (const pId of picIds) {
         const u = picUserMap.get(pId);
         const uAny = u as Record<string, unknown> | undefined;
         const cleanP = normalizePhone(
@@ -1120,7 +1225,7 @@ export async function handleBulkJobdeskDeadlineFollowUp(
       }
     }
 
-    const formattedDeadline = formatDeadlineDisplay(deadlineStr || task.deadline);
+    const formattedDeadline = formatDeadlineDisplay(deadlineStr);
     const deadlineOutput =
       formattedDeadline === "Belum ditentukan"
         ? "Belum ditentukan"
@@ -1133,25 +1238,19 @@ export async function handleBulkJobdeskDeadlineFollowUp(
     ].join("\n");
   });
 
-  const totalTasks = activeDraft.tasks.length;
-  const countWithDeadline = activeDraft.tasks.filter((t) => Boolean(t.deadline && t.deadline.trim())).length;
-
   const responseLines = [
     `✅ *Tenggat Jobdesk Berhasil Diperbarui!*\n`,
     taskBlocks.join("\n\n"),
     "",
     "Halo rekan-rekan PIC, tugas di atas sudah ditentukan tenggatnya ya! Minta tolong mulai dipersiapkan dan dicicil pengerjaannya, jangan sampai lewat dari batas waktu. Semangat! 💪🔥",
     "",
-    `📊 *Progres Draf:* ${countWithDeadline} dari ${totalTasks} tugas sudah memiliki tenggat waktu.`,
-    "",
-    "👉 Balas nomor tugas lain untuk mengisi tenggat (atau ketik *!jobdesk acc* untuk menerbitkan draf ke database).",
+    "👉 Pantau progres di:",
+    "https://jobdexin.sumestawsome.xyz/dashboard/tasks",
   ];
-
-  const responseMsg = responseLines.join("\n");
 
   await baseSendWhatsAppMessage({
     target: replyTarget,
-    message: formatWhatsAppText(responseMsg),
+    message: formatWhatsAppText(responseLines.join("\n")),
     type: isGroupTarget ? "group" : "phone",
     mentions: Array.from(mentionedPhones),
     provider: incoming.provider,
@@ -1159,7 +1258,7 @@ export async function handleBulkJobdeskDeadlineFollowUp(
 
   return NextResponse.json({
     ok: true,
-    status: "bulk_draft_deadlines_updated",
+    status: "tasks_deadlines_updated",
     updated_count: updatedTasks.length,
   });
 }
@@ -1167,43 +1266,5 @@ export async function handleBulkJobdeskDeadlineFollowUp(
 /**
  * Alias untuk kompatibilitas
  */
-export const handleConversationalDeadlineUpdate = handleBulkJobdeskDeadlineFollowUp;
+export const handleBulkJobdeskDeadlineFollowUp = handleConversationalDeadlineUpdate;
 
-/**
- * Handler utama untuk pembatalan draf: !jobdesk batal
- */
-export async function handleBulkJobdeskBatalCommand(
-  incoming: NormalizedIncomingWhatsAppMessage
-): Promise<NextResponse> {
-  const replyTarget = incoming.isGroup
-    ? incoming.groupId || getDefaultGroupId()
-    : incoming.sender || incoming.groupId || getDefaultGroupId();
-  const isGroupTarget = incoming.isGroup || isGroupRecipient(replyTarget);
-
-  const cleanSender = normalizePhone(incoming.sender);
-
-  let activeDraft = await getBulkJobdeskDraft(cleanSender);
-  if (!activeDraft && incoming.isGroup && incoming.groupId) {
-    activeDraft = await findActiveDraftForEventOrGroup(undefined, incoming.groupId);
-  }
-
-  if (activeDraft) {
-    await deleteBulkJobdeskDraft(activeDraft.sender);
-    await baseSendWhatsAppMessage({
-      target: replyTarget,
-      message: formatWhatsAppText("🗑️ Draf jobdesk acara berhasil dibatalkan dan dihapus."),
-      type: isGroupTarget ? "group" : "phone",
-      provider: incoming.provider,
-    });
-    return NextResponse.json({ ok: true, status: "bulk_draft_cancelled" });
-  }
-
-  await baseSendWhatsAppMessage({
-    target: replyTarget,
-    message: formatWhatsAppText("ℹ️ Tidak ada draf jobdesk acara yang aktif untuk dibatalkan."),
-    type: isGroupTarget ? "group" : "phone",
-    provider: incoming.provider,
-  });
-
-  return NextResponse.json({ ok: true, status: "no_draft_to_cancel" });
-}

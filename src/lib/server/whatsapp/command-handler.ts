@@ -88,6 +88,7 @@ import {
   handleBulkJobdeskAccCommand,
   handleBulkJobdeskBatalCommand,
   handleBulkJobdeskDeadlineFollowUp,
+  handleConversationalDeadlineUpdate,
   getBulkJobdeskDraft,
   findActiveDraftForEventOrGroup,
 } from "@/lib/server/bulk-jobdesk-draft";
@@ -899,55 +900,48 @@ export async function executeWhatsAppWebhook(
 
   // ============================================================================
   // BULK JOBDESK CONVERSATIONAL DEADLINE FOLLOW-UP
-  // Tangkap pesan susulan pengisian tenggat waktu ketika draf acara aktif ada
+  // Tangkap pesan susulan pengisian tenggat waktu langsung ke tugas aktif
   // ============================================================================
-  let activeBulkDraft = await getBulkJobdeskDraft(incoming.sender);
-  if (!activeBulkDraft && incoming.isGroup && incoming.groupId) {
-    activeBulkDraft = await findActiveDraftForEventOrGroup(undefined, incoming.groupId);
-  }
+  const isExplicitSystemCommand =
+    /^(?:[!/])?(?:jobde[xs]\b|jobdesk\b|tugas\b|acc\b|batal\b|help\b|bantuan\b)/i.test(stripped);
 
-  if (activeBulkDraft) {
-    const isExplicitSystemCommand =
-      /^(?:[!/])?(?:jobde[xs]\b|jobdesk\b|tugas\b|acc\b|batal\b)/i.test(stripped);
+  const lowerText = stripped.toLowerCase();
+  const hasDeadlineKeyword =
+    lowerText.includes("tenggat") ||
+    lowerText.includes("deadline") ||
+    lowerText.includes("tgl") ||
+    lowerText.includes("tanggal") ||
+    lowerText.includes("besok") ||
+    lowerText.includes("lusa");
 
-    const lower = stripped.toLowerCase();
-    const hasDeadlineKeyword =
-      lower.includes("tenggat") ||
-      lower.includes("deadline") ||
-      lower.includes("tgl") ||
-      lower.includes("tanggal") ||
-      lower.includes("besok") ||
-      lower.includes("lusa");
+  const hasDatePattern =
+    /\b\d{1,2}\s+(?:jan|feb|mar|apr|mei|jun|jul|agu|ags|sep|okt|nov|des)/i.test(lowerText) ||
+    /\b\d{4}[-\/]\d{1,2}[-\/]\d{1,2}\b/.test(lowerText) ||
+    /\b\d{1,2}[/-]\d{1,2}\b/.test(lowerText);
 
-    const hasDatePattern =
-      /\b\d{1,2}\s+(?:jan|feb|mar|apr|mei|jun|jul|agu|ags|sep|okt|nov|des)/i.test(lower) ||
-      /\b\d{4}[-\/]\d{1,2}[-\/]\d{1,2}\b/.test(lower) ||
-      /\b\d{1,2}[/-]\d{1,2}\b/.test(lower);
+  const hasTaskIndexIndicator =
+    /(?:^|\s)(?:no|nomor|tugas)?\s*\d+[\s:.-]/i.test(lowerText) ||
+    /^(?:semua|all|seluruh)\s+/i.test(lowerText);
 
-    const hasTaskIndexIndicator =
-      /(?:^|\s)(?:no|nomor|tugas)?\s*\d+[\s:.-]/i.test(lower) ||
-      /^(?:semua|all|seluruh)\s+/i.test(lower);
+  const isPotentialDeadlineUpdate =
+    !isExplicitSystemCommand &&
+    (hasDeadlineKeyword || (hasTaskIndexIndicator && hasDatePattern));
 
-    const isPotentialDeadlineUpdate =
-      !isExplicitSystemCommand &&
-      (hasDeadlineKeyword || (hasTaskIndexIndicator && hasDatePattern));
+  if (isPotentialDeadlineUpdate) {
+    console.log("[whatsapp command] Processing conversational deadline update for active tasks:", {
+      sender: incoming.sender,
+      isGroup: incoming.isGroup,
+      groupId: incoming.groupId,
+      preview: stripped.slice(0, 50),
+    });
 
-    if (isPotentialDeadlineUpdate) {
-      console.log("[whatsapp bulk draft] Processing conversational deadline follow-up:", {
-        sender: incoming.sender,
-        event: activeBulkDraft.event_name,
-        preview: stripped.slice(0, 50),
-      });
+    const deadlineRes = await handleConversationalDeadlineUpdate(
+      incoming,
+      stripped
+    );
 
-      const deadlineRes = await handleBulkJobdeskDeadlineFollowUp(
-        incoming,
-        stripped,
-        activeBulkDraft
-      );
-
-      if (deadlineRes) {
-        return deadlineRes;
-      }
+    if (deadlineRes) {
+      return deadlineRes;
     }
   }
 

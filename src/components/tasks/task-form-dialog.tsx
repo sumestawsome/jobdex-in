@@ -618,8 +618,8 @@ function TaskForm({
         }
       }
 
-      if (!picId || !coordinatorId || !deadline) {
-        setError("PIC, koordinator, dan deadline wajib diisi.");
+      if (!picId || !coordinatorId) {
+        setError("PIC dan koordinator wajib diisi.");
         return;
       }
 
@@ -960,8 +960,15 @@ function TaskForm({
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Deadline">
-              <NeoDatePicker value={deadline} onChange={setDeadline} />
+            <Field label="Deadline (Opsional)">
+              <div className={!deadline ? "rounded-md border border-amber-300 bg-amber-50/50 p-1 dark:border-amber-700/60 dark:bg-amber-950/20" : ""}>
+                <NeoDatePicker value={deadline} onChange={setDeadline} />
+                {!deadline && (
+                  <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+                    ⚠️ Belum ada tenggat (dapat diisi nanti).
+                  </p>
+                )}
+              </div>
             </Field>
             <Field label="Status">
               <select
