@@ -752,7 +752,19 @@ export async function executeWhatsAppWebhook(
     }
   }
 
-  const message = incoming.message || "";
+  const rawIncomingMsg = incoming.message || "";
+  const lidMentionPattern = /^@\d+\s*/;
+  const botAliasPattern = /^@(?:jobde[xs](?:\.in)?|bot)\b\s*/i;
+  const isBotMentioned = Boolean(
+    incoming.isBotMentioned ||
+    lidMentionPattern.test(rawIncomingMsg) ||
+    botAliasPattern.test(rawIncomingMsg)
+  );
+
+  let message = rawIncomingMsg;
+  if (lidMentionPattern.test(message) || botAliasPattern.test(message)) {
+    message = message.replace(lidMentionPattern, "").replace(botAliasPattern, "").trim();
+  }
   const trimmed = message.trim();
   const stripped = trimmed.replace(/^[*_~`]+|[*_~`]+$/g, "").trim();
 
@@ -778,7 +790,9 @@ export async function executeWhatsAppWebhook(
   // ============================================================================
   // BULK JOBDESK ACARA COMMANDS (!jobdesk tambah, !jobdesk acc, !jobdesk batal, jobdex ...)
   // ============================================================================
-  const isBulkJobdeskTambah = /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+(?:tambah|input)\b/i.test(stripped);
+  const isBulkJobdeskTambah =
+    /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+(?:tambah|input)\b/i.test(stripped) ||
+    (isBotMentioned && /^(?:tambah|input)\b/i.test(stripped));
   if (isBulkJobdeskTambah) {
     console.log("[whatsapp command] step: process_bulk_jobdesk_tambah", {
       sender: incoming.sender,
@@ -789,8 +803,12 @@ export async function executeWhatsAppWebhook(
     return await handleBulkJobdeskTambahCommand(incoming, stripped);
   }
 
-  const isBulkJobdeskAcc = /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+acc(?:\s+paksa)?\b/i.test(stripped);
-  const isExplicitForceAcc = /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+acc\s+paksa\b/i.test(stripped);
+  const isBulkJobdeskAcc =
+    /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+acc(?:\s+paksa)?\b/i.test(stripped) ||
+    (isBotMentioned && /^acc(?:\s+paksa)?\b/i.test(stripped));
+  const isExplicitForceAcc =
+    /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+acc\s+paksa\b/i.test(stripped) ||
+    (isBotMentioned && /^acc\s+paksa\b/i.test(stripped));
   if (isBulkJobdeskAcc) {
     console.log("[whatsapp command] step: process_bulk_jobdesk_acc", {
       sender: incoming.sender,
@@ -801,7 +819,9 @@ export async function executeWhatsAppWebhook(
     return await handleBulkJobdeskAccCommand(incoming, isExplicitForceAcc);
   }
 
-  const isBulkJobdeskBatal = /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+batal\b/i.test(stripped);
+  const isBulkJobdeskBatal =
+    /^(?:[!/])?(?:jobde[xs]|jobdesk|jobdes)\s+batal\b/i.test(stripped) ||
+    (isBotMentioned && /^batal\b/i.test(stripped));
   if (isBulkJobdeskBatal) {
     console.log("[whatsapp command] step: process_bulk_jobdesk_batal", {
       sender: incoming.sender,
@@ -902,6 +922,11 @@ export async function executeWhatsAppWebhook(
     /^(?:[!/])?(?:jobde[xs]\b|jobdesk\b|tugas\b|acc\b|batal\b|help\b|bantuan\b)/i.test(stripped);
 
   const lowerText = stripped.toLowerCase();
+  const isQuestion =
+    /[?？]/.test(stripped) ||
+    /\b(?:cara|gimana|bagaimana|gmn|apa|apakah|kenapa|mengapa|kapan|kpn|tanya|maksudnya|info|help|bantuan)\b/i.test(lowerText) ||
+    /tolong\s+(?:kasih|beri|jelaskan)\s+tahu/i.test(lowerText);
+
   const hasDeadlineKeyword =
     lowerText.includes("tenggat") ||
     lowerText.includes("deadline") ||
@@ -921,7 +946,9 @@ export async function executeWhatsAppWebhook(
 
   const isPotentialDeadlineUpdate =
     !isExplicitSystemCommand &&
-    (hasDeadlineKeyword || (hasTaskIndexIndicator && hasDatePattern));
+    !isQuestion &&
+    hasTaskIndexIndicator &&
+    (hasDeadlineKeyword || hasDatePattern);
 
   if (isPotentialDeadlineUpdate) {
     console.log("[whatsapp command] Processing conversational deadline update for active tasks:", {
@@ -1006,9 +1033,10 @@ export async function executeWhatsAppWebhook(
   }
 
   const isJobdexPrefixed = /^(?:[!/])?jobde[xs]/i.test(stripped);
+  const isTargetedToBot = isJobdexPrefixed || isBotMentioned;
 
-  // Di grup WhatsApp, abaikan pesan yang bukan untuk bot (tidak berawalan !jobdex atau jobdex/jobdesk) agar tidak spam obrolan panitia
-  if (incoming.isGroup && !isJobdexPrefixed) {
+  // Di grup WhatsApp, abaikan pesan yang bukan untuk bot (tidak berawalan !jobdex atau jobdex/jobdesk dan tidak me-mention bot) agar tidak spam obrolan panitia
+  if (incoming.isGroup && !isTargetedToBot) {
     console.log("[whatsapp command] step: non_jobdex_group_message_ignored", {
       isGroup: incoming.isGroup,
       messagePreview: trimmed.slice(0, 30),
@@ -1020,9 +1048,9 @@ export async function executeWhatsAppWebhook(
     });
   }
 
-  // --- Penanganan Langsung: Perintah !jobdex Tunggal (Tanpa Argumen) ---
+  // --- Penanganan Langsung: Perintah !jobdex Tunggal (Tanpa Argumen) atau Mention Bot Saja ---
   const cleanAfterPrefix = stripped.replace(/^(?:[!/])?jobde[xs]\b/i, "").trim();
-  if (isJobdexPrefixed && cleanAfterPrefix === "") {
+  if (isTargetedToBot && cleanAfterPrefix === "") {
     console.log("[whatsapp command] step: empty_jobdex_greeting");
     const singleJobdexReply = [
       "Halo! Ada yang bisa JobDex bantu? 🙌",
@@ -1064,11 +1092,11 @@ export async function executeWhatsAppWebhook(
   }
 
   console.log("[whatsapp command] step: parse_command_start");
-  let parsedCommand = parseWhatsAppCommand(incoming.message || "");
+  let parsedCommand = parseWhatsAppCommand(stripped);
   if (parsedCommand.intent === "unknown") {
     console.log("[whatsapp command] step: parse_command_natural_fallback");
     const { parseWhatsAppCommandNatural } = await import("@/lib/server/whatsapp-command-parser");
-    const naturalParsed = await parseWhatsAppCommandNatural(incoming.message || "");
+    const naturalParsed = await parseWhatsAppCommandNatural(stripped);
     if (naturalParsed.intent !== "unknown") {
       parsedCommand = naturalParsed;
     }
@@ -1081,7 +1109,7 @@ export async function executeWhatsAppWebhook(
     groupId: incoming.groupId,
   });
 
-  const question = extractJobDexQuestion(incoming.message);
+  const question = extractJobDexQuestion(stripped, isTargetedToBot);
   const db = getAdminDb();
   const detectedOrgId = await resolveWebhookOrmawaId(incoming, payload);
 
@@ -1893,7 +1921,7 @@ export async function executeWhatsAppWebhook(
     : resolvedSenderNumber || incoming.sender;
 
   try {
-    const isTaskLike = isTaskCommandLike(incoming.message || "");
+    const isTaskLike = isTaskCommandLike(stripped || incoming.message || "");
     const isRefSearch = isReferenceSearchQuestion(question);
 
     const updateDebugIntent = async (

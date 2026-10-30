@@ -108,12 +108,20 @@ export function parseWablasIncomingPayload(payload: unknown) {
   } satisfies WablasIncomingMessage;
 }
 
-export function extractJobDexQuestion(message: string) {
-  const trimmedMessage = message.trim();
+export function extractJobDexQuestion(message: string, isBotMentioned = false) {
+  let clean = (message || "").trim();
+  // Strip LID or phone mention if present
+  clean = clean.replace(/^@\d+\s*/, "").replace(/^@(?:jobde[xs](?:\.in)?|bot)\b\s*/i, "").trim();
 
-  if (!trimmedMessage.toLowerCase().startsWith("!jobdex")) {
-    return "";
+  // Strip !jobdex, !jobdesk, jobdex, jobdesk
+  if (/^(?:[!/])?jobde[xs]\b/i.test(clean)) {
+    return clean.replace(/^(?:[!/])?jobde[xs]\b/i, "").trim();
   }
 
-  return trimmedMessage.replace(/^!jobdex/i, "").trim();
+  // Jika bot di-mention atau ditandai, seluruh teks yang tersisa adalah pertanyaan/perintah
+  if (isBotMentioned) {
+    return clean;
+  }
+
+  return "";
 }

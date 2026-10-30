@@ -213,6 +213,7 @@ async function callGeminiBulkParser(
   const modelsToTry = [
     configuredModel && !configuredModel.includes("1.5") && !configuredModel.includes("2.0") ? configuredModel : null,
     "gemini-3.8-flash",
+    "gemini-2.5-flash",
     "gemini-3.5-flash-lite",
   ].filter(Boolean) as string[];
 
@@ -230,7 +231,7 @@ async function callGeminiBulkParser(
             headers: {
               "Content-Type": "application/json",
             },
-            signal: AbortSignal.timeout(25000),
+            signal: AbortSignal.timeout(8000), // Timeout 8 detik per panggilan
             body: JSON.stringify({
               system_instruction: {
                 parts: [{ text: systemPrompt }],
@@ -253,6 +254,23 @@ async function callGeminiBulkParser(
 
         if (!response.ok) {
           const errorMsg = data.error?.message || `Status HTTP ${response.status}`;
+
+          // Jika model sedang overload / 503 / high demand, langsung beralih ke model lebih ringan
+          const isHighDemand =
+            response.status === 503 ||
+            response.status === 500 ||
+            errorMsg.includes("503") ||
+            errorMsg.toLowerCase().includes("high demand") ||
+            errorMsg.toLowerCase().includes("overloaded") ||
+            errorMsg.includes("UNAVAILABLE");
+
+          if (isHighDemand) {
+            console.warn(
+              `[AI Bulk Jobdesk Parser] (Key index ${keyIndex}) Model ${model} under high demand / 503, switching to lighter fallback...`
+            );
+            continue;
+          }
+
           if (
             response.status === 429 ||
             errorMsg.includes("RESOURCE_EXHAUSTED") ||
@@ -274,7 +292,16 @@ async function callGeminiBulkParser(
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         if (isGeminiQuotaOrTransientError(lastError)) {
-          throw lastError; // Re-throw to trigger key failover in the pool
+          if (
+            lastError.message.includes("429") ||
+            lastError.message.includes("RESOURCE_EXHAUSTED")
+          ) {
+            throw lastError; // Trigger next key in pool
+          }
+          console.warn(
+            `[AI Bulk Jobdesk Parser] (Key index ${keyIndex}) Model ${model} transient error (${lastError.message}), trying next model...`
+          );
+          continue;
         }
         console.warn(
           `[AI Bulk Jobdesk Parser] (Key index ${keyIndex}) Panggilan model ${model} gagal:`,
@@ -859,6 +886,40 @@ export async function parseConversationalDeadlines(
   currentTasks: ParsedJobdeskTask[]
 ): Promise<TaskDeadlineUpdate[]> {
   if (!rawText.trim() || currentTasks.length === 0) {
+    return [];
+  }
+
+  const clean = rawText.trim();
+  const lower = clean.toLowerCase();
+
+  // 1. Guardrail kata tanya: Jangan parse jika pesan adalah pertanyaan/cara pakai
+  const isQuestion =
+    /[?？]/.test(clean) ||
+    /\b(?:cara|gimana|bagaimana|gmn|apa|apakah|kenapa|mengapa|kapan|kpn|tanya|maksudnya|info|help|bantuan)\b/i.test(lower) ||
+    /tolong\s+(?:kasih|beri|jelaskan)\s+tahu/i.test(lower);
+
+  if (isQuestion) {
+    return [];
+  }
+
+  // 2. Minimal memiliki indikasi nomor tugas atau rujukan semua tugas
+  const hasTaskIndex =
+    /(?:^|\s)(?:no|nomor|tugas)?\s*\d+[\s:.-]/i.test(lower) ||
+    /^(?:semua|all|seluruh)\s+/i.test(lower);
+
+  // 3. Minimal memiliki indikasi tanggal/waktu/kata kunci tenggat
+  const hasDateOrTime =
+    /\b\d{1,2}\s+(?:jan|feb|mar|apr|mei|jun|jul|agu|ags|sep|okt|nov|des)/i.test(lower) ||
+    /\b\d{4}[-\/]\d{1,2}[-\/]\d{1,2}\b/.test(lower) ||
+    /\b\d{1,2}[/-]\d{1,2}\b/.test(lower) ||
+    /\b\d{1,2}[:.]\d{2}\b/.test(lower) ||
+    /\b(?:besok|lusa|hari ini|nanti malam)\b/i.test(lower) ||
+    lower.includes("tenggat") ||
+    lower.includes("deadline") ||
+    lower.includes("tgl") ||
+    lower.includes("tanggal");
+
+  if (!hasTaskIndex || !hasDateOrTime) {
     return [];
   }
 

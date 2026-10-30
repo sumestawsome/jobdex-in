@@ -82,6 +82,7 @@ Format JSON WAJIB murni tanpa markdown:
     const modelsToTry = [
       process.env.GEMINI_MODEL,
       "gemini-3.8-flash",
+      "gemini-2.5-flash",
       "gemini-3.5-flash-lite",
       "gemini-3.8-pro",
     ].filter(Boolean) as string[];
@@ -100,7 +101,7 @@ Format JSON WAJIB murni tanpa markdown:
             headers: {
               "Content-Type": "application/json",
             },
-            signal: AbortSignal.timeout(15000),
+            signal: AbortSignal.timeout(8000), // Timeout 8 detik per panggilan
             body: JSON.stringify({
               system_instruction: {
                 parts: [{ text: systemInstruction }],

@@ -60,7 +60,7 @@ export function getRoundRobinGeminiApiKey(): { apiKey: string; keyIndex: number 
 }
 
 /**
- * Memeriksa apakah suatu error merupakan error kuota, rate limit, atau timeout
+ * Memeriksa apakah suatu error merupakan error kuota, high-demand, rate limit, atau timeout
  */
 export function isGeminiQuotaOrTransientError(err: unknown): boolean {
   if (!err) return false;
@@ -68,11 +68,17 @@ export function isGeminiQuotaOrTransientError(err: unknown): boolean {
   const lower = msg.toLowerCase();
   return (
     msg.includes("429") ||
+    msg.includes("503") ||
+    msg.includes("500") ||
     msg.includes("RESOURCE_EXHAUSTED") ||
+    msg.includes("UNAVAILABLE") ||
     lower.includes("quota") ||
+    lower.includes("high demand") ||
+    lower.includes("overloaded") ||
     lower.includes("rate limit") ||
     lower.includes("rate-limit") ||
     lower.includes("timeout") ||
+    lower.includes("abort") ||
     msg.includes("AbortError") ||
     msg.includes("ABORT_ERR")
   );
@@ -83,6 +89,7 @@ export type GeminiPoolExecutor<T> = (apiKey: string, keyIndex: number) => Promis
 /**
  * Mengeksekusi request Gemini dengan Round-Robin & Auto-Failover di seluruh API Key Pool.
  * Jika terjadi error kuota (429, RESOURCE_EXHAUSTED) atau timeout, otomatis beralih ke key berikutnya.
+ * Maksimal timeout per attempt dibatasi 8 detik agar tidak memicu Vercel Serverless Function timeout (60s).
  */
 export async function executeWithGeminiKeyPool<T>(
   executor: GeminiPoolExecutor<T>,
@@ -149,6 +156,7 @@ export async function askGemini({
   const modelsToTry = [
     process.env.GEMINI_MODEL,
     "gemini-3.8-flash",
+    "gemini-2.5-flash",
     "gemini-3.5-flash-lite",
     "gemini-3.8-pro",
   ].filter(Boolean) as string[];
@@ -168,7 +176,7 @@ export async function askGemini({
               "Content-Type": "application/json",
               "x-goog-api-key": apiKey,
             },
-            signal: AbortSignal.timeout(15000),
+            signal: AbortSignal.timeout(8000), // Timeout 8 detik per panggilan sesuai ketentuan guardrail
             body: JSON.stringify({
               system_instruction: {
                 parts: [{ text: systemPrompt }],
@@ -193,6 +201,22 @@ export async function askGemini({
             ? `Gemini (${modelName}) gagal: ${data.error.message}`
             : `Gemini (${modelName}) gagal status ${response.status}`;
 
+          // Jika model sedang high demand / 503 / 500, langsung coba model yang lebih ringan
+          const isHighDemand =
+            response.status === 503 ||
+            response.status === 500 ||
+            errMsg.includes("503") ||
+            errMsg.toLowerCase().includes("high demand") ||
+            errMsg.toLowerCase().includes("overloaded") ||
+            errMsg.includes("UNAVAILABLE");
+
+          if (isHighDemand) {
+            console.warn(
+              `[Gemini API] (Key index ${keyIndex}) Model ${modelName} high demand / 503, switching to lighter fallback model...`
+            );
+            continue;
+          }
+
           if (
             response.status === 429 ||
             errMsg.includes("RESOURCE_EXHAUSTED") ||
@@ -213,7 +237,18 @@ export async function askGemini({
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         if (isGeminiQuotaOrTransientError(lastError)) {
-          throw lastError; // Failover ke key berikutnya di dalam pool
+          // Jika kuota habis, langsung lempar error agar pool beralih ke key berikutnya
+          if (
+            lastError.message.includes("429") ||
+            lastError.message.includes("RESOURCE_EXHAUSTED")
+          ) {
+            throw lastError;
+          }
+          // Jika timeout atau high demand pada model saat ini, coba model berikutnya
+          console.warn(
+            `[Gemini API] (Key index ${keyIndex}) Model ${modelName} transient error (${lastError.message}), trying next model...`
+          );
+          continue;
         }
         console.warn(
           `[Gemini API] (Key index ${keyIndex}) Model ${modelName} error:`,

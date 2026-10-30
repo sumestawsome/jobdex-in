@@ -290,9 +290,23 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
     root.sender_device
   );
 
+  // Deteksi dan normalisasi mention WhatsApp LID / nomor HP / alias bot di awal pesan
+  const lidMentionPattern = /^@\d+\s*/;
+  const botAliasPattern = /^@(?:jobde[xs](?:\.in)?|bot)\b\s*/i;
+  const isBotMentioned = lidMentionPattern.test(effectiveMessage) || botAliasPattern.test(effectiveMessage);
+  let cleanedMessage = effectiveMessage;
+  if (isBotMentioned) {
+    cleanedMessage = effectiveMessage
+      .replace(lidMentionPattern, "")
+      .replace(botAliasPattern, "")
+      .trim();
+  }
+
   return {
     provider: "fonnte",
-    message: effectiveMessage,
+    message: cleanedMessage,
+    rawMessage: effectiveMessage,
+    isBotMentioned,
     sender: finalSender,
     senderName: senderName || undefined,
     groupId: finalGroupId,

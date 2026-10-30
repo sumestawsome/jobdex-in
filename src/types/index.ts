@@ -673,6 +673,8 @@ export type NormalizedIncomingWhatsAppMessage = {
   extension?: string;
   fromMe?: boolean;
   device?: string;
+  isBotMentioned?: boolean;
+  rawMessage?: string;
 };
 
 export interface WhatsAppSystemSettings {
