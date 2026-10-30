@@ -3,7 +3,7 @@ import "server-only";
 import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
 import { sendWhatsAppMessage } from "@/lib/server/whatsapp";
 import { sendGreenApiTextMessage } from "@/lib/server/green-api";
-import type { Task, UserProfile } from "@/types";
+import type { Task } from "@/types";
 import type { ClassWorkspaceGateways, ClassWorkspaceAdmin } from "@/types/workspace";
 import { getTaskDeadlineDiffDays } from "@/lib/task-risk";
 

@@ -3,11 +3,9 @@ import {
   doc,
   getDoc,
   getDocs,
-  query,
   serverTimestamp,
   setDoc,
   updateDoc,
-  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { DUMMY_CAMPUSES } from "@/lib/workspace-dummy-data";

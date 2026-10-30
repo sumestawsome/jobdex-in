@@ -5,7 +5,6 @@ import { DUMMY_ORMAWAS } from "@/lib/workspace-dummy-data";
 import {
   validateOrmawaInput,
   buildOrmawaDoc,
-  isUniqueOrmawaInCampus,
 } from "@/lib/workspace-schema";
 import type { Ormawa } from "@/types/workspace";
 

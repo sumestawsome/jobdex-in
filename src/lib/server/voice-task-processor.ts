@@ -13,6 +13,7 @@ import {
   verifyAdminKomunitas,
   parseAcademicDeadline,
 } from "@/lib/server/whatsapp-academic-task-creator";
+import { getRoundRobinGeminiApiKey } from "@/lib/server/gemini";
 import type { NormalizedIncomingWhatsAppMessage } from "@/types";
 
 export interface ExtractedVoiceTask {
@@ -325,7 +326,7 @@ export function formatVoiceDeadlineWita(dateObj: Date): string {
  * Resolves appropriate MIME type for audio buffer.
  */
 function resolveAudioMimeType(audioUrl: string, headerType?: string | null): string {
-  let mime = (headerType || "").split(";")[0].trim().toLowerCase();
+  const mime = (headerType || "").split(";")[0].trim().toLowerCase();
   if (mime && mime.startsWith("audio/") && mime !== "audio/octet-stream") {
     return mime;
   }
@@ -351,10 +352,7 @@ export async function extractTaskFromVoiceNote(
   audioSource: string | Buffer,
   mimeTypeOverride?: string
 ): Promise<ExtractedVoiceTask> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured in environment variables.");
-  }
+  const { apiKey } = getRoundRobinGeminiApiKey();
 
   let base64Audio = "";
   let mimeType = mimeTypeOverride || "audio/ogg";
@@ -632,10 +630,7 @@ export async function mergeVoiceNoteCorrectionWithDraft(
   audioSource: string | Buffer,
   mimeTypeOverride?: string
 ): Promise<ExtractedVoiceTask> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY belum dikonfigurasi.");
-  }
+  const { apiKey } = getRoundRobinGeminiApiKey();
 
   let base64Audio = "";
   let mimeType = mimeTypeOverride || "audio/ogg";
@@ -803,10 +798,7 @@ export async function mergeTaskDraftWithFollowUp(
   existingDraft: TaskDraft,
   followUpText: string
 ): Promise<ExtractedVoiceTask> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY belum dikonfigurasi.");
-  }
+  const { apiKey } = getRoundRobinGeminiApiKey();
 
   const systemPrompt = `Kamu adalah asisten pengelola tugas kuliah mahasiswa Ilkom Undiksha yang sangat teliti.
 Pengguna sebelumnya telah memulai pencatatan tugas kuliah, dan tersimpan sebagai draf:

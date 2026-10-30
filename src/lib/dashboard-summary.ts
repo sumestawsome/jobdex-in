@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  getCountFromServer,
   getDoc,
   getDocs,
   limit,
@@ -12,7 +11,6 @@ import { db } from "@/lib/firebase/client";
 import {
   DEFAULT_DIVISION_ID,
   DEFAULT_ORMAWA_ID,
-  DEFAULT_ORGANIZATION_ID,
 } from "@/lib/seed-data";
 import type { UserProfile } from "@/types";
 
@@ -28,26 +26,6 @@ export type DashboardSummary = {
   items: DashboardSummaryItem[];
   setupReady?: boolean;
 };
-
-async function safeCount(collectionName: string) {
-  try {
-    const snapshot = await getCountFromServer(collection(db, collectionName));
-    return snapshot.data().count;
-  } catch {
-    return 0;
-  }
-}
-
-async function safeQueryCount(collectionName: string, field: string, value: unknown) {
-  try {
-    const snapshot = await getCountFromServer(
-      query(collection(db, collectionName), where(field, "==", value)),
-    );
-    return snapshot.data().count;
-  } catch {
-    return 0;
-  }
-}
 
 async function safeDocsByField(
   collectionName: string,

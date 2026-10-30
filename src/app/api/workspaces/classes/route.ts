@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
 import { requireAdminAuth, AuthRoleError } from "@/lib/server/auth";
 import { normalizePhone } from "@/lib/server/whatsapp-academic-task-creator";
-import type { ClassWorkspaceDoc } from "@/types/workspace";
 
 export const runtime = "nodejs";
 

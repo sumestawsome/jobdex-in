@@ -1,5 +1,4 @@
 import { TASK_STATUS_LABELS } from "@/lib/task-status";
-import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 import type { Task, TaskStatus, UserProfile } from "@/types";
 
 type NotificationTemplateInput = {

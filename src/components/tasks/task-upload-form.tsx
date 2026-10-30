@@ -43,7 +43,7 @@ export interface TaskUploadFormProps {
 
 export function TaskUploadForm({
   taskName,
-  categoryKey,
+  categoryKey: _categoryKey,
   requiresFile = false,
   requiresSourceLink = false,
   recommendedOutputTypes = [],

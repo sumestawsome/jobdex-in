@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Building2, School, Check, ChevronDown } from "lucide-react";
+import { Building2, ChevronDown } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { DUMMY_CAMPUSES, DUMMY_ORMAWAS } from "@/lib/workspace-dummy-data";
-import type { Campus, Ormawa } from "@/types/workspace";
 
 type WorkspacePickerProps = {
   selectedCampusId?: string;

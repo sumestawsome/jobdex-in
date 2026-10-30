@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getServerAuthContext } from "@/lib/server/auth";
+import {
+  executeWithGeminiKeyPool,
+  isGeminiQuotaOrTransientError,
+} from "@/lib/server/gemini";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -52,16 +56,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Verify Gemini API Key
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY belum dikonfigurasi di environment variables." },
-        { status: 500 }
-      );
-    }
-
-    // 4. Sequential Native REST call to Active Gemini Models (gemini-2.5-flash, gemini-flash-latest, etc.)
+    // 3. Sequential Native REST call with Gemini Key Pool & Failover
     const systemInstruction = `Kamu adalah parser teks tugas kuliah yang sangat teliti untuk mahasiswa Ilkom Undiksha.
 Tugasmu adalah menganalisis teks transkrip percakapan suara santai dan mengekstrak entitas tugas kuliah.
 Buang semua kata filler, sapaan, atau basa-basi (seperti 'tes tes', 'tolong buatkan', 'apa namanya', 'gess', 'halo').
@@ -92,56 +87,64 @@ Format JSON WAJIB murni tanpa markdown:
     ].filter(Boolean) as string[];
     const uniqueModels = [...new Set(modelsToTry)];
 
-    let geminiData: GeminiApiResponse | null = null;
-    let lastError = "";
+    const geminiData = await executeWithGeminiKeyPool(async (apiKey, keyIndex) => {
+      let lastError = "";
 
-    for (const model of uniqueModels) {
-      try {
-        console.log(`[parse-voice-text] Attempting Gemini model: ${model}`);
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      for (const model of uniqueModels) {
+        try {
+          console.log(`[parse-voice-text] (Key index ${keyIndex}) Attempting Gemini model: ${model}`);
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-        const geminiRes = await fetch(geminiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          signal: AbortSignal.timeout(15000),
-          body: JSON.stringify({
-            system_instruction: {
-              parts: [{ text: systemInstruction }],
+          const geminiRes = await fetch(geminiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
             },
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: transcript }],
+            signal: AbortSignal.timeout(15000),
+            body: JSON.stringify({
+              system_instruction: {
+                parts: [{ text: systemInstruction }],
               },
-            ],
-            generationConfig: {
-              temperature: 0.1,
-              response_mime_type: "application/json",
-            },
-          }),
-        });
+              contents: [
+                {
+                  role: "user",
+                  parts: [{ text: transcript }],
+                },
+              ],
+              generationConfig: {
+                temperature: 0.1,
+                response_mime_type: "application/json",
+              },
+            }),
+          });
 
-        if (geminiRes.ok) {
-          geminiData = (await geminiRes.json()) as GeminiApiResponse;
-          console.log(`[parse-voice-text] Successfully parsed voice text using model: ${model}`);
-          break;
-        } else {
-          const errText = await geminiRes.text();
-          console.warn(`[parse-voice-text] Model ${model} failed (HTTP ${geminiRes.status}):`, errText);
-          lastError = `Status ${geminiRes.status}: ${errText}`;
+          if (geminiRes.ok) {
+            const data = (await geminiRes.json()) as GeminiApiResponse;
+            console.log(`[parse-voice-text] Successfully parsed voice text using model: ${model}`);
+            return data;
+          } else {
+            const errText = await geminiRes.text();
+            console.warn(`[parse-voice-text] Model ${model} failed (HTTP ${geminiRes.status}):`, errText);
+            if (geminiRes.status === 429 || errText.includes("RESOURCE_EXHAUSTED") || errText.toLowerCase().includes("quota")) {
+              throw new Error(`HTTP 429 RESOURCE_EXHAUSTED: ${errText}`);
+            }
+            lastError = `Status ${geminiRes.status}: ${errText}`;
+          }
+        } catch (callErr) {
+          if (isGeminiQuotaOrTransientError(callErr)) {
+            throw callErr;
+          }
+          console.warn(`[parse-voice-text] Network error calling ${model}:`, callErr);
+          lastError = callErr instanceof Error ? callErr.message : String(callErr);
         }
-      } catch (callErr) {
-        console.warn(`[parse-voice-text] Network error calling ${model}:`, callErr);
-        lastError = callErr instanceof Error ? callErr.message : String(callErr);
       }
-    }
+
+      throw new Error(`Semua model Gemini gagal: ${lastError}`);
+    }, "parseVoiceText");
 
     if (!geminiData) {
-      console.error("[parse-voice-text] All Gemini models failed:", lastError);
       return NextResponse.json(
-        { error: `Gemini API error (Seluruh model gagal): ${lastError}` },
+        { error: "Gemini API error (Seluruh model gagal atau respons kosong)." },
         { status: 502 }
       );
     }

@@ -913,6 +913,7 @@ export async function handleBulkJobdeskAccCommand(
   incoming: NormalizedIncomingWhatsAppMessage,
   _isForceAcc = false
 ): Promise<NextResponse> {
+  void _isForceAcc;
   const replyTarget = incoming.isGroup
     ? incoming.groupId || getDefaultGroupId()
     : incoming.sender || incoming.groupId || getDefaultGroupId();

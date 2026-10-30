@@ -10,7 +10,6 @@ import {
   where,
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase/client";
-import { DEFAULT_ORGANIZATION_ID } from "@/lib/seed-data";
 import { isKoordinator, isKoordinatorAcara } from "@/lib/permissions";
 import type {
   DesignReference,

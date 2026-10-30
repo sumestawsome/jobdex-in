@@ -17,7 +17,6 @@ import {
   Check,
   Copy,
   RefreshCw,
-  Smartphone,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +56,8 @@ export function OrmawaWhatsAppGatewaySettings() {
   const [newTokenInput, setNewTokenInput] = useState("");
   const [showToken, setShowToken] = useState(false);
   const [isEditingToken, setIsEditingToken] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
+  void _isLoading;
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);

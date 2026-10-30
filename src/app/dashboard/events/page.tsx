@@ -9,7 +9,7 @@ import { EventViewToggle, type EventViewMode } from "@/components/events/event-v
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
-import { Plus, ArrowRight } from "lucide-react";
+import { Plus } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";

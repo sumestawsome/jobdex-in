@@ -480,7 +480,7 @@ export type ReminderDigest = {
   noDeadlineTasks?: Task[];
 };
 
-const DIGEST_CATEGORY_LABELS: Record<DigestCategoryKey, string> = {
+export const DIGEST_CATEGORY_LABELS: Record<DigestCategoryKey, string> = {
   overdue: "OVERDUE",
   today: "HARI-H",
   h_1: "H-1",
@@ -508,11 +508,11 @@ export function normalizeMentionPhone(value?: string) {
   return value.replace(/[^\d]/g, "").replace(/^0/, "62");
 }
 
-function getTaskPrimaryDigestCategory(item: ReminderDigestTask) {
+export function getTaskPrimaryDigestCategory(item: ReminderDigestTask) {
   return item.categories[0] ?? null;
 }
 
-function getDigestAction(item: ReminderDigestTask) {
+export function getDigestAction(item: ReminderDigestTask) {
   const category = getTaskPrimaryDigestCategory(item);
 
   if (item.task.status === "menunggu_approval") {

@@ -1,7 +1,12 @@
 import "server-only";
 
 import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
-import { askGemini, GEMINI_MODEL, GEMINI_EMPTY_ANSWER_FALLBACK } from "@/lib/server/gemini";
+import {
+  askGemini,
+  GEMINI_MODEL,
+  GEMINI_EMPTY_ANSWER_FALLBACK,
+  getGeminiApiKeyPool,
+} from "@/lib/server/gemini";
 import { getCachedResponse, setCachedResponse } from "@/lib/server/ai-cache";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -44,12 +49,14 @@ function getProvider(): AIProviderName {
     ""
   ).toLowerCase();
 
+  const hasGeminiKeys = getGeminiApiKeyPool().length > 0;
+
   if (explicit === "deepseek") return "deepseek";
-  if (explicit === "gemini" && process.env.GEMINI_API_KEY?.trim()) return "gemini";
+  if (explicit === "gemini" && hasGeminiKeys) return "gemini";
   if (explicit === "mock") return "mock";
 
-  // 2. Jika ada GEMINI_API_KEY, gunakan gemini
-  if (process.env.GEMINI_API_KEY?.trim()) {
+  // 2. Jika ada GEMINI_API_KEY di dalam pool, gunakan gemini
+  if (hasGeminiKeys) {
     return "gemini";
   }
 

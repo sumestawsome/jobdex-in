@@ -12,18 +12,6 @@ type Props = {
   data: SummaryCardData;
 };
 
-type CardConfig = {
-  label: string;
-  value: number;
-  insight: string;
-  icon: React.ComponentType<{ className?: string }>;
-  gradient: string;
-  iconBg: string;
-  iconColor: string;
-  sparkColor: string;
-  trend?: "up" | "down" | "neutral";
-};
-
 function MiniSparkline({ color }: { color: string }) {
   // Decorative sparkline SVG
   const points = [3, 8, 5, 12, 9, 7, 14, 10, 16, 11, 18].map((y, i) => `${i * 4},${20 - y}`).join(" ");

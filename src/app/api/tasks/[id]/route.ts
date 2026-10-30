@@ -18,7 +18,7 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { profile } = await getServerAuthContext(request);
+    await getServerAuthContext(request);
     const { id: taskId } = await params;
 
     if (!taskId) {

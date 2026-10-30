@@ -16,7 +16,6 @@ import {
   Mic,
   CheckCheck,
   Megaphone,
-  Sparkles,
 } from "lucide-react";
 
 export type DemoScenario = "scenario_broadcast" | "scenario_voicenote" | "scenario_group";

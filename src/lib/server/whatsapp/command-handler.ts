@@ -1,9 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { AI_SYSTEM_PROMPT } from "@/lib/ai-prompts";
 import { buildAIContext } from "@/lib/server/ai-context";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
-import { GEMINI_EMPTY_ANSWER_FALLBACK } from "@/lib/server/gemini";
 import { generateText } from "@/lib/server/ai-provider";
 import { getTaskDeadlineDiffDays } from "@/lib/task-risk";
 import {
@@ -75,7 +73,6 @@ import {
 } from "@/lib/server/faq-matcher";
 import {
   isAudioVoiceNote,
-  handleWhatsAppVoiceTask,
   processVoiceNoteAcademicTask,
   getWhatsAppTaskDraft,
   handleDraftFollowUpMessage,
@@ -87,7 +84,6 @@ import {
   handleBulkJobdeskTambahCommand,
   handleBulkJobdeskAccCommand,
   handleBulkJobdeskBatalCommand,
-  handleBulkJobdeskDeadlineFollowUp,
   handleConversationalDeadlineUpdate,
   getBulkJobdeskDraft,
   findActiveDraftForEventOrGroup,
@@ -1401,7 +1397,6 @@ export async function executeWhatsAppWebhook(
           (u as Record<string, unknown>).phone,
           (u as Record<string, unknown>).phone_number
         ];
-        let matched = false;
         for (const f of fieldsToCheck) {
           if (f) {
             const norm = normalizePhone(String(f));
@@ -1411,7 +1406,6 @@ export async function executeWhatsAppWebhook(
               (norm.length >= 9 && cleanResolved.endsWith(norm.slice(-9)))
             ) {
               matchedUsers.push({ ...u, id: doc.id });
-              matched = true;
               break;
             }
           }

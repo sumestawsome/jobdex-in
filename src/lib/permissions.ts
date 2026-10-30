@@ -13,9 +13,9 @@ export type WorkspaceLike =
       type?: string;
       workspace_type?: string;
       org_type?: string;
-      authorized_admins?: any;
+      authorized_admins?: Record<string, { phone?: string; name?: string; role?: string } | undefined>;
     }
-  | Record<string, any>
+  | Record<string, unknown>
   | string
   | null;
 
@@ -61,10 +61,12 @@ function getWorkspaceType(workspace?: WorkspaceLike): string {
   return String(ws.type || ws.workspace_type || ws.org_type || "").toLowerCase();
 }
 
-function getAuthorizedAdmins(workspace?: WorkspaceLike): Record<string, any> | undefined {
+type AdminContactMap = Record<string, { phone?: string; name?: string; role?: string } | undefined>;
+
+function getAuthorizedAdmins(workspace?: WorkspaceLike): AdminContactMap | undefined {
   if (!workspace || typeof workspace === "string") return undefined;
   const ws = workspace as unknown as Record<string, unknown>;
-  return ws.authorized_admins as Record<string, any> | undefined;
+  return ws.authorized_admins as AdminContactMap | undefined;
 }
 
 /**
@@ -92,14 +94,14 @@ export function isClassAdmin(
   }
 
   // Resolve workspace ID & authorized_admins
-  let workspaceId = getWorkspaceId(workspace);
+  const workspaceId = getWorkspaceId(workspace);
   let authorizedAdmins = getAuthorizedAdmins(workspace);
 
   // Fallback to dummy ormawas if authorized_admins is not provided directly
   if (!authorizedAdmins && workspaceId) {
     const matchedDummy = DUMMY_ORMAWAS.find((o) => o.id === workspaceId);
     if (matchedDummy && (matchedDummy as unknown as Record<string, unknown>).authorized_admins) {
-      authorizedAdmins = (matchedDummy as unknown as Record<string, unknown>).authorized_admins as Record<string, any>;
+      authorizedAdmins = (matchedDummy as unknown as Record<string, unknown>).authorized_admins as AdminContactMap;
     }
   }
 
@@ -107,7 +109,7 @@ export function isClassAdmin(
   if (!authorizedAdmins && (!workspaceId || workspaceId === "ws_ilkom_2024")) {
     const ilkomDummy = DUMMY_ORMAWAS.find((o) => o.id === "ws_ilkom_2024");
     if (ilkomDummy && (ilkomDummy as unknown as Record<string, unknown>).authorized_admins) {
-      authorizedAdmins = (ilkomDummy as unknown as Record<string, unknown>).authorized_admins as Record<string, any>;
+      authorizedAdmins = (ilkomDummy as unknown as Record<string, unknown>).authorized_admins as AdminContactMap;
     }
   }
 
@@ -424,13 +426,13 @@ export function isClassWorkspacePermitted(
   if (!authorizedAdmins && wsId) {
     const matchedDummy = DUMMY_ORMAWAS.find((o) => o.id === wsId);
     if (matchedDummy && (matchedDummy as unknown as Record<string, unknown>).authorized_admins) {
-      authorizedAdmins = (matchedDummy as unknown as Record<string, unknown>).authorized_admins as Record<string, any>;
+      authorizedAdmins = (matchedDummy as unknown as Record<string, unknown>).authorized_admins as AdminContactMap;
     }
   }
   if (!authorizedAdmins && (!wsId || wsId === "ws_ilkom_2024")) {
     const ilkomDummy = DUMMY_ORMAWAS.find((o) => o.id === "ws_ilkom_2024");
     if (ilkomDummy && (ilkomDummy as unknown as Record<string, unknown>).authorized_admins) {
-      authorizedAdmins = (ilkomDummy as unknown as Record<string, unknown>).authorized_admins as Record<string, any>;
+      authorizedAdmins = (ilkomDummy as unknown as Record<string, unknown>).authorized_admins as AdminContactMap;
     }
   }
 

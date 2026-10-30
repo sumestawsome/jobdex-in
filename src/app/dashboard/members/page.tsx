@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { ActiveWorkspaceBanner } from "@/components/workspace/active-workspace-banner";

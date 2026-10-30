@@ -1,6 +1,10 @@
 import "server-only";
 
 import { getAdminDb } from "@/lib/server/firebase-admin";
+import {
+  executeWithGeminiKeyPool,
+  isGeminiQuotaOrTransientError,
+} from "@/lib/server/gemini";
 
 // ============================================================================
 // Types & Interfaces
@@ -205,74 +209,82 @@ async function callGeminiBulkParser(
   systemPrompt: string,
   userPrompt: string
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY belum dikonfigurasi pada environment server.");
-  }
-
   const configuredModel = process.env.GEMINI_MODEL?.trim();
   const modelsToTry = [
-    configuredModel && !configuredModel.includes("1.5") ? configuredModel : null,
+    configuredModel && !configuredModel.includes("1.5") && !configuredModel.includes("2.0") ? configuredModel : null,
     "gemini-3.8-flash",
     "gemini-3.5-flash-lite",
   ].filter(Boolean) as string[];
 
   const uniqueModels = [...new Set(modelsToTry)];
-  let lastError: Error | null = null;
 
-  for (const model of uniqueModels) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          signal: AbortSignal.timeout(25000),
-          body: JSON.stringify({
-            system_instruction: {
-              parts: [{ text: systemPrompt }],
+  return executeWithGeminiKeyPool(async (apiKey, keyIndex) => {
+    let lastError: Error | null = null;
+
+    for (const model of uniqueModels) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
             },
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: userPrompt }],
+            signal: AbortSignal.timeout(25000),
+            body: JSON.stringify({
+              system_instruction: {
+                parts: [{ text: systemPrompt }],
               },
-            ],
-            generationConfig: {
-              temperature: 0.1,
-              response_mime_type: "application/json",
-            },
-          }),
+              contents: [
+                {
+                  role: "user",
+                  parts: [{ text: userPrompt }],
+                },
+              ],
+              generationConfig: {
+                temperature: 0.1,
+                response_mime_type: "application/json",
+              },
+            }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          const errorMsg = data.error?.message || `Status HTTP ${response.status}`;
+          if (
+            response.status === 429 ||
+            errorMsg.includes("RESOURCE_EXHAUSTED") ||
+            errorMsg.toLowerCase().includes("quota")
+          ) {
+            throw new Error(`HTTP 429 RESOURCE_EXHAUSTED: ${errorMsg}`);
+          }
+          throw new Error(`Gemini (${model}) gagal: ${errorMsg}`);
         }
-      );
 
-      const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts
+          ?.map((part: { text?: string }) => part.text ?? "")
+          .join("")
+          .trim();
 
-      if (!response.ok) {
-        const errorMsg = data.error?.message || `Status HTTP ${response.status}`;
-        throw new Error(`Gemini (${model}) gagal: ${errorMsg}`);
+        if (text) {
+          return text;
+        }
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (isGeminiQuotaOrTransientError(lastError)) {
+          throw lastError; // Re-throw to trigger key failover in the pool
+        }
+        console.warn(
+          `[AI Bulk Jobdesk Parser] (Key index ${keyIndex}) Panggilan model ${model} gagal:`,
+          lastError.message
+        );
       }
-
-      const text = data.candidates?.[0]?.content?.parts
-        ?.map((part: { text?: string }) => part.text ?? "")
-        .join("")
-        .trim();
-
-      if (text) {
-        return text;
-      }
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(
-        `[AI Bulk Jobdesk Parser] Panggilan model ${model} gagal:`,
-        lastError.message
-      );
     }
-  }
 
-  throw lastError || new Error("Semua model Gemini gagal mengekstrak data jobdesk.");
+    throw lastError || new Error("Semua model Gemini gagal mengekstrak data jobdesk.");
+  }, "callGeminiBulkParser");
 }
 
 /**
@@ -354,7 +366,7 @@ function fallbackParseJobdesk(
     const { pic_ids, pic_names } = resolveMemberCandidates(picRaw, candidates);
 
     // Bersihkan nama tugas dari bullet & kurung PIC
-    let cleanName = line
+    const cleanName = line
       .replace(/^(\d+[\.\)]|[\-\*\•])\s*/, "")
       .replace(/\s*\([^)]*\)\s*$/, "")
       .trim();
@@ -681,7 +693,7 @@ Silakan ekstrak seluruh tugas pra-acara dan pasca-acara serta kecualikan tugas o
       });
     }
 
-    const skippedTasks: SkippedJobdeskTask[] = rawSkipped.map((s: any) => ({
+    const skippedTasks: SkippedJobdeskTask[] = rawSkipped.map((s: Record<string, unknown>) => ({
       raw_text: String(s?.raw_text || s?.text || "").trim(),
       reason: String(s?.reason || "Tugas operasional hari H").trim(),
     }));

@@ -1,6 +1,6 @@
 import "server-only";
 import type { WhatsAppSendPayload, WhatsAppSendResult } from "./provider";
-import { isGroupRecipient, normalizeWhatsAppGroupId } from "./index";
+import { isGroupRecipient } from "./index";
 
 export type GreenApiCredentials = {
   idInstance?: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -14,7 +14,6 @@ import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 
 import { showSuccess, showError } from "@/lib/swal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Camera,
@@ -26,8 +25,6 @@ import {
   KeyRound,
   Briefcase,
   Calendar,
-  MessageSquare,
-  AlertCircle,
   Save,
   User,
   Shield,

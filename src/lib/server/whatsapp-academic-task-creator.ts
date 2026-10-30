@@ -6,8 +6,6 @@ import { sendWhatsAppMessage, isGroupRecipient } from "@/lib/server/whatsapp";
 import {
   handleAcademicTaskCreated,
   handleAcademicTaskUpdated,
-  buildClassTaskCompletedMessage,
-  getClassWorkspaceConfig,
   findClassWorkspaceByContext,
   formatWitaDate,
   resolveSubmissionText,
