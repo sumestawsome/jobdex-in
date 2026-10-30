@@ -49,7 +49,7 @@ export function InitialDataSetup() {
     void Promise.resolve().then(loadStatus);
   }, []);
 
-  const orgDone = Boolean(status?.organizationExists);
+  const orgDone = Boolean(status?.ormawaExists || status?.organizationExists);
   const divDone = Boolean(status?.divisionExists);
   const completedCount = (orgDone ? 1 : 0) + (divDone ? 1 : 0);
   const percent = loading ? 0 : Math.round((completedCount / 2) * 100);
@@ -145,11 +145,11 @@ export function InitialDataSetup() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs font-semibold text-[#242424]">
-                organizations/main_org
+                ormawas/main_org
               </span>
             </div>
             <p className="text-xs text-[#898989]">
-              Dokumen organisasi default untuk instance JobDex.in.
+              Dokumen ormawa default untuk instance JobDex.in.
             </p>
           </div>
           <span

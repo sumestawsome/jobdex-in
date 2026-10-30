@@ -1,26 +1,50 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import {
   defaultDivision,
-  defaultOrganization,
   DEFAULT_DIVISION_ID,
-  DEFAULT_ORGANIZATION_ID,
+  DEFAULT_ORMAWA_ID,
 } from "@/lib/seed-data";
+import { DUMMY_ORMAWAS } from "@/lib/workspace-dummy-data";
 
 export type InitialSetupStatus = {
-  organizationExists: boolean;
+  ormawaExists: boolean;
   divisionExists: boolean;
+  // Alias untuk kompatibilitas ke belakang
+  organizationExists: boolean;
 };
 
 export async function getInitialSetupStatus(): Promise<InitialSetupStatus> {
-  const [organizationSnapshot, divisionSnapshot] = await Promise.all([
-    getDoc(doc(db, "organizations", DEFAULT_ORGANIZATION_ID)),
+  const [ormawaSnapshot, divisionSnapshot] = await Promise.all([
+    getDoc(doc(db, "ormawas", DEFAULT_ORMAWA_ID)),
     getDoc(doc(db, "divisions", DEFAULT_DIVISION_ID)),
   ]);
 
+  let ormawaExists = ormawaSnapshot.exists();
+  if (!ormawaExists) {
+    const ormawasListSnap = await getDocs(query(collection(db, "ormawas"), limit(1)));
+    ormawaExists = !ormawasListSnap.empty;
+  }
+
+  let divisionExists = divisionSnapshot.exists();
+  if (!divisionExists) {
+    const divisionsListSnap = await getDocs(query(collection(db, "divisions"), limit(1)));
+    divisionExists = !divisionsListSnap.empty;
+  }
+
   return {
-    organizationExists: organizationSnapshot.exists(),
-    divisionExists: divisionSnapshot.exists(),
+    ormawaExists,
+    divisionExists,
+    organizationExists: ormawaExists,
   };
 }
 
@@ -29,10 +53,21 @@ export async function ensureInitialData() {
 
   const operations: Array<Promise<void>> = [];
 
-  if (!status.organizationExists) {
+  if (!status.ormawaExists) {
+    const defaultOrmawaData = DUMMY_ORMAWAS[0] || {
+      id: DEFAULT_ORMAWA_ID,
+      campus_id: "univ-undiksha",
+      name: "Forum Komunikasi KIP-Kuliah Undiksha",
+      short_name: "Forkom KIP Undiksha",
+      type: "UKM",
+      workspace_type: "ormawa",
+      description: "Organisasi kemahasiswaan penerima KIP-Kuliah di lingkungan Universitas Pendidikan Ganesha.",
+      is_active: true,
+    };
+
     operations.push(
-      setDoc(doc(db, "organizations", DEFAULT_ORGANIZATION_ID), {
-        ...defaultOrganization,
+      setDoc(doc(db, "ormawas", DEFAULT_ORMAWA_ID), {
+        ...defaultOrmawaData,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       }),
@@ -43,6 +78,7 @@ export async function ensureInitialData() {
     operations.push(
       setDoc(doc(db, "divisions", DEFAULT_DIVISION_ID), {
         ...defaultDivision,
+        organization_id: DEFAULT_ORMAWA_ID,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       }),

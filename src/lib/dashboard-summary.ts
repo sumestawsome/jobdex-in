@@ -4,12 +4,14 @@ import {
   getCountFromServer,
   getDoc,
   getDocs,
+  limit,
   query,
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import {
   DEFAULT_DIVISION_ID,
+  DEFAULT_ORMAWA_ID,
   DEFAULT_ORGANIZATION_ID,
 } from "@/lib/seed-data";
 import type { UserProfile } from "@/types";
@@ -82,12 +84,23 @@ function countWhere(
 
 async function safeSetupReady() {
   try {
-    const [organizationSnapshot, divisionSnapshot] = await Promise.all([
-      getDoc(doc(db, "organizations", DEFAULT_ORGANIZATION_ID)),
-      getDoc(doc(db, "divisions", DEFAULT_DIVISION_ID)),
-    ]);
+    // 1. Cek keberadaan dokumen ormawa aktif (tidak lagi bergantung pada koleksi legacy organizations)
+    const ormawaDocSnap = await getDoc(doc(db, "ormawas", DEFAULT_ORMAWA_ID));
+    let hasOrmawa = ormawaDocSnap.exists();
+    if (!hasOrmawa) {
+      const ormawasListSnap = await getDocs(query(collection(db, "ormawas"), limit(1)));
+      hasOrmawa = !ormawasListSnap.empty;
+    }
 
-    return organizationSnapshot.exists() && divisionSnapshot.exists();
+    // 2. Cek divisi default atau divisi apapun yang tersedia
+    const divisionSnapshot = await getDoc(doc(db, "divisions", DEFAULT_DIVISION_ID));
+    let hasDivision = divisionSnapshot.exists();
+    if (!hasDivision) {
+      const divisionsListSnap = await getDocs(query(collection(db, "divisions"), limit(1)));
+      hasDivision = !divisionsListSnap.empty;
+    }
+
+    return hasOrmawa && hasDivision;
   } catch {
     return false;
   }

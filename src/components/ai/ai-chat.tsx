@@ -215,7 +215,7 @@ export function AIChat() {
           question,
           context_summary: "",
           answer: result.answer ?? "",
-          model_used: "gemini-2.5-flash",
+          model_used: "gemini-3.8-flash",
           source: "web",
           created_at: new Date(),
         },

@@ -1,6 +1,7 @@
 import type { Division, Organization } from "@/types";
 
 export const DEFAULT_ORGANIZATION_ID = "main_org";
+export const DEFAULT_ORMAWA_ID = "main_org";
 export const DEFAULT_DIVISION_ID = "humas_media_kreatif";
 
 export const defaultOrganization: Omit<

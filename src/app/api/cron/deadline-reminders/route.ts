@@ -35,6 +35,61 @@ function isCompletedTask(data: Partial<Task>) {
   );
 }
 
+/**
+ * Lightweight background purge for ephemeral documents:
+ * - Expired ai_cache (expires_at < now, limit 100)
+ * - Old whatsapp_inbound_logs (> 1 day old, limit 100)
+ */
+async function purgeExpiredEphemeralData(db: FirebaseFirestore.Firestore) {
+  try {
+    const now = new Date();
+    const oneDayAgoMs = Date.now() - 24 * 60 * 60 * 1000;
+    const oneDayAgoDate = new Date(oneDayAgoMs);
+
+    const [expiredAiCache, oldLogsMs, oldLogsDate] = await Promise.all([
+      db.collection("ai_cache").where("expires_at", "<", now).limit(100).get().catch(() => null),
+      db.collection("whatsapp_inbound_logs").where("created_at_ms", "<", oneDayAgoMs).limit(100).get().catch(() => null),
+      db.collection("whatsapp_inbound_logs").where("created_at", "<", oneDayAgoDate).limit(100).get().catch(() => null),
+    ]);
+
+    const batch = db.batch();
+    let deleteCount = 0;
+
+    if (expiredAiCache && !expiredAiCache.empty) {
+      expiredAiCache.forEach((doc) => {
+        batch.delete(doc.ref);
+        deleteCount++;
+      });
+    }
+
+    const seenLogDocIds = new Set<string>();
+    if (oldLogsMs && !oldLogsMs.empty) {
+      oldLogsMs.forEach((doc) => {
+        seenLogDocIds.add(doc.id);
+        batch.delete(doc.ref);
+        deleteCount++;
+      });
+    }
+
+    if (oldLogsDate && !oldLogsDate.empty) {
+      oldLogsDate.forEach((doc) => {
+        if (!seenLogDocIds.has(doc.id)) {
+          seenLogDocIds.add(doc.id);
+          batch.delete(doc.ref);
+          deleteCount++;
+        }
+      });
+    }
+
+    if (deleteCount > 0) {
+      await batch.commit();
+      console.log(`[Cron Ephemeral Purge] Successfully deleted ${deleteCount} expired documents.`);
+    }
+  } catch (err) {
+    console.warn("[Cron Ephemeral Purge] Non-fatal error during cleanup:", err);
+  }
+}
+
 export async function GET(request: Request) {
   return handleCron(request);
 }
@@ -847,6 +902,11 @@ async function handleCron(request: Request) {
     }
 
     skipped.alreadyInDigestToday = alreadyInDigestToday;
+
+    // Ephemeral data lightweight cleanup (non-blocking)
+    purgeExpiredEphemeralData(db).catch((err) => {
+      console.warn("[Cron] Ephemeral cleanup non-blocking error:", err);
+    });
 
     const totalSent = smartSent + digestSentCount + academicCronResult.sent;
     const totalFailed = smartFailed + digestFailedCount + academicCronResult.errors.length;
